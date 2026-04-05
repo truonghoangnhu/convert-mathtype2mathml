@@ -1,0 +1,66 @@
+{% extends "converter/base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1 style="margin-bottom:1.5rem;">Dashboard</h1>
+
+<div class="card">
+    <h2>Upload Single File</h2>
+    <form method="post" action="{% url 'upload' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-row">
+            <label for="id_docx_file">{{ upload_form.docx_file.label }}</label>
+            {{ upload_form.docx_file }}
+            <span class="helptext">{{ upload_form.docx_file.help_text }}</span>
+        </div>
+        <div class="checkbox-row">
+            {{ upload_form.use_transpect }}
+            <label for="id_use_transpect">{{ upload_form.use_transpect.label }}</label>
+        </div>
+        <button type="submit" class="btn btn-primary">Convert</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Batch Upload</h2>
+    <form method="post" action="{% url 'batch_upload' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-row">
+            <label>Choose multiple .docx files</label>
+            <input type="file" name="docx_files" accept=".docx" multiple required>
+            <span class="helptext">Select multiple files at once. Max 50MB each.</span>
+        </div>
+        <div class="checkbox-row">
+            <input type="checkbox" name="use_transpect" id="id_batch_transpect" checked>
+            <label for="id_batch_transpect">Use transpect for MathType equations</label>
+        </div>
+        <button type="submit" class="btn btn-primary">Convert All</button>
+    </form>
+</div>
+
+{% if recent %}
+<div class="card">
+    <h2>Recent Conversions</h2>
+    <table>
+        <thead>
+            <tr><th>File</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+            {% for c in recent %}
+            <tr>
+                <td>{{ c.original_filename }}</td>
+                <td><span class="badge badge-{{ c.status }}">{{ c.get_status_display }}</span></td>
+                <td>{{ c.created_at|date:"M d, Y H:i" }}</td>
+                <td>
+                    <a href="{% url 'conversion_detail' c.pk %}" class="btn btn-primary btn-sm">View</a>
+                    {% if c.status == 'completed' %}
+                        <a href="{% url 'download' c.pk %}" class="btn btn-success btn-sm">Download</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p style="margin-top:1rem;"><a href="{% url 'history' %}">View all history →</a></p>
+</div>
+{% endif %}
+{% endblock %}

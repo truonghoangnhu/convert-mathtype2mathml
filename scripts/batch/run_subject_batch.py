@@ -34,7 +34,9 @@ def is_under(path: Path, parent: Path) -> bool:
         return False
 
 
-def discover_docx_inputs(input_dir: Path, output_root: Path, repo_root_path: Path) -> List[Path]:
+def discover_docx_inputs(
+    input_dir: Path, output_root: Path, repo_root_path: Path
+) -> List[Path]:
     out_dir = (repo_root_path / "out").resolve()
     work_dir = (repo_root_path / "work").resolve()
     seen: set[Path] = set()
@@ -45,7 +47,11 @@ def discover_docx_inputs(input_dir: Path, output_root: Path, repo_root_path: Pat
         resolved = path.resolve()
         if resolved in seen:
             continue
-        if is_under(resolved, output_root) or is_under(resolved, out_dir) or is_under(resolved, work_dir):
+        if (
+            is_under(resolved, output_root)
+            or is_under(resolved, out_dir)
+            or is_under(resolved, work_dir)
+        ):
             continue
         if any(part.lower().endswith("_files") for part in resolved.parts):
             continue
@@ -78,21 +84,31 @@ def detect_subject(raw_name: str) -> str:
 def default_project_jar(root: Path) -> Path:
     matches = sorted(root.glob("target/*-jar-with-dependencies.jar"))
     if not matches:
-        raise FileNotFoundError("No jar-with-dependencies found under target/. Run mvn package first.")
+        raise FileNotFoundError(
+            "No jar-with-dependencies found under target/. Run mvn package first."
+        )
     return matches[-1]
 
 
 def default_saxon_jar(root: Path) -> Path:
     matches = sorted((root / "tools/calabash/distro/lib").glob("Saxon-HE*.jar"))
     if not matches:
-        raise FileNotFoundError("No Saxon-HE jar found under tools/calabash/distro/lib/.")
+        raise FileNotFoundError(
+            "No Saxon-HE jar found under tools/calabash/distro/lib/."
+        )
     return matches[-1]
 
 
-def run_command(cmd: List[str], cwd: Path, log_path: Path, env: Dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+def run_command(
+    cmd: List[str], cwd: Path, log_path: Path, env: Dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, env=env)
-    combined = (result.stdout or "") + ("\n" if result.stdout and result.stderr else "") + (result.stderr or "")
+    combined = (
+        (result.stdout or "")
+        + ("\n" if result.stdout and result.stderr else "")
+        + (result.stderr or "")
+    )
     log_path.write_text(combined, encoding="utf-8")
     return result
 
@@ -182,7 +198,11 @@ def read_tsv_timing(path: Path) -> Dict[str, float]:
 
 def latest_source_mtime_ns(root: Path) -> int:
     max_ns = 0
-    candidates = [root / "pom.xml", root / "src" / "main" / "java", root / "src" / "main" / "resources"]
+    candidates = [
+        root / "pom.xml",
+        root / "src" / "main" / "java",
+        root / "src" / "main" / "resources",
+    ]
     for candidate in candidates:
         if not candidate.exists():
             continue
@@ -214,8 +234,12 @@ def build_markdown(summary: Dict) -> str:
     lines.append(f"- Documents failed: {totals['documents_failed']}")
     lines.append(f"- MathML formulas: {totals['mathml_formulas']}")
     lines.append(f"- Remaining preview images: {totals['remaining_preview_images']}")
-    lines.append(f"- Remaining text corruption count: {totals['remaining_text_corruption_count']}")
-    lines.append(f"- Remaining chemistry inline issues: {totals['remaining_chemistry_inline_issues']}")
+    lines.append(
+        f"- Remaining text corruption count: {totals['remaining_text_corruption_count']}"
+    )
+    lines.append(
+        f"- Remaining chemistry inline issues: {totals['remaining_chemistry_inline_issues']}"
+    )
     lines.append(f"- Chemistry inline fixes: {totals['chemistry_inline_fixes']}")
     lines.append("")
     perf = summary.get("performance", {})
@@ -223,12 +247,20 @@ def build_markdown(summary: Dict) -> str:
         lines.append("## Performance")
         lines.append("")
         lines.append(f"- Build executed: {perf.get('build_executed', False)}")
-        lines.append(f"- Documents reused from cache: {perf.get('documents_reused', 0)}")
+        lines.append(
+            f"- Documents reused from cache: {perf.get('documents_reused', 0)}"
+        )
         lines.append(f"- Documents reconverted: {perf.get('documents_reconverted', 0)}")
-        lines.append(f"- Conversion wall seconds: {perf.get('conversion_wall_seconds', 0.0):.3f}")
+        lines.append(
+            f"- Conversion wall seconds: {perf.get('conversion_wall_seconds', 0.0):.3f}"
+        )
         lines.append(f"- QA wall seconds: {perf.get('qa_wall_seconds', 0.0):.3f}")
-        lines.append(f"- Sidecar generation seconds: {perf.get('sidecar_generation_seconds', 0.0):.3f}")
-        lines.append(f"- Java conversion seconds: {perf.get('java_conversion_seconds', 0.0):.3f}")
+        lines.append(
+            f"- Sidecar generation seconds: {perf.get('sidecar_generation_seconds', 0.0):.3f}"
+        )
+        lines.append(
+            f"- Java conversion seconds: {perf.get('java_conversion_seconds', 0.0):.3f}"
+        )
         lines.append("")
     lines.append("## Count By Type")
     lines.append("")
@@ -246,7 +278,9 @@ def build_markdown(summary: Dict) -> str:
     lines.append("")
     lines.append("## Files")
     lines.append("")
-    lines.append("| source | subject | status | reused | conv(s) | qa(s) | mathml | previews | corruption | chem inline issues | verdict | html | qa json |")
+    lines.append(
+        "| source | subject | status | reused | conv(s) | qa(s) | mathml | previews | corruption | chem inline issues | verdict | html | qa json |"
+    )
     lines.append("|---|---|---|---|---:|---:|---:|---:|---:|---:|---|---|---|")
     for item in summary["files"]:
         if item["status"] != "ok":
@@ -284,12 +318,19 @@ def build_markdown(summary: Dict) -> str:
 
 def main() -> None:
     root = repo_root()
-    default_batch_name = "subject-profiles-v1-" + datetime.now().strftime("%Y%m%d-%H%M%S")
+    default_batch_name = "subject-profiles-v1-" + datetime.now().strftime(
+        "%Y%m%d-%H%M%S"
+    )
 
     parser = argparse.ArgumentParser(
         description="Run deterministic single-pass DOCX -> HTML conversion with optional legacy recursive discovery."
     )
-    parser.add_argument("--input-docx", type=Path, default=None, help="Explicit single source DOCX to convert.")
+    parser.add_argument(
+        "--input-docx",
+        type=Path,
+        default=None,
+        help="Explicit single source DOCX to convert.",
+    )
     parser.add_argument("--input-dir", type=Path, default=root / "in")
     parser.add_argument(
         "--allow-recursive-discovery",
@@ -299,21 +340,41 @@ def main() -> None:
     parser.add_argument("--output-root", type=Path, default=root / "out")
     parser.add_argument("--batch-name", default=default_batch_name)
     parser.add_argument("--project-jar", type=Path, default=None)
-    parser.add_argument("--mathtype-dir", type=Path, default=root / "tools/calabash/extensions/transpect/mathtype-extension")
-    parser.add_argument("--xmlcalabash-jar", type=Path, default=root / "tools/calabash/distro/xmlcalabash-1.4.1-100.jar")
+    parser.add_argument(
+        "--mathtype-dir",
+        type=Path,
+        default=root / "tools/calabash/extensions/transpect/mathtype-extension",
+    )
+    parser.add_argument(
+        "--xmlcalabash-jar",
+        type=Path,
+        default=root / "tools/calabash/distro/xmlcalabash-1.4.1-100.jar",
+    )
     parser.add_argument("--saxon-jar", type=Path, default=None)
-    parser.add_argument("--transpect-config", type=Path, default=root / "tools/calabash/extensions/transpect/transpect-config.xml")
-    parser.add_argument("--subject", choices=["generic", "physics", "chemistry", "math", "biology"], default=None)
+    parser.add_argument(
+        "--transpect-config",
+        type=Path,
+        default=root / "tools/calabash/extensions/transpect/transpect-config.xml",
+    )
+    parser.add_argument(
+        "--subject",
+        choices=["generic", "physics", "chemistry", "math", "biology"],
+        default=None,
+    )
     parser.add_argument("--skip-build", action="store_true")
     parser.add_argument("--force-build", action="store_true")
-    parser.add_argument("--reuse-if-unchanged", dest="reuse_if_unchanged", action="store_true")
+    parser.add_argument(
+        "--reuse-if-unchanged", dest="reuse_if_unchanged", action="store_true"
+    )
     parser.add_argument("--no-reuse", dest="reuse_if_unchanged", action="store_false")
     parser.set_defaults(reuse_if_unchanged=True)
     args = parser.parse_args()
 
     input_dir = args.input_dir.resolve()
     output_root = args.output_root.resolve()
-    project_jar = args.project_jar.resolve() if args.project_jar else default_project_jar(root)
+    project_jar = (
+        args.project_jar.resolve() if args.project_jar else default_project_jar(root)
+    )
     saxon_jar = args.saxon_jar.resolve() if args.saxon_jar else default_saxon_jar(root)
     batch_dir = output_root / args.batch_name
     html_root = batch_dir / "html"
@@ -335,12 +396,16 @@ def main() -> None:
                 newest_source_ns = latest_source_mtime_ns(root)
                 need_build = project_jar.stat().st_mtime_ns < newest_source_ns
         if need_build:
-            build_result = run_command(["mvn", "-q", "-DskipTests", "package"], root, build_log)
+            build_result = run_command(
+                ["mvn", "-q", "-DskipTests", "package"], root, build_log
+            )
             build_executed = True
             if build_result.returncode != 0:
                 raise SystemExit(f"Build failed. See {build_log}")
         else:
-            build_log.write_text("Build skipped: output jar newer than source tree.\n", encoding="utf-8")
+            build_log.write_text(
+                "Build skipped: output jar newer than source tree.\n", encoding="utf-8"
+            )
 
     wrapper_script = root / "scripts/transpect/run_docx_with_transpect.sh"
     qa_script = root / "scripts/qa/audit_exam_bundle.py"
@@ -350,8 +415,14 @@ def main() -> None:
             raise SystemExit(f"Explicit input must be a .docx file: {explicit_input}")
         if not explicit_input.is_file():
             raise SystemExit(f"Explicit input not found: {explicit_input}")
-        if is_under(explicit_input, output_root) or is_under(explicit_input, root / "out") or is_under(explicit_input, root / "work"):
-            raise SystemExit(f"Explicit input cannot be under output/work directories: {explicit_input}")
+        if (
+            is_under(explicit_input, output_root)
+            or is_under(explicit_input, root / "out")
+            or is_under(explicit_input, root / "work")
+        ):
+            raise SystemExit(
+                f"Explicit input cannot be under output/work directories: {explicit_input}"
+            )
         docx_files = [explicit_input]
     elif args.allow_recursive_discovery:
         docx_files = discover_docx_inputs(input_dir, output_root, root)
@@ -398,7 +469,9 @@ def main() -> None:
         html_path = (html_root / rel_stem).with_name(rel_stem.name + "-transpect.html")
         qa_json = (qa_root / rel_stem).with_name(rel_stem.name + ".qa.json")
         qa_md = (qa_root / rel_stem).with_name(rel_stem.name + ".qa.md")
-        conversion_log = (logs_root / rel_stem).with_name(rel_stem.name + ".conversion.log")
+        conversion_log = (logs_root / rel_stem).with_name(
+            rel_stem.name + ".conversion.log"
+        )
         qa_log = (logs_root / rel_stem).with_name(rel_stem.name + ".qa.log")
         work_dir = work_root / rel_stem
         cache_meta = work_dir / ".conversion-cache.json"
@@ -458,7 +531,9 @@ def main() -> None:
         else:
             performance_totals["documents_reconverted"] += 1
             convert_start = time.perf_counter()
-            convert_result = run_command(convert_cmd, root, conversion_log, env=convert_env)
+            convert_result = run_command(
+                convert_cmd, root, conversion_log, env=convert_env
+            )
             conversion_seconds = time.perf_counter() - convert_start
             performance_totals["conversion_wall_seconds"] += conversion_seconds
             if convert_result.returncode != 0:
@@ -543,14 +618,24 @@ def main() -> None:
             continue
         run_timings = read_tsv_timing(work_dir / "run.timings.tsv")
         if not can_reuse:
-            performance_totals["sidecar_generation_seconds"] += run_timings.get("sidecar-generation", 0.0)
-            performance_totals["java_conversion_seconds"] += run_timings.get("java-conversion", 0.0)
+            performance_totals["sidecar_generation_seconds"] += run_timings.get(
+                "sidecar-generation", 0.0
+            )
+            performance_totals["java_conversion_seconds"] += run_timings.get(
+                "java-conversion", 0.0
+            )
         totals = report["totals"]
         aggregate_totals["documents_converted"] += 1
         aggregate_totals["mathml_formulas"] += totals["mathml_formulas"]
-        aggregate_totals["remaining_preview_images"] += totals["remaining_preview_images"]
-        aggregate_totals["remaining_text_corruption_count"] += totals["remaining_text_corruption_count"]
-        aggregate_totals["remaining_chemistry_inline_issues"] += totals["remaining_chemistry_inline_issues"]
+        aggregate_totals["remaining_preview_images"] += totals[
+            "remaining_preview_images"
+        ]
+        aggregate_totals["remaining_text_corruption_count"] += totals[
+            "remaining_text_corruption_count"
+        ]
+        aggregate_totals["remaining_chemistry_inline_issues"] += totals[
+            "remaining_chemistry_inline_issues"
+        ]
         aggregate_totals["chemistry_inline_fixes"] += totals["chemistry_inline_fixes"]
         for key in TYPE_KEYS:
             count_by_type[key] += report["count_by_type"].get(key, 0)
@@ -578,7 +663,11 @@ def main() -> None:
         )
 
     publish_verdict = "safe to publish"
-    if aggregate_totals["documents_failed"] or any(item.get("qa", {}).get("publish_verdict") != "safe to publish" for item in files if item["status"] == "ok"):
+    if aggregate_totals["documents_failed"] or any(
+        item.get("qa", {}).get("publish_verdict") != "safe to publish"
+        for item in files
+        if item["status"] == "ok"
+    ):
         publish_verdict = "still needs cleanup"
 
     summary = {
@@ -597,7 +686,9 @@ def main() -> None:
 
     batch_json = batch_dir / "batch-summary.json"
     batch_md = batch_dir / "batch-summary.md"
-    batch_json.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    batch_json.write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     batch_md.write_text(build_markdown(summary), encoding="utf-8")
 
     print(batch_dir)

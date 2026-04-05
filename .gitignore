@@ -4,3 +4,7 @@ in/
 tools/
 __pycache__/
 *.class
+venv/
+db.sqlite3
+media/
+*.pyc

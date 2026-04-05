@@ -1,0 +1,34 @@
+{% extends "converter/base.html" %}
+{% block title %}Conversion History{% endblock %}
+{% block content %}
+<h1 style="margin-bottom:1.5rem;">Conversion History</h1>
+
+<div class="card">
+    {% if conversions %}
+    <table>
+        <thead>
+            <tr><th>File</th><th>Status</th><th>Transpect</th><th>Created</th><th>Completed</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+            {% for c in conversions %}
+            <tr>
+                <td>{{ c.original_filename }}</td>
+                <td><span class="badge badge-{{ c.status }}">{{ c.get_status_display }}</span></td>
+                <td>{{ c.use_transpect|yesno:"Yes,No" }}</td>
+                <td>{{ c.created_at|date:"M d, Y H:i" }}</td>
+                <td>{{ c.completed_at|date:"M d, Y H:i"|default:"-" }}</td>
+                <td>
+                    <a href="{% url 'conversion_detail' c.pk %}" class="btn btn-primary btn-sm">View</a>
+                    {% if c.status == 'completed' %}
+                        <a href="{% url 'download' c.pk %}" class="btn btn-success btn-sm">Download</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>No conversions yet. <a href="{% url 'dashboard' %}">Upload a file</a> to get started.</p>
+    {% endif %}
+</div>
+{% endblock %}

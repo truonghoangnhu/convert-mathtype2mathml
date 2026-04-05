@@ -1,0 +1,48 @@
+{% extends "converter/base.html" %}
+{% block title %}{{ conversion.original_filename }}{% endblock %}
+{% block content %}
+<h1 style="margin-bottom:1.5rem;">{{ conversion.original_filename }}</h1>
+
+<div class="card">
+    <table>
+        <tr><th style="width:150px;">Status</th><td><span class="badge badge-{{ conversion.status }}">{{ conversion.get_status_display }}</span></td></tr>
+        <tr><th>Transpect</th><td>{{ conversion.use_transpect|yesno:"Yes,No" }}</td></tr>
+        <tr><th>Created</th><td>{{ conversion.created_at|date:"M d, Y H:i:s" }}</td></tr>
+        <tr><th>Completed</th><td>{{ conversion.completed_at|date:"M d, Y H:i:s"|default:"-" }}</td></tr>
+    </table>
+
+    {% if conversion.status == 'processing' or conversion.status == 'pending' %}
+        <p style="margin-top:1rem; color: #3498db;">
+            ⏳ Conversion in progress... <a href="" onclick="location.reload(); return false;">Refresh</a>
+        </p>
+        <script>setTimeout(function(){ location.reload(); }, 5000);</script>
+    {% endif %}
+
+    {% if conversion.status == 'failed' %}
+        <div class="alert alert-error" style="margin-top:1rem;">
+            <strong>Error:</strong><br>
+            <pre style="white-space:pre-wrap;">{{ conversion.error_message }}</pre>
+        </div>
+    {% endif %}
+
+    {% if conversion.status == 'completed' %}
+        <div style="margin-top:1rem;">
+            <a href="{% url 'download' conversion.pk %}" class="btn btn-success">Download HTML</a>
+        </div>
+    {% endif %}
+</div>
+
+{% if html_content %}
+<div class="card">
+    <h2>Preview (MathML rendered by MathJax)</h2>
+    <iframe
+        srcdoc="{{ html_content }}"
+        class="preview-frame"
+        sandbox="allow-scripts allow-same-origin"
+        title="HTML Preview">
+    </iframe>
+</div>
+{% endif %}
+
+<p><a href="{% url 'dashboard' %}">← Back to Dashboard</a></p>
+{% endblock %}

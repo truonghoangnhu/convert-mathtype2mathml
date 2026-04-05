@@ -52,7 +52,9 @@ def list_run_dirs_for_cleanup(
 ) -> List[Candidate]:
     if not root.exists():
         return []
-    run_dirs = [p for p in root.iterdir() if p.is_dir() and RUN_DIR_PATTERN.match(p.name)]
+    run_dirs = [
+        p for p in root.iterdir() if p.is_dir() and RUN_DIR_PATTERN.match(p.name)
+    ]
     run_dirs.sort(key=lambda p: p.stat().st_mtime_ns, reverse=True)
     now = time.time()
     keep_set: Set[str] = set(protected_names)
@@ -136,7 +138,9 @@ def remove_candidate(candidate: Candidate) -> bool:
 
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[2]
-    parser = argparse.ArgumentParser(description="Safe cleanup for generated batch artifacts.")
+    parser = argparse.ArgumentParser(
+        description="Safe cleanup for generated batch artifacts."
+    )
     parser.add_argument("--work-root", type=Path, default=repo_root / "work")
     parser.add_argument("--out-root", type=Path, default=repo_root / "out")
     parser.add_argument("--keep-work-runs", type=int, default=6)
@@ -179,7 +183,10 @@ def main() -> None:
     deduped: List[Candidate] = []
     covered: List[Path] = []
     for candidate in all_candidates:
-        if any(parent == candidate.path or parent in candidate.path.parents for parent in covered):
+        if any(
+            parent == candidate.path or parent in candidate.path.parents
+            for parent in covered
+        ):
             continue
         deduped.append(candidate)
         if candidate.kind == "directory":
@@ -218,18 +225,21 @@ def main() -> None:
             "protected_name": sorted(protected_names),
         },
         "candidates_count": len(deduped),
-        "candidates_total_bytes": sum(item["size_bytes"] for item in removed) if removed else 0,
+        "candidates_total_bytes": (
+            sum(item["size_bytes"] for item in removed) if removed else 0
+        ),
         "removed_or_listed": removed,
         "failed_to_remove": failed,
     }
 
     if args.report_json:
         args.report_json.parent.mkdir(parents=True, exist_ok=True)
-        args.report_json.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+        args.report_json.write_text(
+            json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
     main()
-
