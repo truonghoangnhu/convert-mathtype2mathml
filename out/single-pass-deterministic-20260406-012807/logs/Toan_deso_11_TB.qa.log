@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/Users/truonghoangnhu/Desktop/transpect-branch-project/scripts/qa/audit_exam_bundle.py", line 2137, in <module>
+    main()
+    ~~~~^^
+  File "/Users/truonghoangnhu/Desktop/transpect-branch-project/scripts/qa/audit_exam_bundle.py", line 2124, in main
+    report = audit(html_path, asset_dir, args.conversion_log.resolve() if args.conversion_log else None, subject)
+  File "/Users/truonghoangnhu/Desktop/transpect-branch-project/scripts/qa/audit_exam_bundle.py", line 965, in audit
+    remaining_nonessential_standalone_image_candidates = count_remaining_nonessential_standalone_image_candidates(html_text)
+  File "/Users/truonghoangnhu/Desktop/transpect-branch-project/scripts/qa/audit_exam_bundle.py", line 324, in count_remaining_nonessential_standalone_image_candidates
+    has_figure_reference = bool(ESSAY_ESSENTIAL_FIGURE_SIGNAL_RE.search(context_text))
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'ESSAY_ESSENTIAL_FIGURE_SIGNAL_RE' is not defined. Did you mean: 'ESSAY_ESSENTIAL_FIGURE_TAG_RE'?

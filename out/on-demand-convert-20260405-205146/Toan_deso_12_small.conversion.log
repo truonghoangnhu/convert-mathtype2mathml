@@ -1,0 +1,99 @@
+[INFO] Persistent cache dir: /Users/truonghoangnhu/Desktop/transpect-branch-project/work/on-demand-convert-20260405-205146/.cache/docx-html-math/transpect-sidecars
+Referenced WMF parts: 243
+Referenced BIN parts: 322
+Unique WMF payloads (sha256): 243
+Unique BIN payloads (sha256): 223
+WMF cache hits: 0
+WMF known-failed cache hits: 0
+WMF cache misses queued for convert: 243
+WMF preview parts suppressed from math conversion: 0
+[INFO] Files queued for phase 'wmf-batch': 243
+[INFO] wmf-batch source-dir: /Users/truonghoangnhu/Desktop/transpect-branch-project/work/on-demand-convert-20260405-205146/stage/wmf-needed-src
+[INFO] wmf-batch source-dir-uri: file:///Users/truonghoangnhu/Desktop/transpect-branch-project/work/on-demand-convert-20260405-205146/stage/wmf-needed-src/
+[INFO] wmf-batch target-dir-uri: file:///Users/truonghoangnhu/Desktop/transpect-branch-project/work/on-demand-convert-20260405-205146/mathml/wmf/
+[INFO] Files newly written for phase 'wmf-batch': 243 (total in target: 243)
+WMF cache writes: 241
+WMF cache failure markers set: 2
+WMF cache failure markers cleared: 0
+WMF parts with usable MathML: 241
+BIN parts required after WMF pass: 2
+Unique BIN payloads required: 2
+Non-equation preview parts suppressed: 0
+BIN cache hits: 0
+BIN known-failed cache hits: 0
+BIN cache misses queued for convert: 2
+[INFO] Files queued for phase 'bin-batch': 2
+[INFO] bin-batch source-dir: /Users/truonghoangnhu/Desktop/transpect-branch-project/work/on-demand-convert-20260405-205146/stage/bin-convert-src
+[INFO] bin-batch source-dir-uri: file:///Users/truonghoangnhu/Desktop/transpect-branch-project/work/on-demand-convert-20260405-205146/stage/bin-convert-src/
+[INFO] bin-batch target-dir-uri: file:///Users/truonghoangnhu/Desktop/transpect-branch-project/work/on-demand-convert-20260405-205146/mathml/bin/
+[INFO] Files newly written for phase 'bin-batch': 2 (total in target: 2)
+BIN hashes requiring single-file fallback: 0
+BIN cache writes: 2
+BIN cache failure markers set: 0
+BIN cache failure markers cleared: 0
+Manifest entries: 243
+Manifest WMF entries: 241
+Manifest BIN entries: 2
+Manifest written to: /Users/truonghoangnhu/Desktop/transpect-branch-project/work/on-demand-convert-20260405-205146/manifest.tsv
+Timings written to:  /Users/truonghoangnhu/Desktop/transpect-branch-project/work/on-demand-convert-20260405-205146/timings.tsv
+phase	seconds
+extract	0.167
+reference-scan-and-staging	0.217
+wmf-cache-read	0.163
+wmf-batch-convert	22.084
+wmf-cache-write	0.119
+bin-selection	0.067
+bin-cache-read	0.067
+bin-batch-convert	3.500
+bin-single-fallback	0.044
+bin-cache-write	0.047
+manifest-write	0.055
+reference-scan	0.217
+wmf-convert	22.366
+bin-fallback	3.725
+equation-conversion-total	26.091
+2026-04-05T13:52:14.353426Z main ERROR Log4j API could not find a logging provider.
+ERROR POIXMLDocumentPart Skipped invalid entry /word/NULL
+Input:  /Users/truonghoangnhu/Desktop/transpect-branch-project/in/Toan_deso_12_small.docx
+Output: /Users/truonghoangnhu/Desktop/transpect-branch-project/out/on-demand-convert-20260405-205146/Toan_deso_12_small-transpect.html
+Subject: math
+MathML manifest: /Users/truonghoangnhu/Desktop/transpect-branch-project/work/on-demand-convert-20260405-205146/manifest.tsv
+OMML equations converted: 0
+Transpect sidecar equations used: 322
+OLE fallback images used: 0
+  OLE equation previews: 0
+  OLE diagram/chemical previews: 0
+  OLE generic previews: 0
+EMF/WMF previews encountered: 0
+Unresolved Visio previews: 0
+Text normalizations applied: 16
+Chemistry inline fixes applied: 0
+Chemistry arrow/symbol fixes applied: 0
+Chemistry unit fixes applied: 0
+Physics unit fixes applied: 0
+Physics text fixes applied: 0
+Mixed math/text cleanup fixes applied: 0
+Math glyph/text fixes applied: 3
+EMF/WMF previews rasterized to PNG: 0
+EMF/WMF raster-cache hits: 0
+Unsupported OLE placeholders: 0
+Conversion timings (ms):
+  DOCX load: 488
+  Body render: 4811
+  OMML handling: 0
+  MathType sidecar handling: 33
+  Image/diagram rendering: 4675
+  HTML cleanup: 21
+  Essay figure policy: 47
+  HTML build: 0
+  Publish sanitize: 0
+  HTML write: 2
+  Converter total: 5348
+Run timings written to: work/on-demand-convert-20260405-205146/run.timings.tsv
+phase	seconds
+sidecar-generation	27.291
+java-conversion	6.615
+total	34.008
+real 34.16
+user 57.57
+sys 4.90

@@ -1,0 +1,103 @@
+[INFO] Persistent cache dir: /Users/truonghoangnhu/Desktop/transpect-branch-project/work/blank-standalone-image-suppress-20260406-001637/.cache/docx-html-math/transpect-sidecars
+Referenced WMF parts: 312
+Referenced BIN parts: 485
+Unique WMF payloads (sha256): 312
+Unique BIN payloads (sha256): 290
+WMF cache hits: 0
+WMF known-failed cache hits: 0
+WMF cache misses queued for convert: 312
+WMF preview parts suppressed from math conversion: 0
+[INFO] Files queued for phase 'wmf-batch': 312
+[INFO] wmf-batch source-dir: /Users/truonghoangnhu/Desktop/transpect-branch-project/work/blank-standalone-image-suppress-20260406-001637/stage/wmf-needed-src
+[INFO] wmf-batch source-dir-uri: file:///Users/truonghoangnhu/Desktop/transpect-branch-project/work/blank-standalone-image-suppress-20260406-001637/stage/wmf-needed-src/
+[INFO] wmf-batch target-dir-uri: file:///Users/truonghoangnhu/Desktop/transpect-branch-project/work/blank-standalone-image-suppress-20260406-001637/mathml/wmf/
+[INFO] Files newly written for phase 'wmf-batch': 312 (total in target: 312)
+WMF cache writes: 311
+WMF cache failure markers set: 1
+WMF cache failure markers cleared: 0
+WMF parts with usable MathML: 311
+BIN parts required after WMF pass: 2
+Unique BIN payloads required: 1
+Non-equation preview parts suppressed: 0
+BIN cache hits: 0
+BIN known-failed cache hits: 0
+BIN cache misses queued for convert: 1
+[INFO] Files queued for phase 'bin-batch': 1
+[INFO] bin-batch source-dir: /Users/truonghoangnhu/Desktop/transpect-branch-project/work/blank-standalone-image-suppress-20260406-001637/stage/bin-convert-src
+[INFO] bin-batch source-dir-uri: file:///Users/truonghoangnhu/Desktop/transpect-branch-project/work/blank-standalone-image-suppress-20260406-001637/stage/bin-convert-src/
+[INFO] bin-batch target-dir-uri: file:///Users/truonghoangnhu/Desktop/transpect-branch-project/work/blank-standalone-image-suppress-20260406-001637/mathml/bin/
+[INFO] Files newly written for phase 'bin-batch': 1 (total in target: 1)
+BIN hashes requiring single-file fallback: 1
+BIN cache writes: 0
+BIN cache failure markers set: 1
+BIN cache failure markers cleared: 0
+Manifest entries: 311
+Manifest WMF entries: 311
+Manifest BIN entries: 0
+Manifest written to: /Users/truonghoangnhu/Desktop/transpect-branch-project/work/blank-standalone-image-suppress-20260406-001637/manifest.tsv
+Timings written to:  /Users/truonghoangnhu/Desktop/transpect-branch-project/work/blank-standalone-image-suppress-20260406-001637/timings.tsv
+phase	seconds
+extract	0.194
+reference-scan-and-staging	0.303
+wmf-cache-read	0.199
+wmf-batch-convert	25.543
+wmf-cache-write	0.153
+bin-selection	0.060
+bin-cache-read	0.086
+bin-batch-convert	3.395
+bin-single-fallback	0.045
+bin-cache-write	0.046
+manifest-write	0.058
+reference-scan	0.303
+wmf-convert	25.895
+bin-fallback	3.632
+equation-conversion-total	29.527
+2026-04-05T17:17:08.701344Z main ERROR Log4j API could not find a logging provider.
+Input:  /Users/truonghoangnhu/Desktop/transpect-branch-project/in/Toan_deso_11_TB.docx
+Output: /Users/truonghoangnhu/Desktop/transpect-branch-project/out/blank-standalone-image-suppress-20260406-001637/Toan_deso_11_TB-transpect.html
+Subject: math
+MathML manifest: /Users/truonghoangnhu/Desktop/transpect-branch-project/work/blank-standalone-image-suppress-20260406-001637/manifest.tsv
+OMML equations converted: 0
+Transpect sidecar equations used: 492
+OLE fallback images used: 2
+  OLE equation previews: 2
+  OLE diagram/chemical previews: 0
+  OLE generic previews: 0
+EMF/WMF previews encountered: 2
+Unresolved Visio previews: 0
+Text normalizations applied: 0
+Chemistry inline fixes applied: 0
+Chemistry arrow/symbol fixes applied: 0
+Chemistry unit fixes applied: 0
+Physics unit fixes applied: 0
+Physics text fixes applied: 0
+Mixed math/text cleanup fixes applied: 0
+Math glyph/text fixes applied: 0
+Empty paragraphs removed: 19
+Table-adjacent empty paragraph cleanups: 12
+Table-cell empty paragraphs removed: 0
+Math-block flow cleanups: 2
+Suppressed blank standalone images: 0
+EMF/WMF previews rasterized to PNG: 0
+EMF/WMF raster-cache hits: 0
+Unsupported OLE placeholders: 0
+Conversion timings (ms):
+  DOCX load: 756
+  Body render: 9242
+  OMML handling: 0
+  MathType sidecar handling: 39
+  Image/diagram rendering: 9077
+  HTML cleanup: 71
+  Essay figure policy: 8
+  HTML build: 0
+  Publish sanitize: 0
+  HTML write: 2
+  Converter total: 10008
+Run timings written to: work/blank-standalone-image-suppress-20260406-001637/run.timings.tsv
+phase	seconds
+sidecar-generation	30.986
+java-conversion	11.605
+total	42.652
+real 42.86
+user 66.37
+sys 6.34

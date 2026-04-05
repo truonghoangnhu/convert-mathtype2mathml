@@ -1,0 +1,49 @@
+{
+  "batch_name": "single-pass-deterministic-20260406-012807",
+  "generated_at": "2026-04-06T01:28:45",
+  "input_dir": "/Users/truonghoangnhu/Desktop/transpect-branch-project/in",
+  "output_dir": "/Users/truonghoangnhu/Desktop/transpect-branch-project/out/single-pass-deterministic-20260406-012807",
+  "work_dir": "/Users/truonghoangnhu/Desktop/transpect-branch-project/work/batches/single-pass-deterministic-20260406-012807",
+  "publish_verdict": "still needs cleanup",
+  "totals": {
+    "documents_discovered": 1,
+    "documents_converted": 0,
+    "documents_failed": 1,
+    "mathml_formulas": 0,
+    "remaining_preview_images": 0,
+    "remaining_text_corruption_count": 0,
+    "remaining_chemistry_inline_issues": 0,
+    "chemistry_inline_fixes": 0
+  },
+  "performance": {
+    "build_executed": false,
+    "documents_reused": 0,
+    "documents_reconverted": 1,
+    "conversion_wall_seconds": 33.905002999999994,
+    "qa_wall_seconds": 0.06745295799998985,
+    "sidecar_generation_seconds": 0.0,
+    "java_conversion_seconds": 0.0
+  },
+  "count_by_type": {
+    "Equation.DSMT4": 0,
+    "Visio.Drawing.15": 0,
+    "ChemDraw.Document.6.0": 0,
+    "ChemDraw_x64.Document.6.0": 0,
+    ".emf": 0,
+    ".wmf": 0
+  },
+  "by_subject": {
+    "math": 1
+  },
+  "files": [
+    {
+      "source": "/Users/truonghoangnhu/Desktop/transpect-branch-project/in/Toan_deso_11_TB.docx",
+      "source_relative": "Toan_deso_11_TB.docx",
+      "subject": "math",
+      "status": "failed",
+      "error": "qa failed with exit code 1",
+      "conversion_log": "/Users/truonghoangnhu/Desktop/transpect-branch-project/out/single-pass-deterministic-20260406-012807/logs/Toan_deso_11_TB.conversion.log",
+      "qa_log": "/Users/truonghoangnhu/Desktop/transpect-branch-project/out/single-pass-deterministic-20260406-012807/logs/Toan_deso_11_TB.qa.log"
+    }
+  ]
+}
