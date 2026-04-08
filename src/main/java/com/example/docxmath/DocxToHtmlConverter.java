@@ -100,6 +100,9 @@ public final class DocxToHtmlConverter {
     private static final Pattern INLINE_IMAGE_TAG_PATTERN = Pattern.compile(
             "(?is)<img\\b(?=[^>]*class=\"[^\"]*inline-image[^\"]*\")[^>]*?/?>"
     );
+    private static final Pattern TABLE_FIGURE_IMAGE_TAG_PATTERN = Pattern.compile(
+            "(?is)<img\\b(?=[^>]*class=\"[^\"]*(?:inline-image|physics-diagram|physics-chart|diagram-asset|chemical-diagram|chem-diagram)[^\"]*\")[^>]*?/?>"
+    );
     private static final Pattern IMAGE_ONLY_PARAGRAPH_BEFORE_QUESTION_PATTERN = Pattern.compile(
             "(?is)<p>\\s*(?<img><img\\b(?=[^>]*class=\"[^\"]*inline-image[^\"]*\")[^>]*?/?>)\\s*</p>\\s*<p>(?<text>.*?)</p>"
     );
@@ -252,6 +255,9 @@ public final class DocxToHtmlConverter {
     private static final Pattern ADJACENT_HTML_SUP_TAG_PATTERN = Pattern.compile("(?s)<sup>\\s*([^<]*?)\\s*</sup>\\s*<sup>\\s*([^<]*?)\\s*</sup>");
     private static final Pattern EMPTY_SUBSCRIPT_SPACER_PATTERN = Pattern.compile("(?is)<sub>\\s*(?:&emsp;|&nbsp;|&#160;|\\u00A0|\\s)+\\s*</sub>");
     private static final Pattern HTML_TEMP_SUP_C_PATTERN = Pattern.compile("(?iu)(\\d+)\\s*<sup>\\s*(?:0|º|o|⁰)\\s*</sup>\\s*C\\b");
+    private static final Pattern CHEM_PUNCTUATION_IN_SCRIPT_PATTERN = Pattern.compile(
+            "(?is)<(?:sub|sup)>\\s*([,.;:!?])\\s*</(?:sub|sup)>"
+    );
     private static final Pattern FALSE_STRUCTURAL_CO_NH_CHARGE_PATTERN = Pattern.compile("(?i)(CO-NH)<sup>\\s*[-−]\\s*</sup>");
     private static final Pattern FALSE_STRUCTURAL_CO_CHARGE_PATTERN = Pattern.compile("(?i)(CO)<sup>\\s*[-−]\\s*</sup>(?=(?:</span>)*(?:\\s|\\)|\\.|,|;|:|$))");
     private static final Pattern CHEMICAL_DOWNS_ANODE_MALFORMED_PATTERN = Pattern.compile(
@@ -306,6 +312,7 @@ public final class DocxToHtmlConverter {
     private final OmmlToMathmlTransformer ommlTransformer;
     private final MathmlSidecarRegistry sidecarRegistry;
     private final Subject subject;
+    private final OutputMode outputMode;
     private final boolean chemistrySubject;
     private final SubjectProfile subjectProfile;
     private final SubjectRules subjectRules;
@@ -355,17 +362,22 @@ public final class DocxToHtmlConverter {
     private final Path metafileRasterCacheDir = initMetafileRasterCacheDir();
 
     public DocxToHtmlConverter(boolean includeMathJax) {
-        this(includeMathJax, MathmlSidecarRegistry.empty(), Subject.GENERIC);
+        this(includeMathJax, MathmlSidecarRegistry.empty(), Subject.GENERIC, OutputMode.PUBLISH);
     }
 
     public DocxToHtmlConverter(boolean includeMathJax, MathmlSidecarRegistry sidecarRegistry) {
-        this(includeMathJax, sidecarRegistry, Subject.GENERIC);
+        this(includeMathJax, sidecarRegistry, Subject.GENERIC, OutputMode.PUBLISH);
     }
 
     public DocxToHtmlConverter(boolean includeMathJax, MathmlSidecarRegistry sidecarRegistry, Subject subject) {
+        this(includeMathJax, sidecarRegistry, subject, OutputMode.PUBLISH);
+    }
+
+    public DocxToHtmlConverter(boolean includeMathJax, MathmlSidecarRegistry sidecarRegistry, Subject subject, OutputMode outputMode) {
         this.includeMathJax = includeMathJax;
         this.sidecarRegistry = sidecarRegistry == null ? MathmlSidecarRegistry.empty() : sidecarRegistry;
         this.subject = subject == null ? Subject.GENERIC : subject;
+        this.outputMode = outputMode == null ? OutputMode.PUBLISH : outputMode;
         this.chemistrySubject = this.subject == Subject.CHEMISTRY;
         this.subjectProfile = SubjectProfileFactory.create(this.subject);
         this.subjectRules = this.subjectProfile.getRules();
@@ -408,9 +420,11 @@ public final class DocxToHtmlConverter {
             String html = buildHtmlDocument(inputDocx.getFileName().toString(), bodyHtml);
             stageHtmlBuildNanos.addAndGet(System.nanoTime() - buildHtmlStart);
 
-            long sanitizeStart = System.nanoTime();
-            html = sanitizePublishHtmlOutput(html);
-            stagePublishSanitizeNanos.addAndGet(System.nanoTime() - sanitizeStart);
+            if (outputMode == OutputMode.PUBLISH) {
+                long sanitizeStart = System.nanoTime();
+                html = sanitizePublishHtmlOutput(html);
+                stagePublishSanitizeNanos.addAndGet(System.nanoTime() - sanitizeStart);
+            }
 
             long writeStart = System.nanoTime();
             Files.writeString(normalizedOutput, html, StandardCharsets.UTF_8);
@@ -771,6 +785,7 @@ public final class DocxToHtmlConverter {
                 matcher -> "2Cl<sup>-</sup> → Cl<sub>2</sub> + " + wrapChemInlineWithFlags("2e<sup>−</sup>", true, false),
                 chemistryArrowSymbolFixCounter
         );
+        out = replaceAndCountChemistryHtmlFix(out, CHEM_PUNCTUATION_IN_SCRIPT_PATTERN, "$1");
         out = replaceAndCountChemistryHtmlFix(out, FALSE_STRUCTURAL_CO_NH_CHARGE_PATTERN, "$1-");
         out = replaceAndCountChemistryHtmlFix(out, FALSE_STRUCTURAL_CO_CHARGE_PATTERN, "$1-");
         return out;
@@ -1530,7 +1545,7 @@ public final class DocxToHtmlConverter {
     }
 
     private String maybeRenderEssayQuestionTableAsFigure(XWPFTable table, XWPFDocument doc, Path assetDir) throws Exception {
-        if (subject != Subject.MATH || table == null || table.getRows().size() != 1) {
+        if (table == null || table.getRows().size() != 1) {
             return null;
         }
         XWPFTableRow row = table.getRows().get(0);
@@ -1541,7 +1556,7 @@ public final class DocxToHtmlConverter {
         String leftCellHtml = renderBodyElements(row.getTableCells().get(0), doc, assetDir);
         String rightCellHtml = renderBodyElements(row.getTableCells().get(1), doc, assetDir);
 
-        EssayTableFigureLayout layout = detectEssayTableFigureLayout(leftCellHtml, rightCellHtml);
+        EssayTableFigureLayout layout = detectEssayTableFigureLayout(leftCellHtml, rightCellHtml, subject);
         if (layout == null) {
             return null;
         }
@@ -1549,15 +1564,14 @@ public final class DocxToHtmlConverter {
         if (layout.role() == FigureRole.CONTEXT) {
             out.append(buildEssayContextLayout(layout.textHtml(), layout.imageTag())).append('\n');
         } else {
-            out.append(layout.textHtml().trim()).append('\n');
-            out.append(buildEssayFigureBlock(layout.imageTag(), FigureRole.ESSENTIAL)).append('\n');
+            out.append(buildEssentialQuestionFigureLayout(layout.textHtml(), layout.imageTag())).append('\n');
         }
         return out.toString();
     }
 
-    private static EssayTableFigureLayout detectEssayTableFigureLayout(String firstCellHtml, String secondCellHtml) {
-        List<String> firstImages = extractInlineImageTags(firstCellHtml);
-        List<String> secondImages = extractInlineImageTags(secondCellHtml);
+    private static EssayTableFigureLayout detectEssayTableFigureLayout(String firstCellHtml, String secondCellHtml, Subject subject) {
+        List<String> firstImages = extractTableFigureImageTags(firstCellHtml);
+        List<String> secondImages = extractTableFigureImageTags(secondCellHtml);
         if (firstImages.size() + secondImages.size() != 1) {
             return null;
         }
@@ -1569,20 +1583,42 @@ public final class DocxToHtmlConverter {
         if (imageTag.contains("essay-figure-image")) {
             return null;
         }
-        if (!extractInlineImageTags(textCellHtml).isEmpty()) {
+        if (!extractTableFigureImageTags(textCellHtml).isEmpty()) {
             return null;
         }
 
-        String imageCellResidual = stripHtmlToPlainText(INLINE_IMAGE_TAG_PATTERN.matcher(imageCellHtml).replaceAll(" "));
+        String imageCellResidual = stripHtmlToPlainText(TABLE_FIGURE_IMAGE_TAG_PATTERN.matcher(imageCellHtml).replaceAll(" "));
         if (imageCellResidual.length() > 32) {
             return null;
         }
-        String textPlain = stripHtmlToPlainText(INLINE_IMAGE_TAG_PATTERN.matcher(textCellHtml).replaceAll(" "));
+        String textPlain = stripHtmlToPlainText(TABLE_FIGURE_IMAGE_TAG_PATTERN.matcher(textCellHtml).replaceAll(" "));
         FigureRole role = classifyEssayFigureRole(textPlain, imageTag);
-        if (!isEligibleEssayFigurePlacementText(textPlain, role)) {
+        if (!isEligibleFigureTablePlacementText(textPlain, role, subject)) {
             return null;
         }
         return new EssayTableFigureLayout(textCellHtml, imageTag, role);
+    }
+
+    private static String buildEssentialQuestionFigureLayout(String textHtml, String imageTag) {
+        String normalizedText = Objects.toString(textHtml, "").trim();
+        String figureBlock = buildEssayFigureBlock(imageTag, FigureRole.ESSENTIAL);
+        if (normalizedText.isBlank()) {
+            return figureBlock;
+        }
+        String lower = normalizedText.toLowerCase(Locale.ROOT);
+        if (!lower.startsWith("<p")) {
+            return normalizedText + "\n" + figureBlock;
+        }
+        int firstParagraphEnd = lower.indexOf("</p>");
+        if (firstParagraphEnd < 0) {
+            return normalizedText + "\n" + figureBlock;
+        }
+        String stemParagraph = normalizedText.substring(0, firstParagraphEnd + 4).trim();
+        String trailingParagraphs = normalizedText.substring(firstParagraphEnd + 4).trim();
+        if (trailingParagraphs.isBlank()) {
+            return stemParagraph + "\n" + figureBlock;
+        }
+        return stemParagraph + "\n" + figureBlock + "\n" + trailingParagraphs;
     }
 
     private static EssayInlineFigureSplit splitEssayInlineFigureParagraph(String normalized) {
@@ -2225,6 +2261,15 @@ public final class DocxToHtmlConverter {
         return images;
     }
 
+    private static List<String> extractTableFigureImageTags(String html) {
+        List<String> images = new ArrayList<>();
+        Matcher matcher = TABLE_FIGURE_IMAGE_TAG_PATTERN.matcher(Objects.toString(html, ""));
+        while (matcher.find()) {
+            images.add(matcher.group());
+        }
+        return images;
+    }
+
     private static FigureRole classifyEssayFigureRole(String plainText, String imageTag) {
         String normalizedText = Objects.toString(plainText, "");
         String imageLower = Objects.toString(imageTag, "").toLowerCase(Locale.ROOT);
@@ -2247,6 +2292,17 @@ public final class DocxToHtmlConverter {
             return looksLikeContextQuestionText(plainText);
         }
         return looksLikeEssayQuestionText(plainText);
+    }
+
+    private static boolean isEligibleFigureTablePlacementText(String plainText, FigureRole role, Subject subject) {
+        if (role == FigureRole.CONTEXT) {
+            return looksLikeContextQuestionText(plainText);
+        }
+        if (subject == Subject.MATH) {
+            return looksLikeEssayQuestionText(plainText);
+        }
+        return looksLikeEssentialProblemFigureText(plainText)
+                || looksLikeQuestionFigureTableText(plainText);
     }
 
     private static String buildEssayContextLayout(String questionHtml, String imageTag) {
@@ -2339,15 +2395,7 @@ public final class DocxToHtmlConverter {
         if (!ESSAY_ASK_SIGNAL_PATTERN.matcher(normalized).find()) {
             return false;
         }
-        Matcher optionMatcher = MULTI_CHOICE_OPTION_MARKER_PATTERN.matcher(normalized);
-        int optionCount = 0;
-        while (optionMatcher.find()) {
-            optionCount++;
-            if (optionCount >= 2) {
-                return false;
-            }
-        }
-        return true;
+        return countMultiChoiceOptionMarkers(normalized) < 2;
     }
 
     private static boolean looksLikeContextQuestionText(String plainText) {
@@ -2362,6 +2410,46 @@ public final class DocxToHtmlConverter {
             return false;
         }
         return ESSAY_CONTEXT_FIGURE_SIGNAL_PATTERN.matcher(normalized).find();
+    }
+
+    private static boolean looksLikeEssentialProblemFigureText(String plainText) {
+        if (plainText == null || plainText.isBlank()) {
+            return false;
+        }
+        String normalized = plainText.replaceAll("\\s+", " ").trim();
+        if (normalized.length() < 110) {
+            return false;
+        }
+        if (!QUESTION_STEM_PATTERN.matcher(normalized).find()) {
+            return false;
+        }
+        return ESSAY_ESSENTIAL_FIGURE_SIGNAL_PATTERN.matcher(normalized).find();
+    }
+
+    private static boolean looksLikeQuestionFigureTableText(String plainText) {
+        if (plainText == null || plainText.isBlank()) {
+            return false;
+        }
+        String normalized = plainText.replaceAll("\\s+", " ").trim();
+        if (normalized.length() < 80) {
+            return false;
+        }
+        if (!QUESTION_STEM_PATTERN.matcher(normalized).find()) {
+            return false;
+        }
+        if (ESSAY_ASK_SIGNAL_PATTERN.matcher(normalized).find()) {
+            return true;
+        }
+        return countMultiChoiceOptionMarkers(normalized) >= 2;
+    }
+
+    private static int countMultiChoiceOptionMarkers(String text) {
+        Matcher optionMatcher = MULTI_CHOICE_OPTION_MARKER_PATTERN.matcher(Objects.toString(text, ""));
+        int optionCount = 0;
+        while (optionMatcher.find()) {
+            optionCount++;
+        }
+        return optionCount;
     }
 
     private String renderNodes(NodeList nodes, XWPFDocument doc, Path assetDir, boolean preserveWhitespace) throws Exception {
@@ -4004,7 +4092,7 @@ public final class DocxToHtmlConverter {
                 + "    .inline-image-trimmed{display:block;width:auto;max-width:26rem;max-width:min(100%,26rem);height:auto;margin:.5rem auto;}\n"
                 + "    td .inline-image-trimmed{width:min(100%,24rem);max-width:24rem;max-width:min(100%,24rem);margin:.35rem auto;}\n"
                 + "    .essay-figure,.question-figure{display:block;margin:.75rem auto;text-align:center;}\n"
-                + "    .essay-figure .essay-figure-image,.question-figure .essay-figure-image,.essay-figure img,.question-figure img{display:block;width:auto;max-width:min(100%,34rem);height:auto;margin:.25rem auto;}\n"
+                + "    .essay-figure .essay-figure-image,.question-figure .essay-figure-image,.essay-figure img,.question-figure img{display:block;width:auto;max-width:min(100%,42rem);height:auto;margin:.25rem auto;}\n"
                 + "    .essential-figure-group,.question-essential-figure-group{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:.5rem 1rem;margin:.5rem auto 1rem;}\n"
                 + "    .essential-figure-group .essential-figure,.question-essential-figure-group .essential-figure{margin:.1rem .35rem;}\n"
                 + "    .question-context-table{width:100%;border-collapse:collapse;table-layout:fixed;margin:.35rem 0 1rem;}\n"

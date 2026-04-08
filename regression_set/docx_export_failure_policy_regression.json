@@ -1,0 +1,6 @@
+{
+  "severity_map": {
+    "docx_openability_failed": "warning",
+    "openability_soffice_unavailable": "warning"
+  }
+}

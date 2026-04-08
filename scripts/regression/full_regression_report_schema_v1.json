@@ -1,0 +1,63 @@
+{
+  "schema_version": "full_regression_report_schema.v1",
+  "artifact_type": "full_regression_report_schema",
+  "report_schema_version": "full_regression_report.v1",
+  "required_top_level_keys": [
+    "schema_version",
+    "artifact_type",
+    "run_name",
+    "generated_at",
+    "output_root",
+    "run_dir",
+    "selected_groups",
+    "executed_groups",
+    "fail_fast",
+    "groups",
+    "groups_passed",
+    "groups_needs_review",
+    "groups_failed",
+    "groups_skipped",
+    "overall_verdict",
+    "overall",
+    "verdict"
+  ],
+  "enums": {
+    "overall_verdicts": [
+      "passed",
+      "passed_with_review",
+      "failed"
+    ],
+    "group_statuses": [
+      "passed",
+      "passed_with_review",
+      "failed",
+      "skipped"
+    ]
+  },
+  "group_fields": [
+    "group_name",
+    "status",
+    "exit_code",
+    "script",
+    "child_run_name",
+    "run_dir",
+    "report_json",
+    "report_md",
+    "log_path",
+    "summary",
+    "review_signals",
+    "caveats",
+    "artifacts",
+    "child_report_verdict"
+  ],
+  "overall_fields": [
+    "groups_passed",
+    "groups_needs_review",
+    "groups_failed",
+    "groups_skipped",
+    "overall_verdict",
+    "hard_failures",
+    "review_signals",
+    "caveats"
+  ]
+}

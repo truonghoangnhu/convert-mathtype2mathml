@@ -1,0 +1,54 @@
+{
+  "schema_version": "docx_export_regression.v1",
+  "description": "Phase G DOCX export regression target. The set is intentionally small and deterministic: one OMML-clean baseline, one real image-heavy sample, and one harder MathType/OLE sample.",
+  "cases": [
+    {
+      "case_id": "omml_clean_sample",
+      "source_bundle": "out/phase-d-answer-closeout-smoke-20260408/samples/omml_clean_sample/contracts/exam_bundle.json",
+      "output_docx_name": "omml-clean-teacher.docx",
+      "failure_policy_json": "regression_set/docx_export_failure_policy_regression.json",
+      "expected": {
+        "export_verdict": "needs_review",
+        "parity_verdict": "parity_ok",
+        "openability_passed": false
+      },
+      "notes": [
+        "OMML-clean baseline",
+        "validates minimal teacher_exam export path",
+        "expect MathML -> OMML conversion with no image or OLE pressure"
+      ]
+    },
+    {
+      "case_id": "math_toan_d11_real_images",
+      "source_bundle": "out/answer-reconcile-smoke/math-toan-d11/exam_bundle.json",
+      "output_docx_name": "math-toan-d11-teacher.docx",
+      "failure_policy_json": "regression_set/docx_export_failure_policy_regression.json",
+      "expected": {
+        "export_verdict": "needs_review",
+        "parity_verdict": "parity_ok",
+        "openability_passed": false
+      },
+      "notes": [
+        "real math exam with many images and answer summary content",
+        "validates parity against a full bundle",
+        "checks that question structure and answer section remain stable"
+      ]
+    },
+    {
+      "case_id": "hard_ole_preview_sample",
+      "source_bundle": "out/phase-b-regression-20260408/samples/hard_ole_toan_phi/contracts/exam_bundle.json",
+      "output_docx_name": "hard-ole-toan-phi-teacher.docx",
+      "failure_policy_json": "regression_set/docx_export_failure_policy_regression.json",
+      "expected": {
+        "export_verdict": "needs_review",
+        "parity_verdict": "parity_ok",
+        "openability_passed": false
+      },
+      "notes": [
+        "harder MathType/OLE/preview-heavy sample",
+        "validates openability checks and fallback handling",
+        "catches regression in layout and image embedding"
+      ]
+    }
+  ]
+}

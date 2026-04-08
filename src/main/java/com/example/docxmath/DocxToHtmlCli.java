@@ -20,6 +20,7 @@ public final class DocxToHtmlCli {
         boolean includeMathJax = true;
         Path mathmlManifest = null;
         Subject subject = null;
+        OutputMode outputMode = OutputMode.PUBLISH;
 
         for (int i = 2; i < args.length; i++) {
             String arg = args[i];
@@ -42,6 +43,17 @@ public final class DocxToHtmlCli {
                     System.err.println(ex.getMessage());
                     usageAndExit(2);
                 }
+            } else if ("--output-mode".equals(arg)) {
+                if (i + 1 >= args.length) {
+                    System.err.println("Missing value after --output-mode");
+                    usageAndExit(2);
+                }
+                try {
+                    outputMode = OutputMode.fromCliValue(args[++i]);
+                } catch (IllegalArgumentException ex) {
+                    System.err.println(ex.getMessage());
+                    usageAndExit(2);
+                }
             } else {
                 System.err.println("Unknown option: " + arg);
                 usageAndExit(2);
@@ -53,12 +65,13 @@ public final class DocxToHtmlCli {
                 : MathmlSidecarRegistry.load(mathmlManifest);
         Subject effectiveSubject = subject == null ? SubjectDetector.detect(input) : subject;
 
-        DocxToHtmlConverter converter = new DocxToHtmlConverter(includeMathJax, registry, effectiveSubject);
+        DocxToHtmlConverter converter = new DocxToHtmlConverter(includeMathJax, registry, effectiveSubject, outputMode);
         DocxToHtmlConverter.ConversionSummary summary = converter.convert(input, output);
 
         System.out.println("Input:  " + input);
         System.out.println("Output: " + output);
         System.out.println("Subject: " + effectiveSubject.cliName());
+        System.out.println("Output mode: " + outputMode.cliName());
         if (mathmlManifest != null) {
             System.out.println("MathML manifest: " + mathmlManifest);
         }
@@ -109,7 +122,12 @@ public final class DocxToHtmlCli {
     }
 
     private static void usageAndExit(int code) {
-        System.err.println("Usage: java -jar docx-html-math.jar <input.docx> <output.html> [--native-mathml-only] [--mathml-manifest manifest.tsv] [--subject generic|physics|chemistry|math|biology]");
+        System.err.println(
+                "Usage: java -jar docx-html-math.jar <input.docx> <output.html> "
+                        + "[--native-mathml-only] [--mathml-manifest manifest.tsv] "
+                        + "[--subject generic|physics|chemistry|math|biology] "
+                        + "[--output-mode internal|publish]"
+        );
         System.exit(code);
     }
 

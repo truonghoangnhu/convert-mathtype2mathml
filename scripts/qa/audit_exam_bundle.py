@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import unicodedata
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
@@ -101,8 +102,9 @@ CHEM_INLINE_ISSUE_RE = re.compile(
     r"(?<![\w])(?:[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?[A-Z][A-Za-z0-9()·•/]*[₀₁₂₃₄₅₆₇₈₉⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻][A-Za-z0-9()·•/₀₁₂₃₄₅₆₇₈₉⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻+\-−]*",
     re.UNICODE,
 )
-CHEM_ARROW_ISSUE_RE = re.compile(r"(?:<=>|<->|->|â†’|âž”|â‡Œ|â†”|[\uf0ae\uf0e0\uf0de\uf0f0\uf0ad])")
+CHEM_ARROW_ISSUE_RE = re.compile(r"(?:<=>|<->|->|â†’|âž”|â‡Œ|â†”|[\uf0ae\uf0e0\uf0de\uf0f0\uf0ad\uf0af])")
 CHEM_UNIT_ISSUE_RE = re.compile(r"(?iu)(?:mol\s*[·•.]?\s*L\s*(?:\^-?\s*1|[⁻−-]\s*1)|\d+\s*(?:\^0|⁰)\s*C\b|\b10\^\d+\b)")
+CHEM_GLYPH_ISSUE_RE = re.compile(r"[\uf0ae\uf0e0\uf0de\uf0f0\uf0ad\uf0af]")
 WORD_FIELD_LEAKAGE_RE = re.compile(r"(?iu)\b(?:INCLUDEPICTURE|MERGEFORMATINET|MERGEFORMAT)\b")
 PUBLISH_DEBUG_ATTR_RE = re.compile(
     r'(?iu)\sdata-(?:render-attempted|render-source-used|render-source-exts|render-source-assets|render-role)="[^"]*"'
@@ -162,6 +164,9 @@ CLASSIFICATION_KEYS = {
     "generic-image",
     "unknown-preview",
 }
+OUTPUT_MODES = {"internal", "publish"}
+QA_SCHEMA_VERSION = "qa.v1"
+PUBLISH_GATE_SEVERITIES = ("info", "warning", "error", "blocker")
 
 BLANK_MEAN_THRESHOLD = 0.9995
 BLANK_STDDEV_THRESHOLD = 0.001
@@ -469,6 +474,10 @@ def count_chem_arrow_symbol_issues(text: str) -> int:
 
 def count_chem_unit_issues(text: str) -> int:
     return len(CHEM_UNIT_ISSUE_RE.findall(text))
+
+
+def count_chem_glyph_issues(text: str) -> int:
+    return len(CHEM_GLYPH_ISSUE_RE.findall(text))
 
 
 def count_physics_unit_issues(text: str) -> int:
@@ -919,63 +928,278 @@ def extract_table_whitespace_layout_metrics(html_text: str) -> Dict[str, int]:
     }
 
 
-def determine_publish_verdict(totals: Dict[str, Optional[int]], unresolved_object_count: int) -> str:
-    if totals.get("remaining_table_whitespace_layout_issues", 0):
-        return "still needs cleanup"
-    if totals.get("remaining_physics_unit_issues", 0):
-        return "still needs cleanup"
-    if totals.get("remaining_physics_text_corruption_issues", 0):
-        return "still needs cleanup"
-    if totals.get("remaining_mixed_math_text_layout_issues", 0):
-        return "still needs cleanup"
-    if totals.get("remaining_math_glyph_issues", 0):
-        return "still needs cleanup"
-    if totals.get("remaining_math_unreadable_glyph_issues", 0):
-        return "still needs cleanup"
-    if totals.get("table_inline_image_too_small_count", 0):
-        return "still needs cleanup"
-    if totals.get("remaining_table_inline_image_too_small_count", 0):
-        return "still needs cleanup"
-    if totals.get("word_field_code_leakage_count", 0):
-        return "still needs cleanup"
-    if totals.get("publish_debug_attr_leakage_count", 0):
-        return "still needs cleanup"
-    if totals.get("publish_namespace_leakage_count", 0):
-        return "still needs cleanup"
-    if totals.get("image_field_text_contamination_count", 0):
-        return "still needs cleanup"
-    if totals.get("downs_reaction_notation_issue_count", 0):
-        return "still needs cleanup"
-    if totals.get("chemical_diagram_blank_image_count", 0):
-        return "still needs cleanup"
-    if totals.get("chemical_diagram_placeholder_count", 0):
-        return "still needs cleanup"
-    if totals.get("chemical_diagram_render_failed_count", 0):
-        return "still needs cleanup"
-    if totals.get("chemical_diagram_oversized_display_count", 0):
-        return "still needs cleanup"
-    if totals.get("web_safe_asset_violation_count", 0):
-        return "still needs cleanup"
-    if totals.get("unsupported_web_image_count", 0):
-        return "still needs cleanup"
-    if totals.get("generic_gif_placeholder_count", 0):
-        return "still needs cleanup"
-    if totals.get("generic_inline_image_oversized_whitespace_count", 0):
-        return "still needs cleanup"
-    if totals.get("generic_inline_image_bad_crop_count", 0):
-        return "still needs cleanup"
-    if totals.get("generic_inline_image_blank_count", 0):
-        return "still needs cleanup"
-    if totals.get("remaining_nonessential_standalone_image_candidates", 0):
-        return "still needs cleanup"
-    if totals["remaining_preview_images"] or totals["remaining_text_corruption_count"] or totals["remaining_chemistry_inline_issues"]:
-        return "still needs cleanup"
-    if unresolved_object_count:
-        return "still needs cleanup"
-    return "safe to publish"
+def _legacy_publish_verdict(publish_verdict: str) -> str:
+    return "safe to publish" if publish_verdict == "safe_to_publish" else "still needs cleanup"
 
 
-def audit(html_path: Path, asset_dir: Path, conversion_log: Optional[Path], subject: str) -> Dict:
+def evaluate_publish_gates(
+    totals: Dict[str, Optional[int]],
+    unresolved_object_count: int,
+    output_mode: str,
+) -> Dict[str, object]:
+    mode = (output_mode or "publish").strip().lower()
+    if mode not in OUTPUT_MODES:
+        mode = "publish"
+
+    findings: List[Dict[str, object]] = []
+
+    def add_metric_finding(metric: str, severity: str, title: str, recommendation: str) -> None:
+        value = int(totals.get(metric, 0) or 0)
+        if value <= 0:
+            return
+        findings.append(
+            {
+                "severity": severity,
+                "metric": metric,
+                "value": value,
+                "title": title,
+                "recommendation": recommendation,
+            }
+        )
+
+    if unresolved_object_count > 0:
+        findings.append(
+            {
+                "severity": "blocker",
+                "metric": "unresolved_objects",
+                "value": unresolved_object_count,
+                "title": "Unresolved objects remain in output",
+                "recommendation": "Resolve or classify all unresolved object fallbacks before publishing.",
+            }
+        )
+
+    add_metric_finding(
+        "remaining_preview_images",
+        "blocker",
+        "Preview/fallback images remain",
+        "Convert remaining equation/diagram previews or mark bundle blocked.",
+    )
+    add_metric_finding(
+        "word_field_code_leakage_count",
+        "blocker",
+        "Word field-code leakage detected",
+        "Strip leaked field code text from final publish HTML.",
+    )
+    add_metric_finding(
+        "image_field_text_contamination_count",
+        "blocker",
+        "Word field remnants around image blocks detected",
+        "Clean image-adjacent field code leakage before publishing.",
+    )
+    add_metric_finding(
+        "unsupported_web_image_count",
+        "blocker",
+        "Unsupported web image formats still referenced",
+        "Convert unsupported image formats to web-safe assets.",
+    )
+    add_metric_finding(
+        "web_safe_asset_violation_count",
+        "blocker",
+        "Web-safe asset policy violations detected",
+        "Remove/replace violating assets for publish output.",
+    )
+    add_metric_finding(
+        "chemical_diagram_placeholder_count",
+        "blocker",
+        "Chemical diagram placeholders remain",
+        "Render real diagram output or keep bundle blocked.",
+    )
+    add_metric_finding(
+        "chemical_diagram_render_failed_count",
+        "blocker",
+        "Chemical diagram render failures remain",
+        "Fix rendering failures for chemistry diagrams.",
+    )
+    add_metric_finding(
+        "chemical_diagram_blank_image_count",
+        "blocker",
+        "Blank chemical diagram images detected",
+        "Regenerate blank diagram assets before publishing.",
+    )
+
+    publish_leakage_severity = "blocker" if mode == "publish" else "info"
+    add_metric_finding(
+        "publish_debug_attr_leakage_count",
+        publish_leakage_severity,
+        "Debug attributes found in output HTML",
+        "Keep debug attrs in internal mode only; strip them in publish mode.",
+    )
+    add_metric_finding(
+        "publish_namespace_leakage_count",
+        publish_leakage_severity,
+        "Internal namespaces found in output HTML",
+        "Keep internal namespaces in internal mode only; strip in publish mode.",
+    )
+
+    add_metric_finding(
+        "remaining_text_corruption_count",
+        "error",
+        "Visible text corruption remains",
+        "Apply deterministic text normalization for remaining corruption issues.",
+    )
+    add_metric_finding(
+        "remaining_chemistry_inline_issues",
+        "error",
+        "Chemistry inline notation issues remain",
+        "Normalize chemistry inline notation where output remains malformed.",
+    )
+    add_metric_finding(
+        "remaining_chemistry_arrow_symbol_issues",
+        "error",
+        "Chemistry arrow/symbol issues remain",
+        "Fix reaction arrow/symbol rendering in chemistry text context.",
+    )
+    add_metric_finding(
+        "remaining_chemistry_unit_issues",
+        "error",
+        "Chemistry unit notation issues remain",
+        "Normalize chemistry unit formatting (for example mol·L⁻¹, °C).",
+    )
+    add_metric_finding(
+        "remaining_chemistry_glyph_issues",
+        "error",
+        "Chemistry glyph artifacts remain",
+        "Normalize unreadable chemistry glyph artifacts in visible output.",
+    )
+    add_metric_finding(
+        "remaining_physics_unit_issues",
+        "error",
+        "Physics unit formatting issues remain",
+        "Normalize residual physics unit tokenization issues.",
+    )
+    add_metric_finding(
+        "remaining_physics_text_corruption_issues",
+        "error",
+        "Physics text corruption issues remain",
+        "Apply conservative physics text dictionary cleanup for residual corruption.",
+    )
+    add_metric_finding(
+        "remaining_mixed_math_text_layout_issues",
+        "error",
+        "Mixed text+MathML layout issues remain",
+        "Polish text/math boundary spacing and punctuation binding.",
+    )
+    add_metric_finding(
+        "remaining_math_glyph_issues",
+        "error",
+        "Math glyph artifacts remain",
+        "Normalize unreadable math glyph artifacts conservatively.",
+    )
+    add_metric_finding(
+        "remaining_math_unreadable_glyph_issues",
+        "error",
+        "Unreadable math symbols remain",
+        "Replace unreadable fallback symbols with intended readable output.",
+    )
+    add_metric_finding(
+        "downs_reaction_notation_issue_count",
+        "error",
+        "Chemistry Downs reaction notation issues remain",
+        "Correct residual Downs reaction/electron notation errors.",
+    )
+
+    add_metric_finding(
+        "remaining_table_whitespace_layout_issues",
+        "warning",
+        "Table whitespace/layout residual issues remain",
+        "Collapse empty paragraph noise and tighten table-adjacent spacing.",
+    )
+    add_metric_finding(
+        "table_inline_image_too_small_count",
+        "warning",
+        "Table inline images remain too small",
+        "Adjust table inline image caps to keep figures readable.",
+    )
+    add_metric_finding(
+        "remaining_table_inline_image_too_small_count",
+        "warning",
+        "Remaining too-small table inline images detected",
+        "Rebalance table-cell image sizing where figures are unreadable.",
+    )
+    add_metric_finding(
+        "remaining_essay_question_figure_layout_issues",
+        "warning",
+        "Essay figure placement/layout residual issues remain",
+        "Apply role-aware deterministic figure placement policy.",
+    )
+    add_metric_finding(
+        "figure_in_table_too_small_count",
+        "warning",
+        "Figures in table layout are still too small",
+        "Promote essential figures out of narrow side-cell layout where needed.",
+    )
+    add_metric_finding(
+        "generic_inline_image_oversized_whitespace_count",
+        "warning",
+        "Inline images with oversized whitespace remain",
+        "Apply safe trim for whitespace-heavy inline image assets.",
+    )
+    add_metric_finding(
+        "generic_inline_image_bad_crop_count",
+        "warning",
+        "Suspicious inline image crops detected",
+        "Review and correct suspicious crops while preserving content.",
+    )
+    add_metric_finding(
+        "generic_inline_image_blank_count",
+        "warning",
+        "Blank generic inline images detected",
+        "Suppress or replace blank generic inline image artifacts.",
+    )
+    add_metric_finding(
+        "generic_gif_placeholder_count",
+        "warning",
+        "Placeholder-like GIF assets remain",
+        "Replace placeholder GIFs with real web-safe assets.",
+    )
+    add_metric_finding(
+        "chemical_diagram_oversized_display_count",
+        "warning",
+        "Oversized chemical diagram display cases remain",
+        "Trim or rebalance chemistry diagram display sizing without cropping content.",
+    )
+    add_metric_finding(
+        "remaining_nonessential_standalone_image_candidates",
+        "warning",
+        "Nonessential standalone image suppression candidates remain",
+        "Review nonessential standalone context-image candidates for publish cleanup.",
+    )
+
+    severity_counts = Counter(item["severity"] for item in findings)
+    summary = {severity: int(severity_counts.get(severity, 0)) for severity in PUBLISH_GATE_SEVERITIES}
+
+    if summary["blocker"] > 0:
+        publish_verdict = "blocked"
+    elif summary["error"] > 0 or summary["warning"] > 0:
+        publish_verdict = "needs_review"
+    else:
+        publish_verdict = "safe_to_publish"
+
+    findings_sorted = sorted(
+        findings,
+        key=lambda item: (
+            PUBLISH_GATE_SEVERITIES.index(str(item.get("severity", "info"))),
+            str(item.get("metric", "")),
+        ),
+    )
+    return {
+        "publish_verdict": publish_verdict,
+        "publish_verdict_legacy": _legacy_publish_verdict(publish_verdict),
+        "publish_gate_summary": summary,
+        "publish_gate_findings": findings_sorted,
+    }
+
+
+def audit(
+    html_path: Path,
+    asset_dir: Path,
+    conversion_log: Optional[Path],
+    subject: str,
+    output_mode: str = "publish",
+) -> Dict:
+    normalized_output_mode = (output_mode or "publish").strip().lower()
+    if normalized_output_mode not in OUTPUT_MODES:
+        normalized_output_mode = "publish"
     html_text = html_path.read_text(encoding="utf-8", errors="ignore")
     lines = html_text.splitlines()
     table_inline_policy = extract_table_inline_image_policy(html_text)
@@ -1037,8 +1261,10 @@ def audit(html_path: Path, asset_dir: Path, conversion_log: Optional[Path], subj
                 "chemistry_inline_fixes": 0,
                 "chemistry_arrow_symbol_fixes": 0,
                 "chemistry_unit_fixes": 0,
+                "chemistry_glyph_fix_count": 0,
                 "remaining_chemistry_arrow_symbol_issues": 0,
                 "remaining_chemistry_unit_issues": 0,
+                "remaining_chemistry_glyph_issues": 0,
                 "physics_unit_fix_count": 0,
                 "physics_text_fix_count": 0,
                 "remaining_physics_unit_issues": 0,
@@ -1144,6 +1370,9 @@ def audit(html_path: Path, asset_dir: Path, conversion_log: Optional[Path], subj
             unit_fix_count = len(CHEM_UNIT_FIXED_RE.findall(line))
             if unit_fix_count:
                 bucket["chemistry_unit_fixes"] += unit_fix_count
+            glyph_fix_count = arrow_fix_count + unit_fix_count
+            if glyph_fix_count:
+                bucket["chemistry_glyph_fix_count"] += glyph_fix_count
 
         visible_text = normalize_visible_text(line)
         word_field_hits = len(WORD_FIELD_LEAKAGE_RE.findall(visible_text))
@@ -1191,6 +1420,9 @@ def audit(html_path: Path, asset_dir: Path, conversion_log: Optional[Path], subj
             chem_unit_issue_hits = count_chem_unit_issues(visible_text)
             if chem_unit_issue_hits:
                 bucket["remaining_chemistry_unit_issues"] += chem_unit_issue_hits
+            chem_glyph_issue_hits = count_chem_glyph_issues(visible_text)
+            if chem_glyph_issue_hits:
+                bucket["remaining_chemistry_glyph_issues"] += chem_glyph_issue_hits
         suspected_numeric_corruption.extend(
             find_suspected_numeric_corruption(visible_text, current_exam, f"{html_path}:{line_no}")
         )
@@ -1605,8 +1837,10 @@ def audit(html_path: Path, asset_dir: Path, conversion_log: Optional[Path], subj
         "chemistry_inline_fixes": sum(v["chemistry_inline_fixes"] for v in per_exam.values()),
         "chemistry_arrow_symbol_fixes": sum(v["chemistry_arrow_symbol_fixes"] for v in per_exam.values()),
         "chemistry_unit_fixes": sum(v["chemistry_unit_fixes"] for v in per_exam.values()),
+        "chemistry_glyph_fix_count": sum(v["chemistry_glyph_fix_count"] for v in per_exam.values()),
         "remaining_chemistry_arrow_symbol_issues": sum(v["remaining_chemistry_arrow_symbol_issues"] for v in per_exam.values()),
         "remaining_chemistry_unit_issues": sum(v["remaining_chemistry_unit_issues"] for v in per_exam.values()),
+        "remaining_chemistry_glyph_issues": sum(v["remaining_chemistry_glyph_issues"] for v in per_exam.values()),
         "remaining_physics_unit_issues": sum(v["remaining_physics_unit_issues"] for v in per_exam.values()),
         "remaining_physics_text_corruption_issues": sum(v["remaining_physics_text_corruption_issues"] for v in per_exam.values()),
         "remaining_mixed_math_text_layout_issues": sum(v["remaining_mixed_math_text_layout_issues"] for v in per_exam.values()),
@@ -1686,6 +1920,11 @@ def audit(html_path: Path, asset_dir: Path, conversion_log: Optional[Path], subj
         "unsupported_web_image_count": len(unsupported_web_image_assets),
         "web_safe_asset_violation_count": len(web_safe_asset_violation_assets),
     }
+    chemistry_arrow_fixed_applied = conversion_metrics["chemistry_arrow_symbol_fixes_applied"]
+    chemistry_unit_fixed_applied = conversion_metrics["chemistry_unit_fixes_applied"]
+    if chemistry_arrow_fixed_applied is not None or chemistry_unit_fixed_applied is not None:
+        totals["chemistry_glyph_fix_count"] = (chemistry_arrow_fixed_applied or 0) + (chemistry_unit_fixed_applied or 0)
+    totals["core_promotion_candidate_count"] = 0
     totals["total_mathml_formulas"] = totals["mathml_formulas"]
     totals["total_previews"] = totals["remaining_preview_images"]
     totals["equation_dsmt4_preview_count"] = by_type["Equation.DSMT4"]
@@ -1707,6 +1946,8 @@ def audit(html_path: Path, asset_dir: Path, conversion_log: Optional[Path], subj
     totals["suspicious_crop_count"] = totals["chemical_diagram_bad_crop_count"]
 
     report = {
+        "schema_version": QA_SCHEMA_VERSION,
+        "output_mode": normalized_output_mode,
         "subject": subject,
         "total_mathml_formulas": totals["total_mathml_formulas"],
         "total_previews": totals["total_previews"],
@@ -1720,8 +1961,11 @@ def audit(html_path: Path, asset_dir: Path, conversion_log: Optional[Path], subj
         "chemistry_inline_fix_count": totals["chemistry_inline_fix_count"],
         "chemistry_arrow_symbol_fix_count": totals["chemistry_arrow_symbol_fix_count"],
         "chemistry_unit_fix_count": totals["chemistry_unit_fix_count"],
+        "chemistry_glyph_fix_count": totals["chemistry_glyph_fix_count"],
         "remaining_chemistry_arrow_symbol_issues": totals["remaining_chemistry_arrow_symbol_issues"],
         "remaining_chemistry_unit_issues": totals["remaining_chemistry_unit_issues"],
+        "remaining_chemistry_glyph_issues": totals["remaining_chemistry_glyph_issues"],
+        "core_promotion_candidate_count": totals["core_promotion_candidate_count"],
         "physics_unit_fix_count": totals["physics_unit_fix_count"],
         "physics_text_fix_count": totals["physics_text_fix_count"],
         "remaining_physics_unit_issues": totals["remaining_physics_unit_issues"],
@@ -1814,7 +2058,11 @@ def audit(html_path: Path, asset_dir: Path, conversion_log: Optional[Path], subj
             for obj in unique_unresolved_objects
         ],
     }
-    report["publish_verdict"] = determine_publish_verdict(totals, len(unique_unresolved_objects))
+    gate_result = evaluate_publish_gates(totals, len(unique_unresolved_objects), normalized_output_mode)
+    report["publish_gate_summary"] = gate_result["publish_gate_summary"]
+    report["publish_gate_findings"] = gate_result["publish_gate_findings"]
+    report["publish_verdict"] = gate_result["publish_verdict"]
+    report["publish_verdict_legacy"] = gate_result["publish_verdict_legacy"]
     return report
 
 
@@ -1823,10 +2071,37 @@ def to_markdown(report: Dict) -> str:
     lines.append("# QA Audit Summary")
     lines.append("")
     lines.append(f"- Subject: `{report['subject']}`")
+    lines.append(f"- Output mode: `{report.get('output_mode', 'publish')}`")
     lines.append(f"- HTML: `{report['html']}`")
     lines.append(f"- Asset dir: `{report['asset_dir']}`")
     lines.append(f"- Publish verdict: `{report['publish_verdict']}`")
+    if report.get("publish_verdict_legacy"):
+        lines.append(f"- Legacy publish verdict: `{report['publish_verdict_legacy']}`")
     lines.append("")
+
+    gate_summary = report.get("publish_gate_summary", {})
+    lines.append("## Publish Gates")
+    lines.append("")
+    lines.append(f"- blocker: {int(gate_summary.get('blocker', 0) or 0)}")
+    lines.append(f"- error: {int(gate_summary.get('error', 0) or 0)}")
+    lines.append(f"- warning: {int(gate_summary.get('warning', 0) or 0)}")
+    lines.append(f"- info: {int(gate_summary.get('info', 0) or 0)}")
+    lines.append("")
+    gate_findings = report.get("publish_gate_findings", [])
+    if gate_findings:
+        lines.append("| severity | metric | value | title | recommendation |")
+        lines.append("|---|---|---:|---|---|")
+        for finding in gate_findings:
+            lines.append(
+                "| {} | `{}` | {} | {} | {} |".format(
+                    finding.get("severity", ""),
+                    finding.get("metric", ""),
+                    finding.get("value", 0),
+                    finding.get("title", ""),
+                    finding.get("recommendation", ""),
+                )
+            )
+        lines.append("")
 
     totals = report["totals"]
     lines.append("## Totals")
@@ -1838,8 +2113,11 @@ def to_markdown(report: Dict) -> str:
     lines.append(f"- Chemistry inline fixes: {totals['chemistry_inline_fixes']}")
     lines.append(f"- Chemistry arrow/symbol fixes: {totals['chemistry_arrow_symbol_fixes']}")
     lines.append(f"- Chemistry unit fixes: {totals['chemistry_unit_fixes']}")
+    lines.append(f"- Chemistry glyph fixes: {totals['chemistry_glyph_fix_count']}")
     lines.append(f"- Remaining chemistry arrow/symbol issues: {totals['remaining_chemistry_arrow_symbol_issues']}")
     lines.append(f"- Remaining chemistry unit issues: {totals['remaining_chemistry_unit_issues']}")
+    lines.append(f"- Remaining chemistry glyph issues: {totals['remaining_chemistry_glyph_issues']}")
+    lines.append(f"- Core promotion candidate count: {totals['core_promotion_candidate_count']}")
     lines.append(f"- Physics unit fixes applied (converter log): {totals['physics_unit_fix_count']}")
     lines.append(f"- Physics text fixes applied (converter log): {totals['physics_text_fix_count']}")
     lines.append(f"- Mixed math/text cleanup fixes applied (converter log): {totals['mixed_math_text_cleanup_count']}")
@@ -2137,6 +2415,7 @@ def main() -> None:
     parser.add_argument("--asset-dir", type=Path, default=None)
     parser.add_argument("--conversion-log", type=Path, default=None)
     parser.add_argument("--subject", choices=["generic", "physics", "chemistry", "math", "biology"], default=None)
+    parser.add_argument("--output-mode", choices=["internal", "publish"], default="publish")
     parser.add_argument("--json-out", type=Path, default=None)
     parser.add_argument("--md-out", type=Path, default=None)
     parser.add_argument("--print-md", action="store_true")
@@ -2145,11 +2424,20 @@ def main() -> None:
     html_path = args.html.resolve()
     asset_dir = args.asset_dir.resolve() if args.asset_dir else html_path.with_name(html_path.stem + "_files")
     subject = args.subject or detect_subject(html_path.name)
-    report = audit(html_path, asset_dir, args.conversion_log.resolve() if args.conversion_log else None, subject)
+    report = audit(
+        html_path,
+        asset_dir,
+        args.conversion_log.resolve() if args.conversion_log else None,
+        subject,
+        output_mode=args.output_mode,
+    )
 
     if args.json_out:
         args.json_out.parent.mkdir(parents=True, exist_ok=True)
-        args.json_out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        args.json_out.write_text(
+            json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
     if args.md_out:
         args.md_out.parent.mkdir(parents=True, exist_ok=True)
         args.md_out.write_text(to_markdown(report), encoding="utf-8")

@@ -1,0 +1,143 @@
+{
+  "schema_version": "regression_set.v1",
+  "phase": "B",
+  "description": "Fixed deterministic regression set for Phase B (regression + perf baseline + parser stabilization)",
+  "samples": [
+    {
+      "sample_id": "chem_hoa_2026_big",
+      "subject": "chemistry",
+      "category": "chemistry",
+      "source_docx": "in/Hoa_2026_Big.docx",
+      "tags": ["chemistry", "large", "mathml-heavy", "ole-heavy"],
+      "expected_artifacts": {
+        "html": "samples/chem_hoa_2026_big/html/chem_hoa_2026_big-transpect.html",
+        "qa_json": "samples/chem_hoa_2026_big/qa/chem_hoa_2026_big.qa.json",
+        "verification_notes": "samples/chem_hoa_2026_big/notes.md"
+      },
+      "verification_notes": [
+        "MathML count must remain stable or improve compared to baseline.",
+        "Chemistry inline notation and unit normalization must not regress.",
+        "ChemDraw/ChemWindow preview leakage must be tracked by QA output."
+      ]
+    },
+    {
+      "sample_id": "chem_pham_nghia",
+      "subject": "chemistry",
+      "category": "chemistry",
+      "source_docx": "in/Pham Nghia.docx",
+      "tags": ["chemistry", "preview-risk", "encoding-risk"],
+      "expected_artifacts": {
+        "html": "samples/chem_pham_nghia/html/chem_pham_nghia-transpect.html",
+        "qa_json": "samples/chem_pham_nghia/qa/chem_pham_nghia.qa.json",
+        "verification_notes": "samples/chem_pham_nghia/notes.md"
+      },
+      "verification_notes": [
+        "Corrupted text fragments in chemistry explanations must be detected by QA.",
+        "Parser must preserve section/question boundaries and asset mapping.",
+        "Remaining unresolved preview objects must be explicit in report."
+      ]
+    },
+    {
+      "sample_id": "phys_ly_2026_big",
+      "subject": "physics",
+      "category": "physics",
+      "source_docx": "in/Ly_2026_Big.docx",
+      "tags": ["physics", "very-large", "wmf-bin-heavy", "diagram-heavy"],
+      "expected_artifacts": {
+        "html": "samples/phys_ly_2026_big/html/phys_ly_2026_big-transpect.html",
+        "qa_json": "samples/phys_ly_2026_big/qa/phys_ly_2026_big.qa.json",
+        "verification_notes": "samples/phys_ly_2026_big/notes.md"
+      },
+      "verification_notes": [
+        "Sidecar equation conversion should remain high and deterministic.",
+        "Visio/diagram objects must remain diagrams, not equations.",
+        "Performance baseline should capture heavy WMF/BIN behavior."
+      ]
+    },
+    {
+      "sample_id": "phys_34_thuvienvatly",
+      "subject": "physics",
+      "category": "physics",
+      "source_docx": "in/34_thuvienvatly.com.635b7.51161.docx",
+      "tags": ["physics", "diagram-mix", "ole-preview"],
+      "expected_artifacts": {
+        "html": "samples/phys_34_thuvienvatly/html/phys_34_thuvienvatly-transpect.html",
+        "qa_json": "samples/phys_34_thuvienvatly/qa/phys_34_thuvienvatly.qa.json",
+        "verification_notes": "samples/phys_34_thuvienvatly/notes.md"
+      },
+      "verification_notes": [
+        "Diagram classification and render fallback behavior must stay stable.",
+        "Parser must keep question indexing stable across repeated runs.",
+        "No publish leakage in publish mode output."
+      ]
+    },
+    {
+      "sample_id": "math_toan_2026_big",
+      "subject": "math",
+      "category": "math",
+      "source_docx": "in/Toan_2026_Big.docx",
+      "tags": ["math", "very-large", "wmf-bin-heavy"],
+      "expected_artifacts": {
+        "html": "samples/math_toan_2026_big/html/math_toan_2026_big-transpect.html",
+        "qa_json": "samples/math_toan_2026_big/qa/math_toan_2026_big.qa.json",
+        "verification_notes": "samples/math_toan_2026_big/notes.md"
+      },
+      "verification_notes": [
+        "MathML fidelity and math glyph cleanup must remain stable.",
+        "Parser must infer question type deterministically where possible.",
+        "Timing baseline must include parser JSON build cost."
+      ]
+    },
+    {
+      "sample_id": "math_toan_deso_11_tb",
+      "subject": "math",
+      "category": "math",
+      "source_docx": "in/Toan_deso_11_TB.docx",
+      "tags": ["math", "medium", "layout-regression-guard"],
+      "expected_artifacts": {
+        "html": "samples/math_toan_deso_11_tb/html/math_toan_deso_11_tb-transpect.html",
+        "qa_json": "samples/math_toan_deso_11_tb/qa/math_toan_deso_11_tb.qa.json",
+        "verification_notes": "samples/math_toan_deso_11_tb/notes.md"
+      },
+      "verification_notes": [
+        "Table/image layout cleanup must remain stable.",
+        "Question extraction for smaller exam must remain deterministic.",
+        "No increase in unresolved object placeholders."
+      ]
+    },
+    {
+      "sample_id": "hard_ole_toan_phi",
+      "subject": "math",
+      "category": "hard_ole_preview",
+      "source_docx": "in/Toan_Phi.docx",
+      "tags": ["hard-ole", "preview-heavy", "stress"],
+      "expected_artifacts": {
+        "html": "samples/hard_ole_toan_phi/html/hard_ole_toan_phi-transpect.html",
+        "qa_json": "samples/hard_ole_toan_phi/qa/hard_ole_toan_phi.qa.json",
+        "verification_notes": "samples/hard_ole_toan_phi/notes.md"
+      },
+      "verification_notes": [
+        "Must detect regressions in unresolved/fallback-heavy cases.",
+        "Parser warning generation must remain stable for low-confidence regions.",
+        "Timing breakdown must include sidecar-heavy profile."
+      ]
+    },
+    {
+      "sample_id": "omml_clean_sample",
+      "subject": "math",
+      "category": "omml_clean",
+      "source_docx": "samples/sample-omml.docx",
+      "tags": ["omml-clean", "small", "sanity"],
+      "expected_artifacts": {
+        "html": "samples/omml_clean_sample/html/omml_clean_sample-transpect.html",
+        "qa_json": "samples/omml_clean_sample/qa/omml_clean_sample.qa.json",
+        "verification_notes": "samples/omml_clean_sample/notes.md"
+      },
+      "verification_notes": [
+        "OMML-only conversion path should stay clean with no OLE fallback.",
+        "Parser must extract questions/assets/math fragments without warnings where possible.",
+        "Serves as low-noise baseline for parser confidence."
+      ]
+    }
+  ]
+}

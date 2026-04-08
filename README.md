@@ -165,7 +165,103 @@ If no match exists:
 ## CLI options
 
 ```text
-java -jar ... <input.docx> <output.html> [--native-mathml-only] [--mathml-manifest manifest.tsv]
+java -jar ... <input.docx> <output.html> [--native-mathml-only] [--mathml-manifest manifest.tsv] [--subject ...] [--output-mode internal|publish]
+```
+
+`--output-mode` behavior:
+
+- `publish` (default): apply final publish sanitization (strip debug leakage, publish-clean output)
+- `internal`: keep richer internal/debug/provenance details for QA/dev analysis
+
+## QA publish gates
+
+Run QA with explicit mode:
+
+```bash
+python3 scripts/qa/audit_exam_bundle.py output.html \
+  --asset-dir output_files \
+  --subject math \
+  --output-mode publish \
+  --json-out qa.json \
+  --md-out qa.md
+```
+
+Gate severities:
+
+- `info`
+- `warning`
+- `error`
+- `blocker`
+
+Verdict mapping:
+
+- any blocker -> `blocked`
+- else any warning/error -> `needs_review`
+- otherwise -> `safe_to_publish`
+
+## Output contract artifacts (Phase A)
+
+Batch conversion now also emits deterministic JSON contract files per input:
+
+- `manifest.json`
+- `exam_bundle.json`
+- `question_bank_items.json`
+- `qa.json`
+
+Contract generator entrypoint:
+
+```bash
+python3 scripts/contracts/generate_output_contract.py \
+  --html out/<run>/html/<file>-transpect.html \
+  --qa-json out/<run>/qa/<file>.qa.json \
+  --source-docx in/<file>.docx \
+  --subject math \
+  --output-mode publish \
+  --out-dir out/<run>/contracts/<file>
+```
+
+See:
+
+- `docs/output_contract_v1.md`
+- `docs/publish_gates_matrix.md`
+- `docs/parser_report_v1.md`
+- `docs/performance_baseline_v1.md`
+
+## Phase B regression + baseline runner
+
+Run the fixed Phase B regression set (2 chemistry, 2 physics, 2 math, 1 hard OLE, 1 OMML-clean)
+and generate timing baseline + parser outputs:
+
+```bash
+python3 scripts/regression/run_phase_b_regression.py \
+  --inventory regression_set/phase_b_inventory.json \
+  --output-mode publish
+```
+
+This emits:
+
+- `out/<run-name>/regression-sample-inventory.json`
+- `out/<run-name>/baseline/performance-baseline.json`
+- `out/<run-name>/baseline/performance-baseline.md`
+- per-sample artifacts under `out/<run-name>/samples/<sample_id>/...`
+
+## Phase C docs and override policy
+
+Phase C adds documentation-first governance for core promotion, controlled edge-case overrides,
+and DOCX export direction.
+
+See:
+
+- `docs/core-promotion/README.md`
+- `docs/core-promotion/candidate_registry.md`
+- `docs/override_manifest_v1.md`
+- `docs/docx_export_direction_v1.md`
+
+Override manifest example and validator:
+
+```bash
+python3 scripts/overrides/validate_override_manifest.py \
+  --manifest overrides/override_manifest.example.json
 ```
 
 ## Important scope note

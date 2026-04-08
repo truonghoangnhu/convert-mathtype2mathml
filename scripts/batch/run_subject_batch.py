@@ -75,6 +75,17 @@ def detect_subject(raw_name: str) -> str:
     return "generic"
 
 
+def normalize_publish_verdict(value: str) -> str:
+    lowered = (value or "").strip().lower()
+    if lowered in {"safe_to_publish", "safe to publish"}:
+        return "safe_to_publish"
+    if lowered in {"blocked", "blocker"}:
+        return "blocked"
+    if lowered in {"needs_review", "still needs cleanup"}:
+        return "needs_review"
+    return "needs_review"
+
+
 def default_project_jar(root: Path) -> Path:
     matches = sorted(root.glob("target/*-jar-with-dependencies.jar"))
     if not matches:
@@ -131,6 +142,7 @@ def compute_conversion_fingerprint(
     *,
     docx_path: Path,
     subject: str,
+    output_mode: str,
     project_jar: Path,
     mathtype_dir: Path,
     xmlcalabash_jar: Path,
@@ -144,6 +156,7 @@ def compute_conversion_fingerprint(
         "docx_fp": file_fingerprint(docx_path.resolve()),
         "docx_sha256": file_sha256(docx_path.resolve()),
         "subject": subject,
+        "output_mode": output_mode,
         "project_jar": str(project_jar.resolve()),
         "project_jar_fp": file_fingerprint(project_jar.resolve()),
         "mathtype_dir": str(mathtype_dir.resolve()),
@@ -204,6 +217,7 @@ def build_markdown(summary: Dict) -> str:
     lines.append(f"- Input dir: `{summary['input_dir']}`")
     lines.append(f"- Output dir: `{summary['output_dir']}`")
     lines.append(f"- Work dir: `{summary['work_dir']}`")
+    lines.append(f"- Output mode: `{summary.get('output_mode', 'publish')}`")
     lines.append(f"- Publish verdict: `{summary['publish_verdict']}`")
     lines.append("")
     lines.append("## Totals")
@@ -246,17 +260,17 @@ def build_markdown(summary: Dict) -> str:
     lines.append("")
     lines.append("## Files")
     lines.append("")
-    lines.append("| source | subject | status | reused | conv(s) | qa(s) | mathml | previews | corruption | chem inline issues | verdict | html | qa json |")
-    lines.append("|---|---|---|---|---:|---:|---:|---:|---:|---:|---|---|---|")
+    lines.append("| source | subject | status | reused | conv(s) | qa(s) | mathml | previews | corruption | chem inline issues | verdict | html | qa json | contract manifest |")
+    lines.append("|---|---|---|---|---:|---:|---:|---:|---:|---:|---|---|---|---|")
     for item in summary["files"]:
         if item["status"] != "ok":
             lines.append(
-                f"| `{item['source_relative']}` | `{item['subject']}` | failed |  | 0 | 0 | 0 | 0 | 0 | 0 | `failed` |  |  |"
+                f"| `{item['source_relative']}` | `{item['subject']}` | failed |  | 0 | 0 | 0 | 0 | 0 | 0 | `failed` |  |  |  |"
             )
             continue
         totals = item["qa"]["totals"]
         lines.append(
-            "| `{}` | `{}` | ok | `{}` | {:.3f} | {:.3f} | {} | {} | {} | {} | `{}` | `{}` | `{}` |".format(
+            "| `{}` | `{}` | ok | `{}` | {:.3f} | {:.3f} | {} | {} | {} | {} | `{}` | `{}` | `{}` | `{}` |".format(
                 item["source_relative"],
                 item["subject"],
                 "yes" if item.get("reused", False) else "no",
@@ -269,6 +283,7 @@ def build_markdown(summary: Dict) -> str:
                 item["qa"]["publish_verdict"],
                 item["html_relative"],
                 item["qa_json_relative"],
+                item.get("contract_manifest_relative", ""),
             )
         )
     lines.append("")
@@ -304,6 +319,7 @@ def main() -> None:
     parser.add_argument("--saxon-jar", type=Path, default=None)
     parser.add_argument("--transpect-config", type=Path, default=root / "tools/calabash/extensions/transpect/transpect-config.xml")
     parser.add_argument("--subject", choices=["generic", "physics", "chemistry", "math", "biology"], default=None)
+    parser.add_argument("--output-mode", choices=["internal", "publish"], default="publish")
     parser.add_argument("--skip-build", action="store_true")
     parser.add_argument("--force-build", action="store_true")
     parser.add_argument("--reuse-if-unchanged", dest="reuse_if_unchanged", action="store_true")
@@ -344,6 +360,7 @@ def main() -> None:
 
     wrapper_script = root / "scripts/transpect/run_docx_with_transpect.sh"
     qa_script = root / "scripts/qa/audit_exam_bundle.py"
+    contract_script = root / "scripts/contracts/generate_output_contract.py"
     explicit_input = args.input_docx.resolve() if args.input_docx else None
     if explicit_input is not None:
         if explicit_input.suffix.lower() != ".docx":
@@ -400,17 +417,25 @@ def main() -> None:
         qa_md = (qa_root / rel_stem).with_name(rel_stem.name + ".qa.md")
         conversion_log = (logs_root / rel_stem).with_name(rel_stem.name + ".conversion.log")
         qa_log = (logs_root / rel_stem).with_name(rel_stem.name + ".qa.log")
+        contract_log = (logs_root / rel_stem).with_name(rel_stem.name + ".contract.log")
+        contract_dir = batch_dir / "contracts" / rel_stem
+        contract_manifest = contract_dir / "manifest.json"
+        contract_exam_bundle = contract_dir / "exam_bundle.json"
+        contract_question_bank_items = contract_dir / "question_bank_items.json"
+        contract_qa = contract_dir / "qa.json"
         work_dir = work_root / rel_stem
         cache_meta = work_dir / ".conversion-cache.json"
 
         html_path.parent.mkdir(parents=True, exist_ok=True)
         qa_json.parent.mkdir(parents=True, exist_ok=True)
         conversion_log.parent.mkdir(parents=True, exist_ok=True)
+        contract_dir.mkdir(parents=True, exist_ok=True)
         work_dir.mkdir(parents=True, exist_ok=True)
 
         conversion_fingerprint = compute_conversion_fingerprint(
             docx_path=docx_path,
             subject=subject,
+            output_mode=args.output_mode,
             project_jar=project_jar,
             mathtype_dir=args.mathtype_dir.resolve(),
             xmlcalabash_jar=args.xmlcalabash_jar.resolve(),
@@ -445,6 +470,8 @@ def main() -> None:
             str(args.transpect_config.resolve()),
             "--subject",
             subject,
+            "--output-mode",
+            args.output_mode,
         ]
         cache_dir = work_root / ".cache" / "docx-html-math" / "transpect-sidecars"
         cache_dir.mkdir(parents=True, exist_ok=True)
@@ -486,6 +513,8 @@ def main() -> None:
                 str(conversion_log),
                 "--subject",
                 subject,
+                "--output-mode",
+                args.output_mode,
                 "--json-out",
                 str(qa_json),
                 "--md-out",
@@ -541,6 +570,38 @@ def main() -> None:
                 }
             )
             continue
+        contract_cmd = [
+            sys.executable,
+            str(contract_script),
+            "--html",
+            str(html_path),
+            "--qa-json",
+            str(qa_json),
+            "--source-docx",
+            str(docx_path.resolve()),
+            "--subject",
+            subject,
+            "--output-mode",
+            args.output_mode,
+            "--out-dir",
+            str(contract_dir),
+        ]
+        contract_result = run_command(contract_cmd, root, contract_log)
+        if contract_result.returncode != 0:
+            aggregate_totals["documents_failed"] += 1
+            files.append(
+                {
+                    "source": str(docx_path.resolve()),
+                    "source_relative": str(rel_docx),
+                    "subject": subject,
+                    "status": "failed",
+                    "error": f"contract generation failed with exit code {contract_result.returncode}",
+                    "conversion_log": str(conversion_log.resolve()),
+                    "qa_log": str(qa_log.resolve()),
+                    "contract_log": str(contract_log.resolve()),
+                }
+            )
+            continue
         run_timings = read_tsv_timing(work_dir / "run.timings.tsv")
         if not can_reuse:
             performance_totals["sidecar_generation_seconds"] += run_timings.get("sidecar-generation", 0.0)
@@ -568,18 +629,39 @@ def main() -> None:
                 "qa_md": str(qa_md.resolve()),
                 "conversion_log": str(conversion_log.resolve()),
                 "qa_log": str(qa_log.resolve()),
+                "contract_log": str(contract_log.resolve()),
                 "work_dir": str(work_dir.resolve()),
                 "reused": can_reuse,
                 "conversion_seconds": conversion_seconds,
                 "qa_seconds": qa_seconds,
                 "run_timings": run_timings,
+                "contract_manifest": str(contract_manifest.resolve()),
+                "contract_manifest_relative": str(contract_manifest.resolve().relative_to(batch_dir)),
+                "contract_exam_bundle": str(contract_exam_bundle.resolve()),
+                "contract_exam_bundle_relative": str(contract_exam_bundle.resolve().relative_to(batch_dir)),
+                "contract_question_bank_items": str(contract_question_bank_items.resolve()),
+                "contract_question_bank_items_relative": str(
+                    contract_question_bank_items.resolve().relative_to(batch_dir)
+                ),
+                "contract_qa": str(contract_qa.resolve()),
+                "contract_qa_relative": str(contract_qa.resolve().relative_to(batch_dir)),
                 "qa": report,
             }
         )
 
-    publish_verdict = "safe to publish"
-    if aggregate_totals["documents_failed"] or any(item.get("qa", {}).get("publish_verdict") != "safe to publish" for item in files if item["status"] == "ok"):
-        publish_verdict = "still needs cleanup"
+    publish_verdict = "safe_to_publish"
+    if aggregate_totals["documents_failed"]:
+        publish_verdict = "blocked"
+    else:
+        for item in files:
+            if item.get("status") != "ok":
+                continue
+            item_verdict = normalize_publish_verdict(item.get("qa", {}).get("publish_verdict", "needs_review"))
+            if item_verdict == "blocked":
+                publish_verdict = "blocked"
+                break
+            if item_verdict == "needs_review" and publish_verdict == "safe_to_publish":
+                publish_verdict = "needs_review"
 
     summary = {
         "batch_name": args.batch_name,
@@ -587,6 +669,7 @@ def main() -> None:
         "input_dir": str(input_dir),
         "output_dir": str(batch_dir),
         "work_dir": str(work_root),
+        "output_mode": args.output_mode,
         "publish_verdict": publish_verdict,
         "totals": aggregate_totals,
         "performance": performance_totals,

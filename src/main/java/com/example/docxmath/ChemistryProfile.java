@@ -27,6 +27,7 @@ public final class ChemistryProfile extends GenericProfile {
         rules.add(new TextReplacementRule(Pattern.compile("\uf0de"), "⇒"));
         rules.add(new TextReplacementRule(Pattern.compile("\uf0f0"), "⇒"));
         rules.add(new TextReplacementRule(Pattern.compile("\uf0ad"), "↑"));
+        rules.add(new TextReplacementRule(Pattern.compile("\uf0af"), "↓"));
         rules.add(new TextReplacementRule(Pattern.compile("\uf0b7"), "•"));
         rules.add(new TextReplacementRule(Pattern.compile("\uf0d7"), "·"));
         rules.add(new TextReplacementRule(Pattern.compile("\uf02d"), "−"));

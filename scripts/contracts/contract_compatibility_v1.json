@@ -1,0 +1,53 @@
+{
+  "schema_version": "contract_compatibility_gate.v1",
+  "required_artifacts": {
+    "manifest": "manifest.json",
+    "exam_bundle": "exam_bundle.json",
+    "question_bank_items": "question_bank_items.json",
+    "qa": "qa.json",
+    "parser_report": "parser_report.json",
+    "override_audit": "override_audit.json"
+  },
+  "expected_schema_versions": {
+    "manifest": "output_contract.v1",
+    "exam_bundle": "output_contract.v1",
+    "question_bank_items": "output_contract.v1",
+    "qa": "output_contract.v1",
+    "parser_report": "parser_report.v1",
+    "override_audit": "override_audit.v1"
+  },
+  "expected_artifact_types": {
+    "manifest": "manifest",
+    "exam_bundle": "exam_bundle",
+    "question_bank_items": "question_bank_items",
+    "qa": "qa",
+    "parser_report": "parser_report",
+    "override_audit": "override_audit"
+  },
+  "required_top_level_keys": {
+    "manifest": ["schema_version", "artifact_type", "bundle_id", "subject", "output_mode", "source", "publish", "artifacts", "enums"],
+    "exam_bundle": ["schema_version", "artifact_type", "bundle_id", "subject", "output_mode", "summary", "exams", "answer_summary", "answer_qa_summary", "question_item_count"],
+    "question_bank_items": ["schema_version", "artifact_type", "bundle_id", "subject", "output_mode", "item_count", "items"],
+    "qa": ["schema_version", "artifact_type", "bundle_id", "subject", "output_mode", "publish_verdict", "publish_gate_summary", "publish_gate_findings", "totals", "parser_summary", "answer_summary", "answer_qa_summary", "answer_qa_issues"],
+    "parser_report": ["schema_version", "artifact_type", "bundle_id", "subject", "output_mode", "summary", "answer_summary", "answer_qa_summary", "confidence_histogram", "sections", "questions", "warnings", "timings"],
+    "override_audit": ["schema_version", "artifact_type", "bundle_id", "subject", "output_mode", "manifest_provided", "summary", "records"]
+  },
+  "manifest_required_artifacts": [
+    "manifest",
+    "exam_bundle",
+    "question_bank_items",
+    "qa",
+    "parser_report",
+    "override_audit"
+  ],
+  "manifest_required_enum_values": {
+    "question_types": ["unknown", "single_choice", "multiple_choice", "true_false", "short_answer", "essay"],
+    "asset_roles": ["equation", "diagram", "chart", "chemical-diagram", "generic-image", "unknown-preview"],
+    "placements": ["inline", "display", "context-right", "context-below", "centered", "table-cell", "unknown"],
+    "qa_severities": ["info", "warning", "error", "blocker"],
+    "publish_verdicts": ["safe_to_publish", "needs_review", "blocked"],
+    "output_modes": ["internal", "publish"],
+    "answer_modes": ["single_choice", "boolean_group", "short_answer", "rubric", "none"],
+    "reconciliation_statuses": ["resolved", "resolved_with_fill", "resolved_normalized_equivalent", "conflict", "needs_review", "blocked"]
+  }
+}

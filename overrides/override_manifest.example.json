@@ -1,0 +1,108 @@
+{
+  "schema_version": "override_manifest.v1",
+  "manifest_id": "phase-c-example-override-001",
+  "description": "Example edge-case overrides for review workflow",
+  "source": {
+    "docx_path": "in/Hoa_2026_Big.docx",
+    "docx_sha256": "",
+    "subject": "chemistry",
+    "output_mode": "publish"
+  },
+  "overrides": [
+    {
+      "id": "OVR-001-KEEP-SUPPRESS",
+      "enabled": true,
+      "action": "asset_visibility",
+      "match": {
+        "exam_id": "DE_1",
+        "asset_src_contains": "oleObject",
+        "fallback_type": "ole_preview"
+      },
+      "value": {
+        "visibility": "suppress"
+      },
+      "reason": "Duplicate nonessential preview image",
+      "owner": "qa-review"
+    },
+    {
+      "id": "OVR-002-ASSET-ROLE",
+      "enabled": true,
+      "action": "asset_role_override",
+      "match": {
+        "exam_id": "DE_2",
+        "asset_src_contains": "image-45",
+        "prog_id": "Visio.Drawing.15"
+      },
+      "value": {
+        "role": "diagram"
+      },
+      "reason": "Asset was classified as generic but is a diagram",
+      "owner": "qa-review"
+    },
+    {
+      "id": "OVR-003-PLACEMENT",
+      "enabled": true,
+      "action": "placement_override",
+      "match": {
+        "question_id": "DE_2-Q015-01",
+        "asset_src": "DE_2/image-45.png"
+      },
+      "value": {
+        "placement": "context-right"
+      },
+      "reason": "Maintain readability with surrounding text",
+      "owner": "qa-review"
+    },
+    {
+      "id": "OVR-004-TEXT-PATCH",
+      "enabled": true,
+      "action": "text_patch",
+      "match": {
+        "exam_id": "DE_3",
+        "question_number": 21
+      },
+      "value": {
+        "target": "visible_text",
+        "match_mode": "literal",
+        "find": "Mpa",
+        "replace": "MPa",
+        "max_replacements": 2
+      },
+      "reason": "Known OCR corruption in this question only",
+      "owner": "qa-review"
+    },
+    {
+      "id": "OVR-005-PUBLISH-EXCEPTION",
+      "enabled": true,
+      "action": "publish_exception",
+      "match": {
+        "exam_id": "DE_4"
+      },
+      "value": {
+        "metric": "remaining_nonessential_standalone_image_candidates",
+        "allow_if_lte": 1,
+        "severity_override": "warning"
+      },
+      "reason": "One known nonessential image candidate accepted for this release",
+      "owner": "release-manager",
+      "ticket": "DOCX-842",
+      "expires_on": "2026-06-30"
+    },
+    {
+      "id": "OVR-006-ANSWER-OVERRIDE",
+      "enabled": true,
+      "action": "answer_override",
+      "match": {
+        "exam_id": "DE_2",
+        "question_number": 15
+      },
+      "value": {
+        "mode": "single_choice",
+        "value": "C"
+      },
+      "reason": "Validated by manual review after local-summary conflict",
+      "owner": "qa-review",
+      "ticket": "DOCX-901"
+    }
+  ]
+}

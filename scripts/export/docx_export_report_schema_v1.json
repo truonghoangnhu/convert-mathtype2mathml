@@ -1,0 +1,59 @@
+{
+  "schema_version": "docx_export_report_schema.v1",
+  "artifact_type": "docx_export_report_schema",
+  "report_schema_version": "docx_export_report.v1",
+  "required_top_level_keys": [
+    "schema_version",
+    "artifact_type",
+    "bundle_id",
+    "export_mode",
+    "source_paths",
+    "output_docx_path",
+    "verdict",
+    "metrics",
+    "failure_policy",
+    "policy_checks",
+    "openability",
+    "issues",
+    "warnings_count",
+    "blockers_count",
+    "timings"
+  ],
+  "enums": {
+    "export_modes": [
+      "student_exam",
+      "teacher_exam",
+      "question_pack",
+      "review_copy"
+    ],
+    "export_verdicts": [
+      "safe_to_export",
+      "needs_review",
+      "blocked"
+    ],
+    "issue_severities": [
+      "info",
+      "warning",
+      "error",
+      "blocker"
+    ]
+  },
+  "metrics_keys": [
+    "question_count",
+    "math_detected_count",
+    "math_converted_count",
+    "math_failed_count",
+    "image_embedded_count",
+    "image_failed_count",
+    "answer_block_count",
+    "rubric_block_count"
+  ],
+  "issue_fields": [
+    "code",
+    "severity",
+    "message",
+    "exam_id",
+    "question_id",
+    "location"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": "override_manifest.v1",
+  "manifest_id": "answer-reconcile-fixture-case7",
+  "description": "manual override fixture",
+  "source": {"subject": "math", "output_mode": "publish"},
+  "overrides": [
+    {
+      "id": "OVR-CASE7-ANSWER",
+      "enabled": true,
+      "action": "answer_override",
+      "match": {"exam_id": "DE_1", "question_number": 1},
+      "value": {"mode": "single_choice", "value": "C"},
+      "reason": "fixture override",
+      "owner": "qa"
+    }
+  ]
+}

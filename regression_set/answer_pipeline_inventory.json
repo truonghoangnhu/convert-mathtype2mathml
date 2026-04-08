@@ -1,0 +1,101 @@
+{
+  "schema_version": "answer_pipeline_regression.v1",
+  "description": "Dedicated regression group for answer pipeline v1 (summary extraction + reconciliation + override participation).",
+  "qa_json_default": "fixtures/answer_reconciliation/fixture.qa.json",
+  "cases": [
+    {
+      "case_id": "mc_local_summary_agree",
+      "fixture_html": "fixtures/answer_reconciliation/case1_mc_agreement.html",
+      "expected": {
+        "answer_summary_present": true,
+        "answer_mode": "single_choice",
+        "reconciliation_status": "resolved",
+        "publish_verdict": "safe_to_publish",
+        "required_issue_codes": [
+          "answer_summary_redundant_but_consistent"
+        ]
+      }
+    },
+    {
+      "case_id": "mc_local_summary_conflict",
+      "fixture_html": "fixtures/answer_reconciliation/case5_conflict_local_summary.html",
+      "expected": {
+        "answer_summary_present": true,
+        "answer_mode": "none",
+        "reconciliation_status": "conflict",
+        "publish_verdict": "blocked",
+        "required_issue_codes": [
+          "answer_source_conflict",
+          "summary_vs_local_conflict"
+        ]
+      }
+    },
+    {
+      "case_id": "tf_summary_fill_missing_local",
+      "fixture_html": "fixtures/answer_reconciliation/case2_tf_fill.html",
+      "expected": {
+        "answer_summary_present": true,
+        "answer_mode": "boolean_group",
+        "reconciliation_status": "resolved_with_fill",
+        "publish_verdict": "safe_to_publish"
+      }
+    },
+    {
+      "case_id": "short_answer_normalized_equivalent",
+      "fixture_html": "fixtures/answer_reconciliation/case3_short_norm_equiv.html",
+      "expected": {
+        "answer_summary_present": true,
+        "answer_mode": "short_answer",
+        "reconciliation_status": "resolved_normalized_equivalent",
+        "publish_verdict": "safe_to_publish"
+      }
+    },
+    {
+      "case_id": "essay_rubric_marker",
+      "fixture_html": "fixtures/answer_reconciliation/case4_essay_rubric.html",
+      "expected": {
+        "answer_summary_present": false,
+        "answer_mode": "rubric",
+        "reconciliation_status": "resolved",
+        "publish_verdict": "safe_to_publish",
+        "required_issue_codes": [
+          "answer_summary_zone_missing"
+        ],
+        "max_issue_severity": {
+          "answer_summary_zone_missing": "info"
+        }
+      }
+    },
+    {
+      "case_id": "override_applied",
+      "fixture_html": "fixtures/answer_reconciliation/case7_override_applied.html",
+      "override_manifest": "fixtures/answer_reconciliation/case7.override.json",
+      "expected": {
+        "answer_summary_present": true,
+        "answer_mode": "single_choice",
+        "reconciliation_status": "resolved",
+        "chosen_source": "manual_override",
+        "publish_verdict": "needs_review",
+        "required_issue_codes": [
+          "answer_source_conflict"
+        ]
+      }
+    },
+    {
+      "case_id": "no_summary_clear_local",
+      "fixture_html": "fixtures/answer_reconciliation/case8_no_summary_clear_local.html",
+      "expected": {
+        "answer_summary_present": false,
+        "answer_mode": "single_choice",
+        "reconciliation_status": "resolved",
+        "publish_verdict": "safe_to_publish",
+        "required_issue_codes": [
+          "answer_summary_zone_missing"
+        ],
+        "max_issue_severity": {
+          "answer_summary_zone_missing": "info"
+        }
+      }
+    }
+  ]
+}

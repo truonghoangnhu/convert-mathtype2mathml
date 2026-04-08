@@ -1,0 +1,56 @@
+{
+  "schema_version": "parser_quality_gate.v1",
+  "global": {
+    "max_orphan_asset_count": 2,
+    "max_orphan_math_fragment_count": 3,
+    "max_answer_blocker_count": 0,
+    "max_canonical_answer_missing_count": 0,
+    "max_answer_conflict_count": 0,
+    "max_unresolved_reconciliation_count": 0
+  },
+  "subject_thresholds": {
+    "generic": {
+      "min_avg_confidence": 0.6,
+      "max_unknown_question_type_ratio": 0.35,
+      "max_warning_per_question": 1.5,
+      "min_question_count": 20
+    },
+    "chemistry": {
+      "min_avg_confidence": 0.58,
+      "max_unknown_question_type_ratio": 0.35,
+      "max_warning_per_question": 1.8,
+      "min_question_count": 20
+    },
+    "physics": {
+      "min_avg_confidence": 0.58,
+      "max_unknown_question_type_ratio": 0.45,
+      "max_warning_per_question": 1.8,
+      "min_question_count": 20
+    },
+    "math": {
+      "min_avg_confidence": 0.53,
+      "max_unknown_question_type_ratio": 0.5,
+      "max_warning_per_question": 2.0,
+      "min_question_count": 20
+    },
+    "biology": {
+      "min_avg_confidence": 0.58,
+      "max_unknown_question_type_ratio": 0.4,
+      "max_warning_per_question": 1.8,
+      "min_question_count": 20
+    }
+  },
+  "category_overrides": {
+    "hard_ole_preview": {
+      "min_avg_confidence": 0.54,
+      "max_unknown_question_type_ratio": 0.45,
+      "max_warning_per_question": 2.2,
+      "min_question_count": 50
+    },
+    "omml_clean": {
+      "allow_zero_questions": true,
+      "max_orphan_asset_count": 0,
+      "max_orphan_math_fragment_count": 5
+    }
+  }
+}

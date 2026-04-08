@@ -1,0 +1,63 @@
+{
+  "schema_version": "performance_gate.v1",
+  "aggregate_limits": {
+    "unzip_load": {
+      "p90_seconds_max": 12.0,
+      "total_seconds_max": 40.0
+    },
+    "omml_conversion": {
+      "p90_seconds_max": 0.25,
+      "total_seconds_max": 1.5
+    },
+    "sidecar_generation": {
+      "p90_seconds_max": 95.0,
+      "total_seconds_max": 320.0
+    },
+    "image_rendering": {
+      "p90_seconds_max": 13.0,
+      "total_seconds_max": 45.0
+    },
+    "cleanup_sanitize": {
+      "p90_seconds_max": 0.7,
+      "total_seconds_max": 3.0
+    },
+    "parser_json_build": {
+      "p90_seconds_max": 0.2,
+      "total_seconds_max": 1.5
+    },
+    "write_output": {
+      "p90_seconds_max": 0.01,
+      "total_seconds_max": 0.2
+    }
+  },
+  "sample_limits": {
+    "sidecar_generation": {
+      "seconds_max": 220.0
+    },
+    "unzip_load": {
+      "seconds_max": 20.0
+    },
+    "image_rendering": {
+      "seconds_max": 12.0
+    },
+    "parser_json_build": {
+      "seconds_max": 0.25
+    }
+  },
+  "category_overrides": {
+    "hard_ole_preview": {
+      "sample_limits": {
+        "sidecar_generation": {
+          "seconds_max": 60.0
+        }
+      }
+    },
+    "omml_clean": {
+      "sample_limits": {
+        "sidecar_generation": {
+          "seconds_max": 5.0
+        }
+      }
+    }
+  }
+}
