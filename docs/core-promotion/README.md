@@ -1,44 +1,32 @@
-# Core Promotion Workflow (Phase C)
+# Core Promotion Index
 
-This folder defines how repeated issues are promoted from ad-hoc subject fixes into shared core behavior.
+This folder is the compact index for repeated cross-subject issues that should be promoted into shared core behavior.
 
-## Goals
+## Purpose
 
 - Keep core vs subject boundaries explicit.
 - Reduce repeated patching across Chemistry, Physics, and Math.
-- Use evidence from QA/parser/perf outputs instead of one-off assumptions.
+- Track which repeated patterns are already known core candidates.
 
-## Folder Layout
+## Promotion Rule
 
-- `note_template.md`: reusable template for each promotion candidate.
-- `candidate_registry.md`: current candidate inventory and status table.
-- `CP-*.md`: one note per candidate.
+- If the same root-cause class appears in multiple subjects, prefer a core fix unless the behavior is domain semantic.
 
-## Promotion Rules
+## Current Candidates
 
-1. Candidate threshold:
-- If an issue appears in 2+ subjects or in 3+ exams of the same subject, open a core-promotion candidate note.
+| id | title | scope | status |
+|---|---|---|---|
+| `CP-001` | Parser question boundary stabilization | `core` | `open` |
+| `CP-002` | OLE/EMF/WMF preview classification consistency | `core` | `open` |
+| `CP-003` | Generic inline image trim/crop governance | `core` | `open` |
+| `CP-004` | Structural HTML cleanup consistency | `core` | `open` |
+| `CP-005` | Cross-subject normalization governance | `mixed` | `open` |
 
-2. Promotion expectation:
-- If an issue appears in 3+ subjects and shares the same root cause class (parser/classifier/render/cleanup/gate), promote to core unless there is a clear reason not to.
+## Baselines
 
-3. Keep in subject profile when:
-- The rule is domain semantic (chem notation, physics unit semantics, math notation semantics), or
-- A global rule would likely degrade other subjects.
+- Phase A: `out/phase-a-contract-20260407-1`
+- Phase B: `out/phase-b-regression-20260408`
 
-4. Do not use override as a substitute for core work:
-- Repeated override for the same pattern is a signal to promote a core/spec fix.
+## Note
 
-## Required Evidence Per Candidate
-
-- Repro paths (HTML/QA/parser reports).
-- Quantitative signal (counts, warnings, or gate impact).
-- Scope map (core vs subject).
-- Proposed fix class and acceptance checks.
-
-## Current Phase Inputs
-
-Current candidate notes in this folder are based on:
-
-- Phase A contract artifacts under `out/phase-a-contract-20260407-1`
-- Phase B regression + baseline under `out/phase-b-regression-20260408`
+This folder is intentionally reduced to one index page. Candidate notes and templates were merged into this summary and removed.

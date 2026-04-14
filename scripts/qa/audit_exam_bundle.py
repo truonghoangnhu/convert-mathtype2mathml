@@ -240,6 +240,8 @@ class UnresolvedObject:
     render_success: bool
     render_source_exts: str
     render_source_assets: str
+    placeholder_family: str = ""
+    unresolved_reason: str = ""
 
 
 def parse_attrs(tag: str) -> Dict[str, str]:
@@ -380,6 +382,10 @@ def detect_subject(raw_name: str) -> str:
         return "math"
     if {"sinh", "bio", "biology"} & tokens:
         return "biology"
+    if ("tieng" in tokens and "anh" in tokens) or {"english", "eng"} & tokens:
+        return "english"
+    if {"van", "literature", "literary", "nguvan"} & tokens or ("ngu" in tokens and "van" in tokens):
+        return "literature"
     return "generic"
 
 
@@ -1663,6 +1669,8 @@ def audit(
                     render_success=render_success,
                     render_source_exts=render_source_exts,
                     render_source_assets=render_source_assets,
+                    placeholder_family=attrs.get("data-placeholder-family", ""),
+                    unresolved_reason=attrs.get("data-unresolved-reason", ""),
                 )
             )
 
@@ -1687,6 +1695,8 @@ def audit(
             render_success = attrs.get("data-render-success", "").lower() == "true"
             render_source_exts = attrs.get("data-render-source-exts", "")
             render_source_assets = attrs.get("data-render-source-assets", "")
+            placeholder_family = attrs.get("data-placeholder-family", "")
+            unresolved_reason = attrs.get("data-unresolved-reason", "")
             source_asset = render_source_assets or ""
             fallback_type = attrs.get("data-fallback-type", "unsupported-placeholder")
             if "Visio.Drawing.15" in joined:
@@ -1754,6 +1764,8 @@ def audit(
                     render_success=render_success,
                     render_source_exts=render_source_exts,
                     render_source_assets=render_source_assets,
+                    placeholder_family=placeholder_family,
+                    unresolved_reason=unresolved_reason,
                 )
             )
 
@@ -2054,6 +2066,8 @@ def audit(
                 "render_success": obj.render_success,
                 "render_source_exts": obj.render_source_exts,
                 "render_source_assets": obj.render_source_assets,
+                "placeholder_family": obj.placeholder_family,
+                "unresolved_reason": obj.unresolved_reason,
             }
             for obj in unique_unresolved_objects
         ],
@@ -2414,7 +2428,7 @@ def main() -> None:
     parser.add_argument("html", type=Path)
     parser.add_argument("--asset-dir", type=Path, default=None)
     parser.add_argument("--conversion-log", type=Path, default=None)
-    parser.add_argument("--subject", choices=["generic", "physics", "chemistry", "math", "biology"], default=None)
+    parser.add_argument("--subject", choices=["generic", "physics", "chemistry", "math", "biology", "english", "literature"], default=None)
     parser.add_argument("--output-mode", choices=["internal", "publish"], default="publish")
     parser.add_argument("--json-out", type=Path, default=None)
     parser.add_argument("--md-out", type=Path, default=None)

@@ -1,1 +1,7 @@
+# Core parser support
 lxml>=5.3,<6
+pandas>=2.2,<3
+psycopg[binary]>=3.3,<4
+
+# Optional debug/audit helper:
+# install docx2python separately if you want DOCX-side audits

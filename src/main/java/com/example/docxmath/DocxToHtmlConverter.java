@@ -71,6 +71,8 @@ import java.util.regex.Pattern;
  * for MathType WMF/BIN assets discovered in the .docx package.
  */
 public final class DocxToHtmlConverter {
+    private static final String MATHML_NAMESPACE_URI = "http://www.w3.org/1998/Math/MathML";
+    private static final String TRANSPECT_NAMESPACE_URI = "http://transpect.io";
     private static final Set<String> INLINE_CONTAINER_NAMES = Set.of(
             "hyperlink", "smartTag", "customXml", "ins", "del", "sdt", "sdtContent", "proofErr"
     );
@@ -213,6 +215,16 @@ public final class DocxToHtmlConverter {
     private static final Pattern MATHML_TRANSPECT_NAMESPACE_PATTERN = Pattern.compile(
             "\\s+xmlns:tr=\"http://transpect\\.io\""
     );
+    private static final Pattern MATHML_PREFIXED_ROOT_NAMESPACE_PATTERN = Pattern.compile(
+            "(?is)<mml:math\\b([^>]*)xmlns:mml=\"http://www\\.w3\\.org/1998/Math/MathML\"([^>]*)>"
+    );
+    private static final Pattern MATHML_PREFIXED_TAG_PATTERN = Pattern.compile("(?is)(</?)mml:");
+    private static final Pattern MATHML_DATA_SOURCE_ATTR_PATTERN = Pattern.compile(
+            "\\s+data-math-source=\"[^\"]*\""
+    );
+    private static final Pattern MATHML_DISPLAY_ATTR_PATTERN = Pattern.compile(
+            "\\s+display\\s*=\\s*(?:\"[^\"]*\"|'[^']*')"
+    );
     private static final Map<Integer, String> CORE_SYMBOL_FONT_LOW_BYTE_MAP = Map.ofEntries(
             Map.entry(0xDE, "⇒"),
             Map.entry(0xB7, "•")
@@ -327,6 +339,12 @@ public final class DocxToHtmlConverter {
     private final AtomicInteger emfWmfPreviewCounter = new AtomicInteger(0);
     private final AtomicInteger unresolvedVisioPreviewCounter = new AtomicInteger(0);
     private final AtomicInteger olePlaceholderCounter = new AtomicInteger(0);
+    private final AtomicInteger dsmt4TotalCounter = new AtomicInteger(0);
+    private final AtomicInteger dsmt4SidecarResolvedCounter = new AtomicInteger(0);
+    private final AtomicInteger dsmt4UnresolvedCounter = new AtomicInteger(0);
+    private final AtomicInteger dsmt4ManifestMissingCounter = new AtomicInteger(0);
+    private final AtomicInteger dsmt4ManifestMismatchCounter = new AtomicInteger(0);
+    private final AtomicInteger dsmt4FallbackPlaceholderCounter = new AtomicInteger(0);
     private final AtomicInteger normalizedTextFixCounter = new AtomicInteger(0);
     private final AtomicInteger chemistryInlineFixCounter = new AtomicInteger(0);
     private final AtomicInteger chemistryArrowSymbolFixCounter = new AtomicInteger(0);
@@ -374,6 +392,7 @@ public final class DocxToHtmlConverter {
     }
 
     public DocxToHtmlConverter(boolean includeMathJax, MathmlSidecarRegistry sidecarRegistry, Subject subject, OutputMode outputMode) {
+        configureHeadlessAwtForRasterization();
         this.includeMathJax = includeMathJax;
         this.sidecarRegistry = sidecarRegistry == null ? MathmlSidecarRegistry.empty() : sidecarRegistry;
         this.subject = subject == null ? Subject.GENERIC : subject;
@@ -382,6 +401,12 @@ public final class DocxToHtmlConverter {
         this.subjectProfile = SubjectProfileFactory.create(this.subject);
         this.subjectRules = this.subjectProfile.getRules();
         this.ommlTransformer = new OmmlToMathmlTransformer();
+    }
+
+    private static void configureHeadlessAwtForRasterization() {
+        if (System.getProperty("java.awt.headless") == null) {
+            System.setProperty("java.awt.headless", "true");
+        }
     }
 
     public ConversionSummary convert(Path inputDocx, Path outputHtml) throws Exception {
@@ -436,6 +461,12 @@ public final class DocxToHtmlConverter {
                 sidecarMathmlCounter.get(),
                 olePreviewCounter.get(),
                 olePlaceholderCounter.get(),
+                dsmt4TotalCounter.get(),
+                dsmt4SidecarResolvedCounter.get(),
+                dsmt4UnresolvedCounter.get(),
+                dsmt4ManifestMissingCounter.get(),
+                dsmt4ManifestMismatchCounter.get(),
+                dsmt4FallbackPlaceholderCounter.get(),
                 oleEquationPreviewCounter.get(),
                 oleDiagramPreviewCounter.get(),
                 oleIllustrationPreviewCounter.get(),
@@ -1406,7 +1437,75 @@ public final class DocxToHtmlConverter {
         if (mathml == null || mathml.isBlank()) {
             return mathml;
         }
-        return MATHML_TRANSPECT_NAMESPACE_PATTERN.matcher(mathml).replaceAll("");
+        try {
+            Document mathDocument = parseXml(mathml);
+            Element canonicalRoot = canonicalizeMathmlForPublish(mathDocument.getDocumentElement(), mathDocument);
+            return serializeNode(canonicalRoot);
+        } catch (Exception ignored) {
+            String sanitized = MATHML_TRANSPECT_NAMESPACE_PATTERN.matcher(mathml).replaceAll("");
+            sanitized = MATHML_DATA_SOURCE_ATTR_PATTERN.matcher(sanitized).replaceAll("");
+            sanitized = MATHML_PREFIXED_ROOT_NAMESPACE_PATTERN.matcher(sanitized)
+                    .replaceFirst("<math$1xmlns=\"" + MATHML_NAMESPACE_URI + "\"$2>");
+            return MATHML_PREFIXED_TAG_PATTERN.matcher(sanitized).replaceAll("$1");
+        }
+    }
+
+    private static Element canonicalizeMathmlForPublish(Element element, Document ownerDocument) {
+        Element current = element;
+        String localName = current.getLocalName();
+        if (localName == null || localName.isBlank()) {
+            localName = stripXmlPrefix(current.getNodeName());
+        }
+        if (!MATHML_NAMESPACE_URI.equals(current.getNamespaceURI()) || current.getPrefix() != null) {
+            current = (Element) ownerDocument.renameNode(current, MATHML_NAMESPACE_URI, localName);
+        }
+        removeMathPublishLeakageAttributes(current);
+        List<Element> childElements = new ArrayList<>();
+        NodeList children = current.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node child = children.item(i);
+            if (child instanceof Element childElement) {
+                childElements.add(childElement);
+            }
+        }
+        for (Element childElement : childElements) {
+            canonicalizeMathmlForPublish(childElement, ownerDocument);
+        }
+        return current;
+    }
+
+    private static void removeMathPublishLeakageAttributes(Element element) {
+        List<String> attrNamesToRemove = new ArrayList<>();
+        NamedNodeMap attributes = element.getAttributes();
+        for (int i = 0; i < attributes.getLength(); i++) {
+            Node attribute = attributes.item(i);
+            String namespaceUri = attribute.getNamespaceURI();
+            String nodeName = attribute.getNodeName();
+            String localName = attribute.getLocalName();
+            if (XMLConstants.XMLNS_ATTRIBUTE_NS_URI.equals(namespaceUri)
+                    || TRANSPECT_NAMESPACE_URI.equals(namespaceUri)
+                    || "data-math-source".equals(nodeName)
+                    || "data-math-source".equals(localName)) {
+                attrNamesToRemove.add(nodeName);
+            }
+        }
+        for (String attrName : attrNamesToRemove) {
+            element.removeAttribute(attrName);
+        }
+        if (!MATHML_NAMESPACE_URI.equals(element.getNamespaceURI())) {
+            return;
+        }
+        if (!MATHML_NAMESPACE_URI.equals(element.getAttribute("xmlns"))) {
+            element.setAttribute("xmlns", MATHML_NAMESPACE_URI);
+        }
+    }
+
+    private static String stripXmlPrefix(String name) {
+        if (name == null || name.isBlank()) {
+            return "";
+        }
+        int colon = name.indexOf(':');
+        return colon >= 0 ? name.substring(colon + 1) : name;
     }
 
     private static String sanitizePublishHtmlOutput(String html) {
@@ -2618,82 +2717,111 @@ public final class DocxToHtmlConverter {
     private String renderOleObject(Element objectEl, XWPFDocument doc, Path assetDir) throws Exception {
         long start = System.nanoTime();
         try {
-        Element oleObject = findDescendant(objectEl, "OLEObject");
-        String progId = oleObject != null ? attrByLocalName(oleObject, "ProgID") : null;
-        if (progId == null || progId.isBlank()) {
-            progId = oleObject != null ? attrByLocalName(oleObject, "progId") : null;
-        }
-        OleKind oleKind = classifyOleKind(progId);
-        boolean shouldTryMathSidecar = oleKind == OleKind.EQUATION || progId == null || progId.isBlank();
-
-        String oleRelId = oleObject != null ? attrByLocalName(oleObject, "id") : null;
-        Element imageData = findDescendant(objectEl, "imagedata");
-        String imageRelId = imageData != null ? attrByLocalName(imageData, "id") : null;
-        boolean attemptedOleSourceRender = false;
-        boolean attemptedPreviewRender = false;
-        String oleSourceExt = guessRelatedExtension(doc, oleRelId);
-        String previewSourceExt = guessRelatedExtension(doc, imageRelId);
-        String oleSourceAsset = "";
-        String previewSourceAsset = "";
-
-        if (shouldTryMathSidecar) {
-            String sidecarFromOle = renderSidecarMathml(doc, oleRelId, false);
-            if (sidecarFromOle != null) {
-                return sidecarFromOle;
+            Element oleObject = findDescendant(objectEl, "OLEObject");
+            String progId = oleObject != null ? attrByLocalName(oleObject, "ProgID") : null;
+            if (progId == null || progId.isBlank()) {
+                progId = oleObject != null ? attrByLocalName(oleObject, "progId") : null;
             }
-            String sidecarFromPreview = renderSidecarMathml(doc, imageRelId, false);
-            if (sidecarFromPreview != null) {
-                return sidecarFromPreview;
-            }
-        }
+            OleKind oleKind = classifyOleKind(progId);
 
-        if (oleKind == OleKind.CHEMICAL_DIAGRAM && oleRelId != null && !oleRelId.isBlank()) {
-            attemptedOleSourceRender = true;
-            SavedBinary sourceSaved = saveRelatedBinary(doc, oleRelId, assetDir, "chem-diagram-source", true, oleKind);
-            if (sourceSaved != null) {
-                oleSourceAsset = sourceSaved.relativePath();
+            String oleRelId = oleObject != null ? attrByLocalName(oleObject, "id") : null;
+            Element imageData = findDescendant(objectEl, "imagedata");
+            String imageRelId = imageData != null ? attrByLocalName(imageData, "id") : null;
+            if (oleKind == OleKind.DSMT4_EQUATION) {
+                return renderDsmt4Object(doc, progId, oleRelId, imageRelId);
             }
-            if (sourceSaved != null && isWebRenderableImage(sourceSaved.relativePath())) {
-                return buildOleFallbackImageHtml(sourceSaved, oleKind, progId, "ole-source");
-            }
-        }
+            boolean shouldTryMathSidecar = oleKind == OleKind.EQUATION || progId == null || progId.isBlank();
+            boolean attemptedOleSourceRender = false;
+            boolean attemptedPreviewRender = false;
+            String oleSourceExt = guessRelatedExtension(doc, oleRelId);
+            String previewSourceExt = guessRelatedExtension(doc, imageRelId);
+            String oleSourceAsset = "";
+            String previewSourceAsset = "";
 
-        // Last-resort fallback: use preview relation if source rendering is unavailable.
-        if (imageRelId != null && !imageRelId.isBlank()) {
-            attemptedPreviewRender = true;
+            try {
+                if (shouldTryMathSidecar) {
+                    String sidecarFromOle = renderSidecarMathml(doc, oleRelId, false);
+                    if (sidecarFromOle != null) {
+                        return sidecarFromOle;
+                    }
+                    String sidecarFromPreview = renderSidecarMathml(doc, imageRelId, false);
+                    if (sidecarFromPreview != null) {
+                        return sidecarFromPreview;
+                    }
+                }
+
+                if (oleKind == OleKind.CHEMICAL_DIAGRAM && oleRelId != null && !oleRelId.isBlank()) {
+                    attemptedOleSourceRender = true;
+                    SavedBinary sourceSaved = saveRelatedBinary(doc, oleRelId, assetDir, "chem-diagram-source", true, oleKind);
+                    if (sourceSaved != null) {
+                        oleSourceAsset = sourceSaved.relativePath();
+                    }
+                    if (sourceSaved != null && isWebRenderableImage(sourceSaved.relativePath())) {
+                        return buildOleFallbackImageHtml(sourceSaved, oleKind, progId, "ole-source");
+                    }
+                }
+
+                // Last-resort fallback: use preview relation if source rendering is unavailable.
+                if (imageRelId != null && !imageRelId.isBlank()) {
+                    attemptedPreviewRender = true;
             SavedBinary saved = saveRelatedBinary(doc, imageRelId, assetDir, buildOlePrefix(oleKind), true, oleKind);
-            if (saved != null) {
-                previewSourceAsset = saved.relativePath();
+                    if (saved != null) {
+                        previewSourceAsset = saved.relativePath();
+                    }
+                    if (saved != null && (oleKind != OleKind.CHEMICAL_DIAGRAM || isWebRenderableImage(saved.relativePath()))) {
+                        return buildOleFallbackImageHtml(saved, oleKind, progId, "preview-image");
+                    }
+                }
+            } catch (Exception ex) {
+                olePlaceholderCounter.incrementAndGet();
+                String sourceExtTrace = "ole:" + Objects.toString(oleSourceExt, "") + ",preview:" + Objects.toString(previewSourceExt, "");
+                String sourceAssetTrace = "ole:" + Objects.toString(oleSourceAsset, "") + ",preview:" + Objects.toString(previewSourceAsset, "");
+                return buildUnsupportedOlePlaceholder(
+                        buildOlePlaceholderLabel(oleKind, progId),
+                        oleKind,
+                        progId,
+                        attemptedOleSourceRender || attemptedPreviewRender,
+                        "render-exception",
+                        sourceExtTrace,
+                        sourceAssetTrace,
+                        buildUnresolvedPlaceholderFamily(oleKind),
+                        "ole-render-exception:" + ex.getClass().getSimpleName()
+                );
             }
-            if (saved != null && (oleKind != OleKind.CHEMICAL_DIAGRAM || isWebRenderableImage(saved.relativePath()))) {
-                return buildOleFallbackImageHtml(saved, oleKind, progId, "preview-image");
-            }
-        }
 
-        if (isVisioProgId(progId)) {
-            unresolvedVisioPreviewCounter.incrementAndGet();
-        }
-        olePlaceholderCounter.incrementAndGet();
-        String label = buildOlePlaceholderLabel(oleKind, progId);
-        String renderSourceUsed = "none";
-        if (attemptedOleSourceRender && attemptedPreviewRender) {
-            renderSourceUsed = "ole-source,preview-image";
-        } else if (attemptedOleSourceRender) {
-            renderSourceUsed = "ole-source";
-        } else if (attemptedPreviewRender) {
-            renderSourceUsed = "preview-image";
-        }
-        String sourceExtTrace = "ole:" + Objects.toString(oleSourceExt, "") + ",preview:" + Objects.toString(previewSourceExt, "");
-        String sourceAssetTrace = "ole:" + Objects.toString(oleSourceAsset, "") + ",preview:" + Objects.toString(previewSourceAsset, "");
-        return buildUnsupportedOlePlaceholder(
-                label,
-                oleKind,
-                progId,
-                attemptedOleSourceRender || attemptedPreviewRender,
-                renderSourceUsed,
-                sourceExtTrace,
-                sourceAssetTrace
-        );
+            if (isVisioProgId(progId)) {
+                unresolvedVisioPreviewCounter.incrementAndGet();
+            }
+            olePlaceholderCounter.incrementAndGet();
+            String label = buildOlePlaceholderLabel(oleKind, progId);
+            String renderSourceUsed = "none";
+            if (attemptedOleSourceRender && attemptedPreviewRender) {
+                renderSourceUsed = "ole-source,preview-image";
+            } else if (attemptedOleSourceRender) {
+                renderSourceUsed = "ole-source";
+            } else if (attemptedPreviewRender) {
+                renderSourceUsed = "preview-image";
+            }
+            String sourceExtTrace = "ole:" + Objects.toString(oleSourceExt, "") + ",preview:" + Objects.toString(previewSourceExt, "");
+            String sourceAssetTrace = "ole:" + Objects.toString(oleSourceAsset, "") + ",preview:" + Objects.toString(previewSourceAsset, "");
+            return buildUnsupportedOlePlaceholder(
+                    label,
+                    oleKind,
+                    progId,
+                    attemptedOleSourceRender || attemptedPreviewRender,
+                    renderSourceUsed,
+                    sourceExtTrace,
+                    sourceAssetTrace,
+                    buildUnresolvedPlaceholderFamily(oleKind),
+                    buildUnresolvedPlaceholderReason(
+                            oleKind,
+                            progId,
+                            attemptedOleSourceRender || attemptedPreviewRender,
+                            renderSourceUsed,
+                            sourceExtTrace,
+                            sourceAssetTrace
+                    )
+            );
         } finally {
             stageImageRenderingNanos.addAndGet(System.nanoTime() - start);
         }
@@ -2715,7 +2843,16 @@ public final class DocxToHtmlConverter {
                     true,
                     renderSourceUsed,
                     sourceExtTrace,
-                    sourceAssetTrace
+                    sourceAssetTrace,
+                    buildUnresolvedPlaceholderFamily(oleKind),
+                    buildUnresolvedPlaceholderReason(
+                            oleKind,
+                            progId,
+                            true,
+                            renderSourceUsed,
+                            sourceExtTrace,
+                            sourceAssetTrace
+                    )
             );
         }
         String cssClass = buildOleCssClass(oleKind);
@@ -2761,6 +2898,115 @@ public final class DocxToHtmlConverter {
         return img.toString();
     }
 
+    private String renderDsmt4Object(XWPFDocument doc, String progId, String oleRelId, String imageRelId) throws Exception {
+        dsmt4TotalCounter.incrementAndGet();
+        Dsmt4Resolution resolution = resolveDsmt4Sidecar(doc, oleRelId, imageRelId);
+        if (resolution.html() != null) {
+            dsmt4SidecarResolvedCounter.incrementAndGet();
+            return resolution.html();
+        }
+
+        dsmt4UnresolvedCounter.incrementAndGet();
+        if (resolution.status() == Dsmt4ResolutionStatus.MANIFEST_MISSING) {
+            dsmt4ManifestMissingCounter.incrementAndGet();
+        } else {
+            dsmt4ManifestMismatchCounter.incrementAndGet();
+        }
+        dsmt4FallbackPlaceholderCounter.incrementAndGet();
+        olePlaceholderCounter.incrementAndGet();
+
+        String unresolvedReason = resolution.status() == Dsmt4ResolutionStatus.MANIFEST_MISSING
+                ? "dsmt4-manifest-missing"
+                : "dsmt4-manifest-mismatch";
+        if (!resolution.debugDetail().isBlank()) {
+            unresolvedReason = unresolvedReason + ":" + resolution.debugDetail();
+        }
+        return buildUnsupportedOlePlaceholder(
+                buildOlePlaceholderLabel(OleKind.DSMT4_EQUATION, progId),
+                OleKind.DSMT4_EQUATION,
+                progId,
+                false,
+                "sidecar-first",
+                resolution.sourceExtTrace(),
+                resolution.sourceAssetTrace(),
+                buildUnresolvedPlaceholderFamily(OleKind.DSMT4_EQUATION),
+                unresolvedReason
+        );
+    }
+
+    private Dsmt4Resolution resolveDsmt4Sidecar(XWPFDocument doc, String oleRelId, String imageRelId) throws Exception {
+        String sourceExtTrace = buildDsmt4SourceExtTrace(doc, oleRelId, imageRelId);
+        String sourceAssetTrace = buildDsmt4SourceAssetTrace(doc, oleRelId, imageRelId);
+        if (sidecarRegistry.isEmpty()) {
+            return new Dsmt4Resolution(
+                    Dsmt4ResolutionStatus.MANIFEST_MISSING,
+                    null,
+                    sourceExtTrace,
+                    sourceAssetTrace,
+                    "registry-empty"
+            );
+        }
+
+        SidecarProbe oleProbe = probeSidecarMathml(doc, oleRelId, false);
+        if (oleProbe.html() != null) {
+            return new Dsmt4Resolution(Dsmt4ResolutionStatus.RESOLVED, oleProbe.html(), sourceExtTrace, sourceAssetTrace, "ole-part");
+        }
+        SidecarProbe previewProbe = probeSidecarMathml(doc, imageRelId, false);
+        if (previewProbe.html() != null) {
+            return new Dsmt4Resolution(Dsmt4ResolutionStatus.RESOLVED, previewProbe.html(), sourceExtTrace, sourceAssetTrace, "preview-part");
+        }
+        return new Dsmt4Resolution(
+                Dsmt4ResolutionStatus.MANIFEST_MISMATCH,
+                null,
+                sourceExtTrace,
+                sourceAssetTrace,
+                "ole=" + oleProbe.debugDetail() + ",preview=" + previewProbe.debugDetail()
+        );
+    }
+
+    private SidecarProbe probeSidecarMathml(XWPFDocument doc, String relId, boolean block) throws Exception {
+        if (relId == null || relId.isBlank()) {
+            return new SidecarProbe(null, "missing-rel");
+        }
+        PackagePart relatedPart = resolveRelatedPart(doc, relId);
+        if (relatedPart == null) {
+            return new SidecarProbe(null, "missing-part");
+        }
+        String partName = relatedPart.getPartName().getName();
+        if (!sidecarRegistry.hasMathmlForPart(partName)) {
+            return new SidecarProbe(null, "no-manifest-entry:" + partName);
+        }
+        String mathml = sidecarRegistry.readMathmlForPart(partName);
+        if (mathml == null || mathml.isBlank()) {
+            return new SidecarProbe(null, "empty-sidecar:" + partName);
+        }
+        mathml = normalizeMathmlFragment(mathml);
+        sidecarMathmlCounter.incrementAndGet();
+        return new SidecarProbe(wrapMathml(mathml, block, "sidecar"), "resolved:" + partName);
+    }
+
+    private String buildDsmt4SourceExtTrace(XWPFDocument doc, String oleRelId, String imageRelId) {
+        return "ole:" + Objects.toString(guessRelatedExtension(doc, oleRelId), "")
+                + ",preview:" + Objects.toString(guessRelatedExtension(doc, imageRelId), "");
+    }
+
+    private String buildDsmt4SourceAssetTrace(XWPFDocument doc, String oleRelId, String imageRelId) {
+        return "ole:" + Objects.toString(resolveRelatedPartName(doc, oleRelId), "")
+                + ",preview:" + Objects.toString(resolveRelatedPartName(doc, imageRelId), "");
+    }
+
+    private String resolveRelatedPartName(XWPFDocument doc, String relId) {
+        if (relId == null || relId.isBlank()) {
+            return "";
+        }
+        try {
+            PackagePart relatedPart = resolveRelatedPart(doc, relId);
+            return relatedPart == null ? "" : relatedPart.getPartName().getName();
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
     private static String buildUnsupportedOlePlaceholder(
             String label,
             OleKind oleKind,
@@ -2768,12 +3014,18 @@ public final class DocxToHtmlConverter {
             boolean renderAttempted,
             String renderSourceUsed,
             String sourceExtTrace,
-            String sourceAssetTrace
+            String sourceAssetTrace,
+            String placeholderFamily,
+            String unresolvedReason
     ) {
         StringBuilder span = new StringBuilder(240);
-        span.append("<span class=\"unsupported-equation\"")
+        span.append("<span class=\"")
+                .append(buildOlePlaceholderClass(oleKind))
+                .append("\"")
                 .append(" title=\"").append(HtmlUtil.escapeAttribute(label)).append("\"")
                 .append(" data-ole-kind=\"").append(HtmlUtil.escapeAttribute(oleKind.dataValue())).append("\"")
+                .append(" data-placeholder-family=\"").append(HtmlUtil.escapeAttribute(placeholderFamily)).append("\"")
+                .append(" data-unresolved-reason=\"").append(HtmlUtil.escapeAttribute(unresolvedReason)).append("\"")
                 .append(" data-render-attempted=\"").append(renderAttempted ? "true" : "false").append("\"")
                 .append(" data-render-source-used=\"").append(HtmlUtil.escapeAttribute(renderSourceUsed)).append("\"")
                 .append(" data-render-output-type=\"placeholder\"")
@@ -2796,9 +3048,14 @@ public final class DocxToHtmlConverter {
             String fallbackType
     ) {
         StringBuilder span = new StringBuilder(240);
-        span.append("<span class=\"unsupported-equation qa-hidden\"")
+        String placeholderFamily = isMetafileExtension(sourceExt) ? "inline-metafile" : "inline-image";
+        span.append("<span class=\"unsupported-equation qa-hidden")
+                .append(isMetafileExtension(sourceExt) ? " unsupported-inline-metafile" : " unsupported-inline-image")
+                .append("\"")
                 .append(" title=\"").append(HtmlUtil.escapeAttribute(label)).append("\"")
                 .append(" data-ole-kind=\"illustration\"")
+                .append(" data-placeholder-family=\"").append(HtmlUtil.escapeAttribute(placeholderFamily)).append("\"")
+                .append(" data-unresolved-reason=\"").append(HtmlUtil.escapeAttribute(fallbackType)).append("\"")
                 .append(" data-render-attempted=\"true\"")
                 .append(" data-render-source-used=\"inline-image\"")
                 .append(" data-render-output-type=\"placeholder\"")
@@ -2923,21 +3180,11 @@ public final class DocxToHtmlConverter {
     private String renderSidecarMathml(XWPFDocument doc, String relId, boolean block) throws Exception {
         long start = System.nanoTime();
         try {
-            if (relId == null || relId.isBlank()) {
+            SidecarProbe probe = probeSidecarMathml(doc, relId, block);
+            if (probe.html() == null) {
                 return null;
             }
-            PackagePart relatedPart = resolveRelatedPart(doc, relId);
-            if (relatedPart == null) {
-                return null;
-            }
-            String partName = relatedPart.getPartName().getName();
-            String mathml = sidecarRegistry.readMathmlForPart(partName);
-            if (mathml == null || mathml.isBlank()) {
-                return null;
-            }
-            mathml = normalizeMathmlFragment(mathml);
-            sidecarMathmlCounter.incrementAndGet();
-            return wrapMathml(mathml, block, "sidecar");
+            return probe.html();
         } finally {
             stageMathTypeHandlingNanos.addAndGet(System.nanoTime() - start);
         }
@@ -2985,7 +3232,8 @@ public final class DocxToHtmlConverter {
         String relativePath = assetDir.getFileName() + "/" + fileName;
         if (rasterizeMetafiles && isMetafileExtension(normalizedExtension)) {
             Path svgOutput = assetDir.resolve(fileBase + ".svg");
-            if (renderMetafileToSvg(out, svgOutput)) {
+            boolean shouldRenderSvg = oleKind != OleKind.EQUATION;
+            if (shouldRenderSvg && renderMetafileToSvg(out, svgOutput)) {
                 Files.deleteIfExists(out);
                 relativePath = assetDir.getFileName() + "/" + svgOutput.getFileName();
                 if (oleKind == OleKind.CHEMICAL_DIAGRAM && trimSvgByBoundingBoxes(svgOutput)) {
@@ -2996,7 +3244,8 @@ public final class DocxToHtmlConverter {
                 return saved;
             }
             Path pngOutput = assetDir.resolve(fileBase + ".png");
-            if (rasterizeMetafileWithCache(out, normalizedExtension, pngOutput)) {
+            boolean allowPoiMetafileFallback = oleKind != OleKind.EQUATION;
+            if (rasterizeMetafileWithCache(out, normalizedExtension, pngOutput, allowPoiMetafileFallback)) {
                 Files.deleteIfExists(out);
                 relativePath = assetDir.getFileName() + "/" + pngOutput.getFileName();
                 SavedBinary saved = new SavedBinary(relativePath, normalizedExtension, true);
@@ -3039,6 +3288,9 @@ public final class DocxToHtmlConverter {
 
     private static OleKind classifyOleKind(String progId) {
         String normalized = Objects.toString(progId, "").toLowerCase(Locale.ROOT);
+        if (normalized.contains("equation.dsmt4")) {
+            return OleKind.DSMT4_EQUATION;
+        }
         if (normalized.contains("equation")
                 || normalized.contains("mathtype")
                 || normalized.contains("dsmt")
@@ -3062,6 +3314,7 @@ public final class DocxToHtmlConverter {
 
     private static String buildOlePrefix(OleKind kind) {
         return switch (kind) {
+            case DSMT4_EQUATION -> "ole-dsmt4";
             case EQUATION -> "ole-equation";
             case DIAGRAM -> "ole-diagram";
             case CHEMICAL_DIAGRAM -> "chem-diagram";
@@ -3071,6 +3324,7 @@ public final class DocxToHtmlConverter {
 
     private String buildOleCssClass(OleKind kind) {
         return switch (kind) {
+            case DSMT4_EQUATION -> "equation-fallback";
             case EQUATION -> "equation-fallback";
             case DIAGRAM -> subjectRules.diagramCssClass();
             case CHEMICAL_DIAGRAM -> subjectRules.chemicalDiagramCssClass();
@@ -3080,6 +3334,7 @@ public final class DocxToHtmlConverter {
 
     private String buildOleAltText(OleKind kind, String progId) {
         String base = switch (kind) {
+            case DSMT4_EQUATION -> "Legacy Equation fallback image";
             case EQUATION -> "Equation fallback image";
             case DIAGRAM -> subjectRules.diagramAltText();
             case CHEMICAL_DIAGRAM -> subjectRules.chemicalDiagramAltText();
@@ -3093,15 +3348,73 @@ public final class DocxToHtmlConverter {
 
     private static String buildOlePlaceholderLabel(OleKind kind, String progId) {
         String base = switch (kind) {
-            case EQUATION -> "Embedded OLE equation";
-            case DIAGRAM -> "Embedded OLE diagram";
-            case CHEMICAL_DIAGRAM -> "Embedded chemical diagram";
-            case ILLUSTRATION -> "Embedded OLE object";
+            case DSMT4_EQUATION -> "Unresolved OLE equation";
+            case EQUATION -> "Unresolved OLE equation";
+            case DIAGRAM -> "Unresolved OLE diagram";
+            case CHEMICAL_DIAGRAM -> "Unresolved chemical diagram";
+            case ILLUSTRATION -> "Unresolved OLE object";
         };
         if (progId == null || progId.isBlank()) {
             return base;
         }
         return base + ": " + progId;
+    }
+
+    private static String buildOlePlaceholderClass(OleKind kind) {
+        return switch (kind) {
+            case DSMT4_EQUATION -> "unsupported-equation unsupported-ole-equation unsupported-ole-dsmt4";
+            case EQUATION -> "unsupported-equation unsupported-ole-equation";
+            case DIAGRAM -> "unsupported-equation unsupported-ole-diagram";
+            case CHEMICAL_DIAGRAM -> "unsupported-equation unsupported-chemical-diagram";
+            case ILLUSTRATION -> "unsupported-equation unsupported-ole-object";
+        };
+    }
+
+    private static String buildUnresolvedPlaceholderFamily(OleKind kind) {
+        return switch (kind) {
+            case DSMT4_EQUATION -> "ole-equation-dsmt4";
+            case EQUATION -> "ole-equation";
+            case DIAGRAM -> "ole-diagram";
+            case CHEMICAL_DIAGRAM -> "chemical-diagram";
+            case ILLUSTRATION -> "ole-object";
+        };
+    }
+
+    private static String buildUnresolvedPlaceholderReason(
+            OleKind kind,
+            String progId,
+            boolean renderAttempted,
+            String renderSourceUsed,
+            String sourceExtTrace,
+            String sourceAssetTrace
+    ) {
+        String sourceTrace = (Objects.toString(sourceExtTrace, "") + " " + Objects.toString(sourceAssetTrace, "")).toLowerCase(Locale.ROOT);
+        String renderSource = Objects.toString(renderSourceUsed, "").trim().toLowerCase(Locale.ROOT);
+        if (kind == OleKind.CHEMICAL_DIAGRAM) {
+            if (!renderAttempted) {
+                return "missing-embedded-chemical-preview";
+            }
+            if (sourceTrace.contains(".emf") || sourceTrace.contains(".wmf")) {
+                return "chemical-diagram-metafile-not-rasterizable";
+            }
+            if (renderSource.contains("preview-image")) {
+                return "chemical-diagram-preview-not-renderable";
+            }
+            return "chemical-diagram-unresolved";
+        }
+        if (kind == OleKind.DSMT4_EQUATION) {
+            return "dsmt4-unresolved";
+        }
+        if (kind == OleKind.DIAGRAM && isVisioProgId(progId)) {
+            return "visio-preview-not-renderable";
+        }
+        if (renderSource.isBlank() || "none".equals(renderSource)) {
+            return "missing-renderable-preview";
+        }
+        if (sourceTrace.contains(".emf") || sourceTrace.contains(".wmf")) {
+            return "metafile-not-rasterizable";
+        }
+        return "unresolved-embedded-object";
     }
 
     private static boolean isVisioProgId(String progId) {
@@ -3515,15 +3828,15 @@ public final class DocxToHtmlConverter {
         }
     }
 
-    private boolean rasterizeMetafileWithCache(Path sourceMetafile, String sourceExtension, Path targetPng) {
+    private boolean rasterizeMetafileWithCache(Path sourceMetafile, String sourceExtension, Path targetPng, boolean allowPoiFallback) {
         if (metafileRasterCacheDir == null) {
-            return rasterizeMetafileToPng(sourceMetafile, targetPng);
+            return rasterizeMetafileToPng(sourceMetafile, targetPng, allowPoiFallback);
         }
         String digest;
         try {
             digest = sha256(sourceMetafile);
         } catch (Exception ignored) {
-            return rasterizeMetafileToPng(sourceMetafile, targetPng);
+            return rasterizeMetafileToPng(sourceMetafile, targetPng, allowPoiFallback);
         }
         Path cacheEntry = metafileRasterCacheDir.resolve(digest + sourceExtension + ".png");
         try {
@@ -3539,7 +3852,7 @@ public final class DocxToHtmlConverter {
         } catch (IOException ignored) {
             // fall through to conversion path
         }
-        if (!rasterizeMetafileToPng(sourceMetafile, targetPng)) {
+        if (!rasterizeMetafileToPng(sourceMetafile, targetPng, allowPoiFallback)) {
             return false;
         }
         if (isLikelyBlankRasterImage(targetPng)) {
@@ -3558,7 +3871,7 @@ public final class DocxToHtmlConverter {
         return true;
     }
 
-    private boolean rasterizeMetafileToPng(Path sourceMetafile, Path targetPng) {
+    private boolean rasterizeMetafileToPng(Path sourceMetafile, Path targetPng, boolean allowPoiFallback) {
         try {
             if (Files.exists(targetPng) && Files.size(targetPng) > 0) {
                 if (!isLikelyBlankRasterImage(targetPng)) {
@@ -3582,7 +3895,7 @@ public final class DocxToHtmlConverter {
                 }
             }
         }
-        if (!converted) {
+        if (!converted && allowPoiFallback) {
             converted = rasterizeMetafileWithPoi(sourceMetafile, targetPng);
             if (converted && isLikelyBlankRasterImage(targetPng)) {
                 converted = false;
@@ -4131,7 +4444,7 @@ public final class DocxToHtmlConverter {
         if (mathml == null || mathml.isBlank()) {
             return mathml;
         }
-        String out = mathml.replace(" display=\"block\"", "").replace(" display='block'", "");
+        String out = MATHML_DISPLAY_ATTR_PATTERN.matcher(mathml).replaceAll("");
         if (displayBlock) {
             out = out.replaceFirst("<math(\\s|>)", "<math display=\"block\"$1");
         }
@@ -4251,6 +4564,7 @@ public final class DocxToHtmlConverter {
     }
 
     private enum OleKind {
+        DSMT4_EQUATION,
         EQUATION,
         DIAGRAM,
         CHEMICAL_DIAGRAM,
@@ -4260,6 +4574,7 @@ public final class DocxToHtmlConverter {
 
         private String dataValue() {
             return switch (this) {
+                case DSMT4_EQUATION -> "equation-dsmt4";
                 case EQUATION -> "equation";
                 case DIAGRAM -> "diagram";
                 case CHEMICAL_DIAGRAM -> "chemical-diagram";
@@ -4309,11 +4624,35 @@ public final class DocxToHtmlConverter {
     private record SegmentSplit(String imageHtml, String trailingHtml) {
     }
 
+    private record SidecarProbe(String html, String debugDetail) {
+    }
+
+    private record Dsmt4Resolution(
+            Dsmt4ResolutionStatus status,
+            String html,
+            String sourceExtTrace,
+            String sourceAssetTrace,
+            String debugDetail
+    ) {
+    }
+
+    private enum Dsmt4ResolutionStatus {
+        RESOLVED,
+        MANIFEST_MISSING,
+        MANIFEST_MISMATCH
+    }
+
     public record ConversionSummary(
             int ommlEquations,
             int sidecarMathmlEquations,
             int olePreviewImages,
             int olePlaceholders,
+            int dsmt4Total,
+            int dsmt4SidecarResolved,
+            int dsmt4Unresolved,
+            int dsmt4ManifestMissing,
+            int dsmt4ManifestMismatch,
+            int dsmt4FallbackPlaceholderCount,
             int oleEquationPreviews,
             int oleDiagramPreviews,
             int oleIllustrationPreviews,

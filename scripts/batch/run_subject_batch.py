@@ -72,6 +72,10 @@ def detect_subject(raw_name: str) -> str:
         return "math"
     if {"sinh", "bio", "biology"} & tokens:
         return "biology"
+    if ("tieng" in tokens and "anh" in tokens) or {"english", "eng"} & tokens:
+        return "english"
+    if {"van", "literature", "literary", "nguvan"} & tokens or ("ngu" in tokens and "van" in tokens):
+        return "literature"
     return "generic"
 
 
@@ -269,6 +273,9 @@ def build_markdown(summary: Dict) -> str:
             )
             continue
         totals = item["qa"]["totals"]
+        verdict = item.get("operational_publish_verdict", item["qa"]["publish_verdict"])
+        reason = item.get("operational_publish_reason", "")
+        verdict_cell = verdict if not reason else f"{verdict} ({reason})"
         lines.append(
             "| `{}` | `{}` | ok | `{}` | {:.3f} | {:.3f} | {} | {} | {} | {} | `{}` | `{}` | `{}` | `{}` |".format(
                 item["source_relative"],
@@ -280,7 +287,7 @@ def build_markdown(summary: Dict) -> str:
                 totals["remaining_preview_images"],
                 totals["remaining_text_corruption_count"],
                 totals["remaining_chemistry_inline_issues"],
-                item["qa"]["publish_verdict"],
+                verdict_cell,
                 item["html_relative"],
                 item["qa_json_relative"],
                 item.get("contract_manifest_relative", ""),
@@ -318,7 +325,7 @@ def main() -> None:
     parser.add_argument("--xmlcalabash-jar", type=Path, default=root / "tools/calabash/distro/xmlcalabash-1.4.1-100.jar")
     parser.add_argument("--saxon-jar", type=Path, default=None)
     parser.add_argument("--transpect-config", type=Path, default=root / "tools/calabash/extensions/transpect/transpect-config.xml")
-    parser.add_argument("--subject", choices=["generic", "physics", "chemistry", "math", "biology"], default=None)
+    parser.add_argument("--subject", choices=["generic", "physics", "chemistry", "math", "biology", "english", "literature"], default=None)
     parser.add_argument("--output-mode", choices=["internal", "publish"], default="publish")
     parser.add_argument("--skip-build", action="store_true")
     parser.add_argument("--force-build", action="store_true")
@@ -602,6 +609,17 @@ def main() -> None:
                 }
             )
             continue
+        operational_publish_verdict = normalize_publish_verdict(report.get("publish_verdict", "needs_review"))
+        operational_publish_reason = ""
+        contract_exam_bundle_data = {}
+        try:
+            contract_exam_bundle_data = load_json(contract_exam_bundle)
+        except Exception as ex:
+            operational_publish_reason = f"unable to read contract exam bundle: {ex}"
+        question_count = int(contract_exam_bundle_data.get("question_item_count", 0) or 0)
+        if question_count == 0:
+            operational_publish_verdict = "blocked"
+            operational_publish_reason = "zero_question_bundle"
         run_timings = read_tsv_timing(work_dir / "run.timings.tsv")
         if not can_reuse:
             performance_totals["sidecar_generation_seconds"] += run_timings.get("sidecar-generation", 0.0)
@@ -645,6 +663,9 @@ def main() -> None:
                 ),
                 "contract_qa": str(contract_qa.resolve()),
                 "contract_qa_relative": str(contract_qa.resolve().relative_to(batch_dir)),
+                "question_count": question_count,
+                "operational_publish_verdict": operational_publish_verdict,
+                "operational_publish_reason": operational_publish_reason,
                 "qa": report,
             }
         )
@@ -656,7 +677,7 @@ def main() -> None:
         for item in files:
             if item.get("status") != "ok":
                 continue
-            item_verdict = normalize_publish_verdict(item.get("qa", {}).get("publish_verdict", "needs_review"))
+            item_verdict = normalize_publish_verdict(item.get("operational_publish_verdict") or item.get("qa", {}).get("publish_verdict", "needs_review"))
             if item_verdict == "blocked":
                 publish_verdict = "blocked"
                 break

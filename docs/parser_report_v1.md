@@ -34,6 +34,7 @@ Top-level fields:
 - `questions`
 - `warnings`
 - `timings`
+- `summary.parser_support_packages`
 
 ## Summary
 
@@ -49,6 +50,7 @@ Top-level fields:
 - `min_confidence`
 - `unknown_question_type_count`
 - `warning_count`
+- `parser_support_packages`
 - `answer_issue_count`
 - `answer_blocker_count`
 - `canonical_answer_missing_count`
@@ -114,3 +116,9 @@ Each warning item contains:
 - `parser_json_build_seconds`
 
 `warning_count` tracks non-info parser warnings (`warning|error|blocker` severities).
+
+`parser_support_packages` records whether optional support packages were available in the current run:
+
+- `lxml_available`
+- `pandas_available`
+- `docx2python_available`

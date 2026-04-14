@@ -11,6 +11,11 @@ public final class DocxToHtmlCli {
     public static void main(String[] args) throws Exception {
         configureZipSafetyLimitsForLargeDocx();
 
+        if (args.length > 0 && "review-server".equals(args[0])) {
+            ReviewServerCli.run(sliceArgs(args, 1));
+            return;
+        }
+
         if (args.length < 2) {
             usageAndExit(1);
         }
@@ -77,6 +82,12 @@ public final class DocxToHtmlCli {
         }
         System.out.println("OMML equations converted: " + summary.ommlEquations());
         System.out.println("Transpect sidecar equations used: " + summary.sidecarMathmlEquations());
+        System.out.println("DSMT4 total: " + summary.dsmt4Total());
+        System.out.println("  DSMT4 sidecar resolved: " + summary.dsmt4SidecarResolved());
+        System.out.println("  DSMT4 unresolved: " + summary.dsmt4Unresolved());
+        System.out.println("  DSMT4 manifest missing: " + summary.dsmt4ManifestMissing());
+        System.out.println("  DSMT4 manifest mismatch: " + summary.dsmt4ManifestMismatch());
+        System.out.println("  DSMT4 fallback placeholders: " + summary.dsmt4FallbackPlaceholderCount());
         System.out.println("OLE fallback images used: " + summary.olePreviewImages());
         System.out.println("  OLE equation previews: " + summary.oleEquationPreviews());
         System.out.println("  OLE diagram/chemical previews: " + summary.oleDiagramPreviews());
@@ -125,10 +136,22 @@ public final class DocxToHtmlCli {
         System.err.println(
                 "Usage: java -jar docx-html-math.jar <input.docx> <output.html> "
                         + "[--native-mathml-only] [--mathml-manifest manifest.tsv] "
-                        + "[--subject generic|physics|chemistry|math|biology] "
-                        + "[--output-mode internal|publish]"
+                        + "[--subject generic|physics|chemistry|math|biology|english|literature] "
+                        + "[--output-mode internal|publish]\n"
+                        + "   or: java -jar docx-html-math.jar review-server --review-root <dir> "
+                        + "[or --root <dir>] "
+                        + "[--host 127.0.0.1] [--port 8080]"
         );
         System.exit(code);
+    }
+
+    private static String[] sliceArgs(String[] args, int fromIndex) {
+        if (fromIndex >= args.length) {
+            return new String[0];
+        }
+        String[] sliced = new String[args.length - fromIndex];
+        System.arraycopy(args, fromIndex, sliced, 0, sliced.length);
+        return sliced;
     }
 
     private static void configureZipSafetyLimitsForLargeDocx() {

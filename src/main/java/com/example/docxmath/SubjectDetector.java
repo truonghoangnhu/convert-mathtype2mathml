@@ -40,6 +40,13 @@ public final class SubjectDetector {
         if (tokens.contains("sinh") || tokens.contains("bio") || tokens.contains("biology")) {
             return Subject.BIOLOGY;
         }
+        if ((tokens.contains("tieng") && tokens.contains("anh")) || tokens.contains("english") || tokens.contains("eng")) {
+            return Subject.ENGLISH;
+        }
+        if (tokens.contains("van") || tokens.contains("literature") || tokens.contains("literary") || tokens.contains("nguvan")
+                || (tokens.contains("ngu") && tokens.contains("van"))) {
+            return Subject.LITERATURE;
+        }
         return Subject.GENERIC;
     }
 }

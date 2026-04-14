@@ -789,7 +789,7 @@ for digest in state.get('bin_needed_hashes', []):
     if not is_usable_math(candidate):
         fallback_hashes.append(digest)
 
-fallback_file.write_text("\\n".join(fallback_hashes), encoding='utf-8')
+fallback_file.write_text("\n".join(fallback_hashes), encoding='utf-8')
 print(f"BIN hashes requiring single-file fallback: {len(fallback_hashes)}")
 PY
 
@@ -927,6 +927,63 @@ print(f"Manifest BIN entries: {bin_success}")
 PY
 t_manifest_end=$(now_ms)
 
+t_report_start=$(now_ms)
+python3 - <<'PY' "$INPUT_DOCX" "$OUT_DIR/tmp/state.json" "$OUT_DIR/manifest.tsv" "$OUT_DIR/manifest.lineage-report.json"
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+input_docx = Path(sys.argv[1]).resolve()
+state_path = Path(sys.argv[2])
+manifest_path = Path(sys.argv[3])
+report_path = Path(sys.argv[4])
+
+state = json.loads(state_path.read_text(encoding='utf-8'))
+manifest_entries = []
+if manifest_path.exists():
+    for raw in manifest_path.read_text(encoding='utf-8').splitlines():
+        if "\t" not in raw:
+            continue
+        part, rel = raw.split("\t", 1)
+        manifest_entries.append({"part": part, "rel_path": rel})
+
+manifest_parts = {entry["part"] for entry in manifest_entries}
+dsmt4_pairs = [pair for pair in state.get("object_pairs", []) if pair.get("prog_id") == "Equation.DSMT4"]
+dsmt4_total = len(dsmt4_pairs)
+dsmt4_manifest_mapped = sum(
+    1 for pair in dsmt4_pairs
+    if pair.get("preview_part") in manifest_parts or pair.get("ole_part") in manifest_parts
+)
+dsmt4_unresolved = dsmt4_total - dsmt4_manifest_mapped
+
+report = {
+    "input_docx": str(input_docx),
+    "input_docx_sha256": hashlib.sha256(input_docx.read_bytes()).hexdigest(),
+    "manifest_path": str(manifest_path.resolve()),
+    "manifest_entry_count": len(manifest_entries),
+    "wmf_manifest_entries": sum(1 for entry in manifest_entries if entry["part"].lower().endswith(".wmf")),
+    "bin_manifest_entries": sum(1 for entry in manifest_entries if entry["part"].lower().endswith(".bin")),
+    "dsmt4_total": dsmt4_total,
+    "dsmt4_manifest_mapped": dsmt4_manifest_mapped,
+    "dsmt4_unresolved_after_generation": dsmt4_unresolved,
+    "dsmt4_unresolved_pairs": [
+        {
+            "preview_part": pair.get("preview_part"),
+            "ole_part": pair.get("ole_part"),
+        }
+        for pair in dsmt4_pairs
+        if pair.get("preview_part") not in manifest_parts and pair.get("ole_part") not in manifest_parts
+    ],
+}
+report_path.write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding='utf-8')
+print(f"Manifest lineage report: {report_path}")
+print(f"DSMT4 total: {dsmt4_total}")
+print(f"DSMT4 manifest mapped: {dsmt4_manifest_mapped}")
+print(f"DSMT4 unresolved after generation: {dsmt4_unresolved}")
+PY
+t_report_end=$(now_ms)
+
 extract_sec=$(ms_to_sec "$t_extract_start" "$t_extract_end")
 scan_sec=$(ms_to_sec "$t_scan_start" "$t_scan_end")
 wmf_cache_read_sec=$(ms_to_sec "$t_wmf_prepare_start" "$t_wmf_prepare_end")
@@ -938,6 +995,7 @@ bin_convert_sec=$(ms_to_sec "$t_bin_convert_start" "$t_bin_convert_end")
 bin_fallback_sec=$(ms_to_sec "$t_bin_fallback_start" "$t_bin_fallback_end")
 bin_cache_write_sec=$(ms_to_sec "$t_bin_cache_write_start" "$t_bin_cache_write_end")
 manifest_sec=$(ms_to_sec "$t_manifest_start" "$t_manifest_end")
+report_sec=$(ms_to_sec "$t_report_start" "$t_report_end")
 
 wmf_sec=$(python3 - <<'PY' "$wmf_cache_read_sec" "$wmf_batch_sec" "$wmf_cache_write_sec"
 import sys
@@ -965,6 +1023,7 @@ printf "bin-batch-convert\t%s\n" "$bin_convert_sec" >> "$OUT_DIR/timings.tsv"
 printf "bin-single-fallback\t%s\n" "$bin_fallback_sec" >> "$OUT_DIR/timings.tsv"
 printf "bin-cache-write\t%s\n" "$bin_cache_write_sec" >> "$OUT_DIR/timings.tsv"
 printf "manifest-write\t%s\n" "$manifest_sec" >> "$OUT_DIR/timings.tsv"
+printf "manifest-lineage-report\t%s\n" "$report_sec" >> "$OUT_DIR/timings.tsv"
 printf "reference-scan\t%s\n" "$scan_sec" >> "$OUT_DIR/timings.tsv"
 printf "wmf-convert\t%s\n" "$wmf_sec" >> "$OUT_DIR/timings.tsv"
 printf "bin-fallback\t%s\n" "$bin_fallback_total_sec" >> "$OUT_DIR/timings.tsv"

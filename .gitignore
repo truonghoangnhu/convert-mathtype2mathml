@@ -3,4 +3,10 @@ work/
 in/
 tools/
 __pycache__/
+*.pyc
 *.class
+.DS_Store
+.vscode/
+.venv-qbpilot/
+outomml/
+pilot-real-input/

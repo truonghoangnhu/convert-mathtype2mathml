@@ -13,7 +13,7 @@ public final class SubjectProfileFactory {
             case CHEMISTRY -> new ChemistryProfile();
             case MATH -> new MathProfile();
             case BIOLOGY -> new BiologyProfile();
-            case GENERIC -> new GenericProfile();
+            case ENGLISH, LITERATURE, GENERIC -> new GenericProfile();
         };
     }
 }

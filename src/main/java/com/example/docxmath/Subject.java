@@ -5,7 +5,9 @@ public enum Subject {
     MATH("math"),
     PHYSICS("physics"),
     CHEMISTRY("chemistry"),
-    BIOLOGY("biology");
+    BIOLOGY("biology"),
+    ENGLISH("english"),
+    LITERATURE("literature");
 
     private final String cliName;
 

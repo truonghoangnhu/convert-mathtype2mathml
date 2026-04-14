@@ -2,17 +2,31 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import hashlib
 import html
 import json
 import re
 import time
 import unicodedata
+from io import StringIO
 from bisect import bisect_right
 from dataclasses import dataclass, field
 from pathlib import Path
 from statistics import mean
 from typing import Any, Dict, List, Optional, Tuple
+
+try:
+    from lxml import etree as lxml_etree  # type: ignore
+    from lxml import html as lxml_html  # type: ignore
+except Exception:  # pragma: no cover - optional dependency fallback
+    lxml_etree = None
+    lxml_html = None
+
+try:
+    import pandas as pd  # type: ignore
+except Exception:  # pragma: no cover - optional dependency fallback
+    pd = None
 
 
 SCHEMA_VERSION = "output_contract.v1"
@@ -44,12 +58,34 @@ TABLE_ROW_RE = re.compile(r"(?is)<tr\b[^>]*>(.*?)</tr>")
 TABLE_CELL_RE = re.compile(r"(?is)<t[dh]\b[^>]*>(.*?)</t[dh]>")
 
 EXAM_HEADER_RE = re.compile(r"(?iu)^\s*đề\s*(\d{1,3})\b")
-QUESTION_HEADER_RE = re.compile(r"(?iu)^\s*câu\s*(\d{1,3})\s*(?:[\.:\)-])?\s*(.*)$")
+QUESTION_HEADER_RE = re.compile(
+    r"(?iu)^\s*(?:câu|question)\s*(\d{1,3})\b(?:\s*\([^)]+\))?\s*(?:[\.:\)-])?\s*(.*)$"
+)
+EN_QUESTION_HEADER_RE = re.compile(r"(?iu)^\s*question\s*(\d{1,3})\b")
 QUESTION_RANGE_RE = re.compile(r"(?iu)từ\s*câu\s*\d+\s*đến\s*câu\s*\d+")
+QUESTION_DECORATIVE_PREFIX_RE = re.compile(r"^[\s\u00a0]*(?:[\u00bb\u2022\uf0b7\uf040]+[\s\u00a0]*)+")
 OPTION_MARKER_RE = re.compile(r"(?iu)(?:^|\s)([ABCD])\.")
-TRUE_FALSE_RE = re.compile(r"(?iu)(?:đúng\s*sai|phát\s*biểu\s*sau\s*đây\s*đúng|phát\s*biểu\s*sai)")
+TRUE_FALSE_RE = re.compile(
+    r"(?iu)(?:"
+    r"đúng\s*sai"
+    r"|đúng\s*[/\\-–]\s*sai"
+    r"|phát\s*biểu\s*sau\s*đây\s*đúng"
+    r"|phát\s*biểu\s*sai"
+    r")"
+)
 SHORT_ANSWER_RE = re.compile(r"(?iu)(?:trả\s*lời\s*ngắn|điền\s*vào|viết\s*phương\s*trình|nêu\s*kết\s*quả)")
 ESSAY_RE = re.compile(r"(?iu)(?:chứng\s*minh|trình\s*bày|phân\s*tích|giải\s*thích|bình\s*luận)")
+QUESTION_TYPE_APPENDIX_RE = re.compile(
+    r"(?iu)(?:"
+    r"------------------------\s*hết\s*------------------------"
+    r"|lời\s*giải(?:\s*chi\s*tiết)?"
+    r"|hướng\s*dẫn\s*giải(?:\s*chi\s*tiết)?"
+    r"|đáp\s*án(?:\s*và\s*lời\s*giải(?:\s*tham\s*khảo)?)?"
+    r"|đáp\s*số"
+    r"|hướng\s*dẫn\s*chấm"
+    r"|bảng\s*đáp\s*án"
+    r")"
+)
 ANSWER_ZONE_HEADING_RE = re.compile(
     r"(?iu)^\s*(?:"
     r"(?:[ivxlcdm]+|phần\s*[ivxlcdm]+)\s*[\.\):]?\s*"
@@ -65,7 +101,12 @@ LOCAL_CHOICE_RE = re.compile(r"(?iu)\bđáp\s*(?:án|án)\s*[:：]?\s*([ABCD])\
 LOCAL_SHORT_RE = re.compile(r"(?iu)\b(?:đáp\s*số|đáp\s*án)\s*[:：]\s*([^\n]{1,80})")
 LOCAL_BOOLEAN_ROW_RE = re.compile(r"(?iu)\b([abcd])\)\s*(đúng|sai)\b")
 BOOLEAN_ROW_RE = re.compile(r"(?iu)\b([abcd])\)\s*(đúng|sai|đ|s|t|f)\b")
-SOLUTION_EXPLICIT_VALUE_RE = re.compile(r"(?iu)\b(?:đáp\s*án|đáp\s*số|đs|trả\s*lời)\b\s*[:：.]?\s*([^\n]{1,120})")
+BOOLEAN_GROUP_TOKEN_RE = re.compile(r"(?iu)\b(?:đúng|sai|true|false|đ|s|t|f|1|0)\b")
+# "Trả lời" is a frequent instruction fragment ("Học sinh trả lời từ câu ..."), so only treat it as
+# an explicit-answer cue when it uses punctuation like "Trả lời:" / "Trả lời.".
+SOLUTION_EXPLICIT_VALUE_RE = re.compile(
+    r"(?iu)(?:\b(?:đáp\s*án|đáp\s*số|đs)\b\s*[:：.]?|\btrả\s*lời\b\s*[:：.])\s*([^\n]{1,120})"
+)
 SOLUTION_CHOICE_RE = re.compile(r"(?iu)\b(?:chọn|chon)\s*([ABCD])\b")
 SOLUTION_SHORT_RE = re.compile(r"(?iu)\b(?:kết\s*quả|suy\s*ra|vậy)\s*[:：]?\s*([^\n]{1,80})")
 RUBRIC_MARKER_RE = re.compile(r"(?iu)(?:^|\s)(?:\[R\]|R\.)")
@@ -82,6 +123,9 @@ QUESTION_ANCHOR_INLINE_RE = re.compile(
     r"(?iu)(?:^|(?<=\s))(?:câu|question)\s*(\d{1,3})\b(?:\s*\([^)]+\))?\s*(?:[:\.\)\-]\s*)?"
 )
 RUBRIC_TABLE_MARKER_RE = re.compile(r"(?iu)\b(?:hướng\s*dẫn\s*chấm|nội\s*dung|điểm|thang\s*điểm)\b")
+PACKED_SUMMARY_CELL_RE = re.compile(
+    r"(?iu)^\s*(?:câu\s*)?(\d{1,3})\s*[:\.\)\-]\s*([ABCD]|đúng|sai|đ|s|t|f)\s*$"
+)
 END_KEY_MARKER_RE = ANSWER_ZONE_HEADING_RE
 
 DOCUMENT_FAMILY_OBJECTIVE_END_KEY = "objective_with_end_key"
@@ -180,6 +224,13 @@ class ParsedQuestion:
     manual_answer_override: Dict[str, Any] = field(default_factory=dict)
 
 
+PARSER_SUPPORT_PACKAGES = {
+    "lxml_available": lxml_html is not None,
+    "pandas_available": pd is not None,
+    "docx2python_available": importlib.util.find_spec("docx2python") is not None,
+}
+
+
 def sha256_file(path: Optional[Path]) -> str:
     if path is None:
         return "none"
@@ -210,6 +261,10 @@ def detect_subject(raw_name: str) -> str:
         return "math"
     if {"sinh", "bio", "biology"} & tokens:
         return "biology"
+    if ("tieng" in tokens and "anh" in tokens) or {"english", "eng"} & tokens:
+        return "english"
+    if {"van", "literature", "literary", "nguvan"} & tokens or ("ngu" in tokens and "van" in tokens):
+        return "literature"
     return "generic"
 
 
@@ -219,6 +274,143 @@ def normalize_visible_text(html_fragment: str) -> str:
     text = html.unescape(text)
     text = text.replace("\xa0", " ")
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _parse_html_fragment_dom(html_fragment: str):
+    if lxml_html is None:
+        return None
+    try:
+        return lxml_html.fragment_fromstring(html_fragment, create_parent="div")
+    except Exception:
+        try:
+            return lxml_html.fromstring(f"<div>{html_fragment}</div>")
+        except Exception:
+            return None
+
+
+def _dom_element_html(element: Any) -> str:
+    if element is None or lxml_etree is None:
+        return ""
+    try:
+        return lxml_etree.tostring(element, encoding="unicode", method="html")
+    except Exception:
+        return ""
+
+
+def _extract_dom_structural_blocks(fragment_html: str) -> List[Dict[str, Any]]:
+    root = _parse_html_fragment_dom(fragment_html)
+    if root is None:
+        return []
+    blocks: List[Dict[str, Any]] = []
+    structural_tags = {"p", "div", "table", "figure", "h1", "h2", "h3", "h4", "h5", "h6", "li", "ul", "ol"}
+    for idx, child in enumerate(list(root)):
+        tag = getattr(child, "tag", "")
+        if not isinstance(tag, str):
+            continue
+        tag_name = tag.lower()
+        if tag_name not in structural_tags:
+            continue
+        text = _normalize_space(getattr(child, "text_content", lambda: "")())
+        html_text = _dom_element_html(child)
+        if not text and tag_name != "table":
+            continue
+        blocks.append(
+            {
+                "block_index": idx,
+                "tag_name": tag_name,
+                "text": text,
+                "html": html_text,
+            }
+        )
+    return blocks
+
+
+def _table_rows_from_pandas(table_html: str) -> List[List[str]]:
+    if pd is None:
+        return []
+    try:
+        dataframes = pd.read_html(StringIO(table_html), header=None, keep_default_na=False, displayed_only=False)
+    except Exception:
+        return []
+    rows: List[List[str]] = []
+    for dataframe in dataframes:
+        if dataframe is None or getattr(dataframe, "empty", False):
+            continue
+        try:
+            dataframe = dataframe.fillna("")
+        except Exception:
+            pass
+        for _, row in dataframe.iterrows():
+            cells = [_normalize_space(str(cell)) for cell in list(row)]
+            cleaned = [cell for cell in cells if cell or len(cells) == 1]
+            if cleaned:
+                rows.append(cleaned)
+    return rows
+
+
+def _table_rows_from_lxml(table_html: str) -> List[List[str]]:
+    root = _parse_html_fragment_dom(table_html)
+    if root is None:
+        return []
+    tables = []
+    if getattr(root, "tag", "").lower() == "table":
+        tables = [root]
+    else:
+        try:
+            tables = list(root.xpath(".//table"))
+        except Exception:
+            tables = []
+    rows: List[List[str]] = []
+    for table in tables:
+        try:
+            row_nodes = table.xpath(".//tr")
+        except Exception:
+            row_nodes = []
+        for row in row_nodes:
+            try:
+                cell_nodes = row.xpath("./th|./td")
+            except Exception:
+                cell_nodes = []
+            cells = [_normalize_space("".join(cell.itertext())) for cell in cell_nodes]
+            cleaned = [cell for cell in cells if cell or len(cells) == 1]
+            if cleaned:
+                rows.append(cleaned)
+    return rows
+
+
+def _extract_table_rows(table_html: str) -> List[List[str]]:
+    rows = _table_rows_from_pandas(table_html)
+    if rows:
+        return rows
+    rows = _table_rows_from_lxml(table_html)
+    if rows:
+        return rows
+    return _extract_table_cells_regex(table_html)
+
+
+def _extract_table_cells_regex(table_html: str) -> List[List[str]]:
+    rows: List[List[str]] = []
+    for row_html in TABLE_ROW_RE.findall(table_html):
+        cells = [_normalize_space(normalize_visible_text(cell_html)) for cell_html in TABLE_CELL_RE.findall(row_html)]
+        cleaned = [cell for cell in cells if cell or len(cells) == 1]
+        if cleaned:
+            rows.append(cleaned)
+    return rows
+
+
+def _parse_packed_summary_cell(value: str) -> Optional[Tuple[str, Dict[str, Any]]]:
+    normalized = _normalize_space(value)
+    match = PACKED_SUMMARY_CELL_RE.match(normalized)
+    if not match:
+        return None
+    qnum = str(int(match.group(1)))
+    token = _normalize_space(match.group(2)).lower()
+    if token in {"a", "b", "c", "d"}:
+        return qnum, {"mode": "single_choice", "value": token.upper()}
+    boolean_value = _normalize_boolean_value(token)
+    if boolean_value is not None:
+        return qnum, {"mode": "boolean_group", "subanswers": {"a": boolean_value}}
+    return None
 
 
 def exam_sort_key(exam_id: str) -> Tuple[int, str]:
@@ -336,12 +528,21 @@ def infer_question_type(text: str) -> Tuple[str, float, Dict[str, int]]:
     normalized = re.sub(r"\s+", " ", text or "").strip()
     option_count = len(set(OPTION_MARKER_RE.findall(normalized)))
 
-    if TRUE_FALSE_RE.search(normalized):
+    # Rubric/scoring blocks should stay essay-like even if they contain many
+    # stray A/B/C/D tokens from tables or worked examples.
+    if RUBRIC_SCORING_MARKER_RE.search(normalized):
+        return "essay", 0.82, {"option_count": option_count}
+    if TRUE_FALSE_RE.search(normalized) and option_count < 4:
         return "true_false", 0.82, {"option_count": option_count}
-    if option_count >= 4:
-        return "single_choice", 0.90, {"option_count": option_count}
     if SHORT_ANSWER_RE.search(normalized):
         return "short_answer", 0.76, {"option_count": option_count}
+    # Explicit solution text should not be typed as essay. These chunks are
+    # solution/rubric material, and downstream reconciliation will pick up the
+    # concrete answer mode from the explicit cue.
+    if SOLUTION_EXPLICIT_VALUE_RE.search(normalized):
+        return "unknown", 0.58, {"option_count": option_count}
+    if option_count >= 4:
+        return "single_choice", 0.90, {"option_count": option_count}
     if ESSAY_RE.search(normalized) and len(normalized) >= 180:
         return "essay", 0.74, {"option_count": option_count}
     return "unknown", 0.56, {"option_count": option_count}
@@ -376,18 +577,158 @@ def parse_html_structure(html_text: str) -> Dict[str, object]:
             )
         )
 
+    # English exams often encode multiple "Question n" choice items inside a single table
+    # (one row per question). We do a narrow structural split so segmentation can find
+    # those questions without enabling Vietnamese "Câu n" starts from tables.
+    def split_english_question_tables(blocks_in: List[HtmlBlock]) -> List[HtmlBlock]:
+        expanded: List[HtmlBlock] = []
+        for block in blocks_in:
+            if block.tag_name != "table":
+                expanded.append(block)
+                continue
+            if not block.text or "question" not in block.text.lower():
+                expanded.append(block)
+                continue
+            # Keep Vietnamese tables intact (answer keys, rubric tables, etc.).
+            if re.search(r"(?iu)\bcâu\s*\d{1,3}\b", _normalize_question_header_candidate(block.text)):
+                expanded.append(block)
+                continue
+
+            row_blocks: List[HtmlBlock] = []
+            for row_match in TABLE_ROW_RE.finditer(block.html):
+                tr_html = row_match.group(0)
+                first_cell = TABLE_CELL_RE.search(tr_html)
+                if not first_cell:
+                    continue
+                first_text = normalize_visible_text(first_cell.group(1))
+                if not EN_QUESTION_HEADER_RE.match(_normalize_question_header_candidate(first_text)):
+                    continue
+
+                row_text = normalize_visible_text(tr_html)
+                # Require A/B/C/D markers to avoid splitting unrelated "Question n" tables.
+                if len(set(OPTION_MARKER_RE.findall(row_text))) < 3:
+                    continue
+
+                row_table_html = f'<table class="docx-table">{tr_html}</table>'
+                row_blocks.append(
+                    HtmlBlock(
+                        block_index=block.block_index,
+                        tag_name="table",
+                        start=block.start,
+                        end=block.end,
+                        line=block.line,
+                        exam_id=block.exam_id,
+                        html=row_table_html,
+                        text=normalize_visible_text(row_table_html),
+                    )
+                )
+
+            if len(row_blocks) >= 2:
+                expanded.extend(row_blocks)
+            else:
+                expanded.append(block)
+
+        # Re-index to keep block_index stable and unique after expansion.
+        for idx, block in enumerate(expanded):
+            block.block_index = idx
+        return expanded
+
+    blocks = split_english_question_tables(blocks)
+
+    def split_embedded_english_question_paragraphs(blocks_in: List[HtmlBlock]) -> List[HtmlBlock]:
+        expanded: List[HtmlBlock] = []
+        for block in blocks_in:
+            if block.tag_name not in {"p", "div"}:
+                expanded.append(block)
+                continue
+            if not block.text or "question" not in block.text.lower():
+                expanded.append(block)
+                continue
+            if EN_QUESTION_HEADER_RE.match(_normalize_question_header_candidate(block.text)):
+                expanded.append(block)
+                continue
+            # Avoid rewriting rich HTML blocks (math, spans, images, tables).
+            if re.search(r"(?is)<\s*(?:span|math|img|table|figure|div)\b", block.html):
+                expanded.append(block)
+                continue
+
+            text = block.text
+            # Split when an embedded "Question n." marker appears inside an otherwise plain paragraph.
+            # Require punctuation after the number to avoid matching incidental mentions like "question 1".
+            inline_match = re.search(r"(?iu)(?<=\s)question\s*(\d{1,3})\s*[\.\):]", text)
+            if not inline_match:
+                expanded.append(block)
+                continue
+            prefix_probe = text[: inline_match.start()]
+            if len(set(OPTION_MARKER_RE.findall(prefix_probe))) < 2 and len(_normalize_space(prefix_probe)) < 80:
+                expanded.append(block)
+                continue
+
+            prefix = _normalize_space(text[: inline_match.start()])
+            suffix = _normalize_space(text[inline_match.start() :])
+            if prefix:
+                expanded.append(
+                    HtmlBlock(
+                        block_index=block.block_index,
+                        tag_name="p",
+                        start=block.start,
+                        end=block.end,
+                        line=block.line,
+                        exam_id=block.exam_id,
+                        html=f"<p>{html.escape(prefix)}</p>",
+                        text=prefix,
+                    )
+                )
+            expanded.append(
+                HtmlBlock(
+                    block_index=block.block_index,
+                    tag_name="p",
+                    start=block.start,
+                    end=block.end,
+                    line=block.line,
+                    exam_id=block.exam_id,
+                    html=f"<p>{html.escape(suffix)}</p>",
+                    text=suffix,
+                )
+            )
+
+        for idx, block in enumerate(expanded):
+            block.block_index = idx
+        return expanded
+
+    blocks = split_embedded_english_question_paragraphs(blocks)
+
     question_starts: List[Tuple[int, str, int, int]] = []
     start_counter: Dict[Tuple[str, int], int] = {}
+
+    # Once we enter an end-key/answer appendix zone for an exam, do not treat subsequent
+    # "Question n"/"Câu n" headers as new question blocks. This prevents answer keys and
+    # detailed explanations from duplicating question segmentation.
+    answer_zone_active_by_exam: set[str] = set()
+    english_mode = (
+        sum(
+            1
+            for block in blocks
+            if block.text and EN_QUESTION_HEADER_RE.match(_normalize_question_header_candidate(block.text))
+        )
+        >= 4
+    )
 
     for block in blocks:
         text = block.text
         if not text:
             continue
-        if block.tag_name == "table":
+        normalized_question_header_text = _normalize_question_header_candidate(text)
+        if english_mode and _is_answer_zone_heading(text):
+            answer_zone_active_by_exam.add(block.exam_id)
             continue
-        if QUESTION_RANGE_RE.search(text):
+        if english_mode and block.exam_id in answer_zone_active_by_exam:
             continue
-        m = QUESTION_HEADER_RE.match(text)
+        if block.tag_name == "table" and not EN_QUESTION_HEADER_RE.match(normalized_question_header_text):
+            continue
+        if QUESTION_RANGE_RE.search(normalized_question_header_text):
+            continue
+        m = QUESTION_HEADER_RE.match(normalized_question_header_text)
         if not m:
             continue
         qn = int(m.group(1))
@@ -416,7 +757,8 @@ def parse_html_structure(html_text: str) -> Dict[str, object]:
         item_id = f"{exam_id}-Q{question_number:03d}-{idx + 1:02d}"
         assets = extract_assets(chunk_html, item_id)
         math_fragments = extract_math_fragments(chunk_html, item_id)
-        question_type, base_confidence, signals = infer_question_type(chunk_text)
+        question_type_text = _question_type_probe_text(chunk_text)
+        question_type, base_confidence, signals = infer_question_type(question_type_text)
 
         confidence = base_confidence
         if assets:
@@ -624,6 +966,7 @@ def parse_html_structure(html_text: str) -> Dict[str, object]:
         "min_confidence": min(confidences) if confidences else 0.0,
         "unknown_question_type_count": sum(1 for q in questions if q.question_type == "unknown"),
         "warning_count": len(warnings),
+        "parser_support_packages": dict(PARSER_SUPPORT_PACKAGES),
     }
 
     warnings_sorted = sorted(
@@ -643,6 +986,14 @@ def parse_html_structure(html_text: str) -> Dict[str, object]:
 
 def _normalize_space(value: str) -> str:
     return re.sub(r"\s+", " ", value.replace("\xa0", " ")).strip()
+
+
+def _normalize_question_header_candidate(value: str) -> str:
+    normalized = _normalize_space(value)
+    if not normalized:
+        return ""
+    normalized = QUESTION_DECORATIVE_PREFIX_RE.sub("", normalized)
+    return _normalize_space(normalized)
 
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
@@ -685,8 +1036,8 @@ def _normalize_short_answer_value(value: str) -> Dict[str, str]:
 
 
 def _normalize_boolean_group_compact_value(value: str) -> Optional[Dict[str, bool]]:
-    token = _normalize_space(value)
-    token = re.sub(r"[\s,.;:]+", "", token).upper().replace("Đ", "D")
+    token = unicodedata.normalize("NFKC", _normalize_space(value)).upper().replace("Đ", "D")
+    token = re.sub(r"[^A-Z0-9]+", "", token)
     if len(token) != 4:
         return None
 
@@ -700,6 +1051,88 @@ def _normalize_boolean_group_compact_value(value: str) -> Optional[Dict[str, boo
         else:
             return None
     return mapping
+
+
+def _extract_boolean_group_from_text(value: str) -> Optional[Dict[str, bool]]:
+    text = _normalize_space(value)
+    if not text:
+        return None
+
+    prefix_match = re.search(
+        r"(?iu)\b(?:đáp\s*(?:án|án|số)|đs|trả\s*lời)\b\s*[:：.]?\s*(.*)$",
+        text,
+    )
+    if prefix_match:
+        text = _normalize_space(prefix_match.group(1))
+
+    tokens: List[bool] = []
+    for match in BOOLEAN_GROUP_TOKEN_RE.finditer(text):
+        boolean_value = _normalize_boolean_value(match.group(0))
+        if boolean_value is None:
+            continue
+        tokens.append(boolean_value)
+        if len(tokens) == 4:
+            return {label: tokens[idx] for idx, label in enumerate(("a", "b", "c", "d"))}
+
+    compact = _normalize_boolean_group_compact_value(text)
+    if compact is not None:
+        return compact
+    return None
+
+
+def _extract_true_false_group_from_table_html(fragment_html: str) -> Optional[Dict[str, bool]]:
+    root = _parse_html_fragment_dom(fragment_html)
+    if root is None:
+        return None
+
+    if getattr(root, "tag", "").lower() == "table":
+        tables = [root]
+    else:
+        try:
+            tables = list(root.xpath(".//table"))
+        except Exception:
+            tables = []
+
+    for table in tables:
+        rows = _extract_table_rows(_dom_element_html(table))
+        if not rows:
+            continue
+
+        header = [_normalize_space(cell).lower() for cell in rows[0]]
+        has_truth_header = any("đúng" in cell for cell in header)
+        has_false_header = any("sai" in cell for cell in header)
+        if not (has_truth_header and has_false_header):
+            continue
+
+        subanswers: Dict[str, bool] = {}
+        for row in rows[1:]:
+            if not row:
+                continue
+            label_match = re.search(r"(?iu)\b([abcd])\)", row[0]) or re.search(r"(?iu)^\s*([abcd])\b", row[0])
+            if not label_match:
+                continue
+            label = label_match.group(1).lower()
+            for cell in row[1:]:
+                boolean_value = _normalize_boolean_value(cell)
+                if boolean_value is not None:
+                    subanswers[label] = boolean_value
+                    break
+
+        if subanswers:
+            return dict(sorted(subanswers.items(), key=lambda kv: kv[0]))
+
+    return None
+
+
+def _question_type_probe_text(chunk_text: str) -> str:
+    text = _normalize_space(chunk_text)
+    if not text:
+        return text
+    cutoff = len(text)
+    for match in QUESTION_TYPE_APPENDIX_RE.finditer(text):
+        if match.start() >= 40 and match.start() < cutoff:
+            cutoff = match.start()
+    return text[:cutoff].strip()
 
 
 def _parse_question_number(value: str) -> Optional[str]:
@@ -731,13 +1164,7 @@ def _build_answer_issue(
 
 
 def _extract_table_cells(table_html: str) -> List[List[str]]:
-    rows: List[List[str]] = []
-    for row_html in TABLE_ROW_RE.findall(table_html):
-        cells = [_normalize_space(normalize_visible_text(cell_html)) for cell_html in TABLE_CELL_RE.findall(row_html)]
-        cleaned = [cell for cell in cells if cell or len(cells) == 1]
-        if cleaned:
-            rows.append(cleaned)
-    return rows
+    return _extract_table_rows(table_html)
 
 
 def _extract_rubric_table_signals(table_html: str) -> Dict[str, Any]:
@@ -802,6 +1229,55 @@ def _extract_answer_summary_from_table(block: HtmlBlock) -> Tuple[List[Dict[str,
     if not rows:
         return entries, issues, source_cues, confidence
 
+    packed_cells: List[Tuple[str, str, Dict[str, Any]]] = []
+    packed_grid_only = True
+    for row in rows:
+        for cell in row:
+            normalized = _normalize_space(cell)
+            if not normalized:
+                continue
+            packed = _parse_packed_summary_cell(normalized)
+            if packed is None:
+                packed_grid_only = False
+                break
+            packed_cells.append((str(packed[0]), normalized, packed[1]))
+        if not packed_grid_only:
+            break
+
+    if packed_grid_only and len(packed_cells) >= 3:
+        for qnum, _raw, payload in packed_cells:
+            entries.append({"exam_id": block.exam_id, "question_number": qnum, **payload})
+        source_cues.append("table:packed-grid")
+        confidence = 0.93
+        deduped: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+        for entry in entries:
+            key = (str(entry.get("exam_id", "DE_UNKNOWN")), str(entry.get("question_number", "")), str(entry.get("mode", "")))
+            if key in deduped:
+                issues.append(
+                    _build_answer_issue(
+                        code="answer_summary_duplicate_question_number",
+                        severity="warning",
+                        message=f"Duplicate summary entry for question {key[1]} ({key[2]})",
+                        exam_id=block.exam_id,
+                        line=block.line,
+                        stage="answer_summary_extraction",
+                    )
+                )
+                continue
+            deduped[key] = entry
+        return list(deduped.values()), issues, source_cues, confidence
+
+    for row in rows:
+        if len(row) != 1:
+            continue
+        packed = _parse_packed_summary_cell(row[0])
+        if not packed:
+            continue
+        qnum, payload = packed
+        entries.append({"exam_id": block.exam_id, "question_number": qnum, **payload})
+        source_cues.append("table:packed-answer-cell")
+        confidence = max(confidence, 0.89)
+
     grid_qnums = [_parse_question_number(cell) for cell in rows[0]]
     if len(rows) >= 2 and len(grid_qnums) >= 3 and all(grid_qnums):
         answer_row = rows[1]
@@ -823,6 +1299,12 @@ def _extract_answer_summary_from_table(block: HtmlBlock) -> Tuple[List[Dict[str,
             value = _normalize_space(answer_row[idx])
             if not qnum or not value:
                 continue
+            packed = _parse_packed_summary_cell(value)
+            if packed is not None:
+                packed_qnum, payload = packed
+                if packed_qnum == qnum:
+                    grid_entries.append({"exam_id": block.exam_id, "question_number": qnum, **payload})
+                    continue
             compact_boolean = _normalize_boolean_group_compact_value(value)
             choice = _normalize_choice_value(value)
             boolean_value = _normalize_boolean_value(value)
@@ -993,6 +1475,12 @@ def _extract_answer_summary_from_table(block: HtmlBlock) -> Tuple[List[Dict[str,
                         )
                     )
                     continue
+                packed = _parse_packed_summary_cell(value)
+                if packed is not None:
+                    packed_qnum, payload = packed
+                    if packed_qnum == qnum:
+                        entries.append({"exam_id": block.exam_id, "question_number": qnum, **payload})
+                        continue
                 choice = _normalize_choice_value(value)
                 if choice is not None:
                     entries.append(
@@ -1062,10 +1550,138 @@ def _extract_answer_summary_from_table(block: HtmlBlock) -> Tuple[List[Dict[str,
                 source_cues.append("table:question-answer-pivot")
                 confidence = max(confidence, 0.95)
 
+    handled_question_answer_rows = False
+
+    # Row style (two-pair / 4-column):
+    # | Câu | Đáp án | Câu | Đáp án |
+    # | 1   | C      | 10  | A      |
+    if len(rows) >= 2 and len(rows[0]) >= 4:
+        header_a = rows[0][0].lower()
+        header_b = rows[0][1].lower()
+        header_c = rows[0][2].lower()
+        header_d = rows[0][3].lower()
+        if (
+            "câu" in header_a
+            and "câu" in header_c
+            and any(token in header_b for token in ("đáp án", "đ/a", "da"))
+            and any(token in header_d for token in ("đáp án", "đ/a", "da"))
+        ):
+            # If the table "looks like" a choice key, do not coerce non-choice values into short answers.
+            answer_values: List[str] = []
+            for row in rows[1:]:
+                if len(row) >= 2:
+                    answer_values.append(row[1])
+                if len(row) >= 4:
+                    answer_values.append(row[3])
+            choice_like_count = sum(1 for cell in answer_values if _normalize_choice_value(cell) is not None)
+            expected_choice_mode = choice_like_count >= max(1, len(answer_values) // 2)
+
+            for row in rows[1:]:
+                for qcol, vcol in ((0, 1), (2, 3)):
+                    if len(row) <= vcol:
+                        continue
+                    qnum = _parse_question_number(row[qcol])
+                    if not qnum:
+                        issues.append(
+                            _build_answer_issue(
+                                code="answer_summary_question_reference_unknown",
+                                severity="warning",
+                                message=f"Cannot parse question number from row '{row[qcol]}'",
+                                exam_id=block.exam_id,
+                                line=block.line,
+                                stage="answer_summary_extraction",
+                            )
+                        )
+                        continue
+
+                    value = row[vcol]
+                    packed = _parse_packed_summary_cell(value)
+                    if packed is not None:
+                        packed_qnum, payload = packed
+                        if packed_qnum == qnum:
+                            entries.append({"exam_id": block.exam_id, "question_number": qnum, **payload})
+                            continue
+
+                    choice = _normalize_choice_value(value)
+                    if choice is not None:
+                        entries.append(
+                            {
+                                "exam_id": block.exam_id,
+                                "question_number": qnum,
+                                "mode": "single_choice",
+                                "value": choice,
+                            }
+                        )
+                        continue
+
+                    if expected_choice_mode:
+                        normalized = _normalize_space(value)
+                        if normalized:
+                            issues.append(
+                                _build_answer_issue(
+                                    code="answer_summary_choice_value_invalid",
+                                    severity="warning",
+                                    message=f"Invalid choice value '{value}' for question {qnum}",
+                                    exam_id=block.exam_id,
+                                    line=block.line,
+                                    stage="answer_summary_extraction",
+                                )
+                            )
+                        else:
+                            issues.append(
+                                _build_answer_issue(
+                                    code="answer_summary_entry_parse_failed",
+                                    severity="warning",
+                                    message=f"Empty summary value for question {qnum}",
+                                    exam_id=block.exam_id,
+                                    line=block.line,
+                                    stage="answer_summary_extraction",
+                                )
+                            )
+                        continue
+
+                    boolean_value = _normalize_boolean_value(value)
+                    if boolean_value is not None:
+                        entries.append(
+                            {
+                                "exam_id": block.exam_id,
+                                "question_number": qnum,
+                                "mode": "boolean_group",
+                                "subanswers": {"a": boolean_value},
+                            }
+                        )
+                        continue
+
+                    if _normalize_space(value):
+                        entries.append(
+                            {
+                                "exam_id": block.exam_id,
+                                "question_number": qnum,
+                                "mode": "short_answer",
+                                "accepted_answers": [_normalize_short_answer_value(value)],
+                            }
+                        )
+                    else:
+                        issues.append(
+                            _build_answer_issue(
+                                code="answer_summary_entry_parse_failed",
+                                severity="warning",
+                                message=f"Empty short-answer summary value for question {qnum}",
+                                exam_id=block.exam_id,
+                                line=block.line,
+                                stage="answer_summary_extraction",
+                            )
+                        )
+
+            if entries:
+                source_cues.append("table:question-answer-rows-two-pair")
+                confidence = max(confidence, 0.93)
+                handled_question_answer_rows = True
+
     # Row style:
     # | Câu | Đáp án |
     # | 1   | 12,5 |
-    if len(rows) >= 2 and len(rows[0]) >= 2:
+    if not handled_question_answer_rows and len(rows) >= 2 and len(rows[0]) >= 2:
         header_a = rows[0][0].lower()
         header_b = rows[0][1].lower()
         if "câu" in header_a and any(token in header_b for token in ("đáp án", "đ/a", "da")):
@@ -1086,6 +1702,12 @@ def _extract_answer_summary_from_table(block: HtmlBlock) -> Tuple[List[Dict[str,
                     )
                     continue
                 value = row[1]
+                packed = _parse_packed_summary_cell(value)
+                if packed is not None:
+                    packed_qnum, payload = packed
+                    if packed_qnum == qnum:
+                        entries.append({"exam_id": block.exam_id, "question_number": qnum, **payload})
+                        continue
                 choice = _normalize_choice_value(value)
                 if choice is not None:
                     entries.append(
@@ -1314,6 +1936,8 @@ def extract_answer_summary(parsed: Dict[str, Any]) -> Dict[str, Any]:
             "source_cues": sorted(set(source_cues)),
             "confidence": detection_confidence,
             "parser_notes": parser_notes,
+            "dom_backend": "lxml.html" if lxml_html is not None else "regex_fallback",
+            "table_backend": "pandas.read_html" if pd is not None else "regex_fallback",
         },
         "qa_flags": [
             {"code": issue["code"], "severity": issue["severity"], "message": issue["message"]}
@@ -1390,6 +2014,17 @@ def _parse_solution_text_for_question(
             "details": {**meta, "cue": "empty_anchored_solution"},
         }
 
+    if question.question_type in {"true_false", "unknown"}:
+        explicit_boolean = _extract_boolean_group_from_text(cleaned)
+        if explicit_boolean is not None:
+            return {
+                "mode": "boolean_group",
+                "subanswers": explicit_boolean,
+                "source": source_name,
+                "confidence": max(confidence, 0.82),
+                "details": {**meta, "cue": "anchored_boolean_group"},
+            }
+
     explicit_solution = _extract_explicit_solution_value(cleaned)
     if explicit_solution is not None:
         result = dict(explicit_solution)
@@ -1402,20 +2037,27 @@ def _parse_solution_text_for_question(
         return result
 
     boolean_hits = [(m.group(1).lower(), m.group(2)) for m in BOOLEAN_ROW_RE.finditer(cleaned)]
-    if boolean_hits and ":" in cleaned:
-        subanswers: Dict[str, bool] = {}
-        for label, value in boolean_hits:
-            normalized = _normalize_boolean_value(value)
-            if normalized is not None:
-                subanswers[label] = normalized
-        if subanswers:
-            return {
-                "mode": "boolean_group",
-                "subanswers": dict(sorted(subanswers.items(), key=lambda kv: kv[0])),
-                "source": source_name,
-                "confidence": max(confidence, 0.80),
-                "details": {**meta, "cue": "anchored_boolean_group"},
-            }
+    if boolean_hits:
+        # Statement verdicts like "(a) Đúng/(b) Sai" appear in both true/false grids and
+        # single-choice "choose the correct statements" questions. Only emit a boolean_group
+        # answer when the question itself is a true/false-style item (or unknown).
+        #
+        # For single_choice, keep these verdicts available for deterministic option matching
+        # via _infer_single_choice_from_solution(...) further below (no semantic guessing).
+        if question.question_type in {"true_false", "unknown"}:
+            subanswers: Dict[str, bool] = {}
+            for label, value in boolean_hits:
+                normalized = _normalize_boolean_value(value)
+                if normalized is not None:
+                    subanswers[label] = normalized
+            if subanswers:
+                return {
+                    "mode": "boolean_group",
+                    "subanswers": dict(sorted(subanswers.items(), key=lambda kv: kv[0])),
+                    "source": source_name,
+                    "confidence": max(confidence, 0.80),
+                    "details": {**meta, "cue": "anchored_boolean_group"},
+                }
 
     m_choice = SOLUTION_CHOICE_RE.search(cleaned)
     if m_choice:
@@ -1461,7 +2103,11 @@ def _parse_solution_text_for_question(
 
 
 def _extract_anchored_zone_entries(question: ParsedQuestion) -> List[Dict[str, Any]]:
-    blocks = [_normalize_space(text) for text in question.block_texts if _normalize_space(text)]
+    dom_blocks = _extract_dom_structural_blocks(question.html_content)
+    if dom_blocks:
+        blocks = [_normalize_space(str(block.get("text", ""))) for block in dom_blocks if _normalize_space(str(block.get("text", "")))]
+    else:
+        blocks = [_normalize_space(text) for text in question.block_texts if _normalize_space(text)]
     entries: List[Dict[str, Any]] = []
     if not blocks:
         return entries
@@ -1482,35 +2128,85 @@ def _extract_anchored_zone_entries(question: ParsedQuestion) -> List[Dict[str, A
             break
 
     if not zone_kind or zone_start_index is None:
+        # Narrow fallback for common corpus pattern where solution appendix is segmented
+        # into per-question chunks like "Câu 1 (TH):" followed by "Đáp án: A", but the
+        # global heading ("HƯỚNG DẪN GIẢI...") lives outside the chunk boundary.
+        head = blocks[0] if blocks else ""
+        head_norm = _normalize_space(head)
+        anchor_match = QUESTION_ANCHOR_RE.match(head_norm)
+        full_text = _normalize_space(" ".join(blocks))
+        if anchor_match and "(" in head_norm and SOLUTION_EXPLICIT_VALUE_RE.search(full_text):
+            qnum = _parse_question_number(anchor_match.group(1))
+            if qnum:
+                entries.append(
+                    {
+                        "exam_id": question.exam_id,
+                        "question_number": qnum,
+                        "zone_kind": "solution",
+                        "zone_heading": "implicit_solution_appendix",
+                        "anchor_text": _normalize_space(anchor_match.group(0)),
+                        "block_text": full_text,
+                        "block_index": 0,
+                        "line": question.start_line,
+                        "chunk_question_id": question.item_id,
+                    }
+                )
         return entries
 
+    # Build "effective" block texts for the zone tail (strip the heading prefix on the first block).
+    effective_blocks: List[str] = []
     for block_index in range(zone_start_index, len(blocks)):
         text = blocks[block_index]
         if not text:
+            effective_blocks.append("")
             continue
-        match_start = 0
         if block_index == zone_start_index and zone_heading_end >= 0:
-            match_start = zone_heading_end
-        search_text = text[match_start:]
-        if search_text:
-            zone_tail_parts.append(search_text)
-        anchor_matches = list(QUESTION_ANCHOR_INLINE_RE.finditer(search_text))
-        if not anchor_matches:
-            continue
+            effective_blocks.append(text[zone_heading_end:])
+        else:
+            effective_blocks.append(text)
 
-        for anchor_index, match in enumerate(anchor_matches):
-            prefix = search_text[: match.start()].rstrip()
+    # Gather anchors across blocks and slice a block-range from each anchor to the next anchor.
+    # This matches the common corpus pattern:
+    # - "Câu n. ..." in one paragraph
+    # - "Đáp án: X" in the next paragraph(s)
+    anchored_positions: List[Tuple[int, int, str, str]] = []
+    for rel_block_index, text in enumerate(effective_blocks):
+        search_text = text or ""
+        if not _normalize_space(search_text):
+            continue
+        zone_tail_parts.append(_normalize_space(search_text))
+        for match in QUESTION_ANCHOR_INLINE_RE.finditer(search_text):
+            prefix = _normalize_space(search_text[: match.start()]).rstrip()
             if prefix and prefix[-1] not in {".", ":", ";", ")", "-", "–", "—"}:
                 continue
             qnum = _parse_question_number(match.group(1))
             if not qnum:
                 continue
-            anchor_text = _normalize_space(match.group(0))
-            start = match.start()
-            end = anchor_matches[anchor_index + 1].start() if anchor_index + 1 < len(anchor_matches) else len(search_text)
-            block_text = _normalize_space(search_text[start:end])
+            anchored_positions.append((rel_block_index, match.start(), qnum, _normalize_space(match.group(0))))
+
+    if anchored_positions:
+        anchored_positions.sort(key=lambda item: (item[0], item[1], int(item[2])))
+        for idx, (start_block_rel, start_offset, qnum, anchor_text) in enumerate(anchored_positions):
+            if idx + 1 < len(anchored_positions):
+                end_block_rel, end_offset, _qn2, _a2 = anchored_positions[idx + 1]
+            else:
+                end_block_rel, end_offset = len(effective_blocks), 0
+
+            parts: List[str] = []
+            if end_block_rel == start_block_rel:
+                parts.append(effective_blocks[start_block_rel][start_offset:end_offset])
+            else:
+                parts.append(effective_blocks[start_block_rel][start_offset:])
+                for mid in range(start_block_rel + 1, min(end_block_rel, len(effective_blocks))):
+                    parts.append(effective_blocks[mid])
+                if end_block_rel < len(effective_blocks):
+                    parts.append(effective_blocks[end_block_rel][:end_offset])
+
+            block_text = _normalize_space(" ".join(part for part in parts if _normalize_space(part)))
             if not block_text:
                 continue
+
+            absolute_block_index = zone_start_index + start_block_rel
             entries.append(
                 {
                     "exam_id": question.exam_id,
@@ -1519,8 +2215,8 @@ def _extract_anchored_zone_entries(question: ParsedQuestion) -> List[Dict[str, A
                     "zone_heading": zone_heading,
                     "anchor_text": anchor_text,
                     "block_text": block_text,
-                    "block_index": block_index,
-                    "line": question.start_line + block_index,
+                    "block_index": absolute_block_index,
+                    "line": question.start_line + absolute_block_index,
                     "chunk_question_id": question.item_id,
                 }
             )
@@ -1592,6 +2288,88 @@ def _anchored_candidate_priority(zone_kind: str, question_type: str) -> Optional
     return None
 
 
+def _text_has_solution_marker(text: str) -> bool:
+    """
+    Structural signal that a chunk contains solution/answer material.
+
+    Used only to disambiguate duplicate question-number candidates. Must not be used
+    to invent answers.
+    """
+
+    normalized = _normalize_space(text)
+    if not normalized:
+        return False
+    if INLINE_SOLUTION_MARKER_RE.search(normalized):
+        return True
+    if SOLUTION_EXPLICIT_VALUE_RE.search(normalized):
+        return True
+    # Common boolean-solution form: "a) Sai.", "b) Đúng.", ...
+    if re.search(r"(?iu)\b[a-d]\)\s*(?:đúng|sai)\b", normalized):
+        return True
+    return False
+
+
+def _infer_solution_mode_hint(block_text: str) -> str:
+    """
+    Best-effort mode hint for candidate picking when question numbers repeat across parts.
+    Must degrade to "none" instead of guessing.
+    """
+
+    cleaned = _normalize_space(block_text)
+    if not cleaned:
+        return "none"
+    if _extract_boolean_group_from_text(cleaned) is not None:
+        return "boolean_group"
+    if BOOLEAN_ROW_RE.search(cleaned):
+        return "boolean_group"
+    explicit = _extract_explicit_solution_value(cleaned)
+    if isinstance(explicit, dict):
+        mode = str(explicit.get("mode", "none"))
+        if mode in {"single_choice", "short_answer", "boolean_group"}:
+            return mode
+    if SOLUTION_CHOICE_RE.search(cleaned):
+        return "single_choice"
+    if SOLUTION_SHORT_RE.search(cleaned):
+        return "short_answer"
+    return "none"
+
+
+def _infer_question_mode_hint(question: ParsedQuestion) -> str:
+    qtype = str(question.question_type or "unknown")
+    if qtype in {"single_choice", "multiple_choice"}:
+        return "single_choice"
+    if qtype == "true_false":
+        return "boolean_group"
+    if qtype == "short_answer":
+        return "short_answer"
+
+    text = _normalize_space(str(question.text_content or ""))
+    if not text:
+        return "none"
+
+    # Strong choice option signal.
+    if re.search(r"(?iu)\bA\.\s", text) and re.search(r"(?iu)\bB\.\s", text):
+        return "single_choice"
+
+    # Strong boolean-group statement signal.
+    if re.search(r"(?iu)\ba\)\s", text) and re.search(r"(?iu)\bb\)\s", text) and re.search(r"(?iu)\bc\)\s", text):
+        return "boolean_group"
+
+    return "none"
+
+
+def _solution_mode_penalty(solution_hint: str, candidate_hint: str) -> int:
+    if not solution_hint or solution_hint == "none":
+        return 0
+    if candidate_hint == solution_hint:
+        return 0
+    if candidate_hint == "none":
+        # Unknown structure is better than a known mismatch when numbers repeat.
+        return 1
+    # Known mismatch (e.g. boolean solution attached to single-choice question).
+    return 3
+
+
 def _parse_anchored_rubric_source(question: ParsedQuestion, entry: Dict[str, Any]) -> Dict[str, Any]:
     block_text = _normalize_space(str(entry.get("block_text", "")))
     if not block_text:
@@ -1660,18 +2438,99 @@ def _build_anchored_source_index(questions: List[ParsedQuestion]) -> Dict[str, A
             if len({q.exam_id for q in global_candidates}) == 1:
                 candidates = sorted(global_candidates, key=lambda q: (q.start_line, q.item_id))
 
-        compatible_candidates: List[Tuple[int, int, float, str, ParsedQuestion]] = []
-        for candidate in candidates:
+        chunk_question_id = str(entry.get("chunk_question_id", ""))
+        exact_candidates = [candidate for candidate in candidates if candidate.item_id == chunk_question_id]
+        # In many real bundles, solution appendices are segmented into "question-like"
+        # chunks (duplicate Câu n) with low confidence/unknown type. When we detect a
+        # zone inside such a chunk, we still want to attach the anchored evidence to
+        # the best compatible *real* question item, not to the appendix chunk itself.
+        use_exact_pool = False
+        if zone_kind == "solution" and exact_candidates:
+            exact = exact_candidates[0]
+            exact_conf = _safe_float(exact.parse_confidence, 0.0)
+            use_exact_pool = exact.question_type != "unknown" and exact_conf >= 0.65
+        candidate_pool = exact_candidates if use_exact_pool else candidates
+
+        # If this anchored entry comes from a solution-appendix chunk (e.g. "Câu n (TH): ... Đáp án: A"),
+        # do not attach the evidence back to that appendix chunk when there are multiple same-number
+        # candidates. Prefer attaching to the "real" question block instead.
+        source_is_solution_appendix = str(entry.get("zone_heading", "")) == "implicit_solution_appendix"
+        source_candidate = exact_candidates[0] if exact_candidates else None
+        source_text_norm = _normalize_space(str((source_candidate.text_content if source_candidate else "") or ""))
+        if not source_is_solution_appendix and source_text_norm:
+            # Narrow structural signal used in the canonical corpus: solution chunks contain an explicit
+            # "Đáp án:" cue and often include parenthetical level markers like "(TH)" / "(NB)" / "(VD)".
+            if SOLUTION_EXPLICIT_VALUE_RE.search(source_text_norm) and re.search(r"(?iu)\bcâu\s*\d{1,3}\b.*\(", source_text_norm[:80] or ""):
+                source_is_solution_appendix = True
+            # Another narrow structural signal: a second copy of questions that contains
+            # "Hướng dẫn giải"/explicit answer cues while an earlier candidate does not.
+            if (
+                not source_is_solution_appendix
+                and zone_kind == "solution"
+                and len(candidates) > 1
+                and _text_has_solution_marker(source_text_norm)
+                and any(not _text_has_solution_marker(str(c.text_content or "")) for c in candidates)
+            ):
+                source_is_solution_appendix = True
+
+        # If the anchored entry originates from a solution-appendix candidate, we must
+        # relax away from the exact-candidate pool so we can attach evidence to the
+        # real question block. Otherwise we can end up skipping the only candidate in
+        # the pool (the appendix chunk itself) and silently dropping the entry.
+        if zone_kind == "solution" and source_is_solution_appendix and use_exact_pool and len(candidates) > 1:
+            candidate_pool = candidates
+
+        solution_hint = _infer_solution_mode_hint(str(entry.get("block_text", ""))) if zone_kind == "solution" else "none"
+        has_non_solution_variant = (
+            zone_kind == "solution"
+            and len(candidates) > 1
+            and any(not _text_has_solution_marker(str(c.text_content or "")) for c in candidates)
+        )
+
+        compatible_candidates: List[Tuple[int, int, int, int, float, str, ParsedQuestion]] = []
+        for candidate in candidate_pool:
+            if (
+                zone_kind == "solution"
+                and source_is_solution_appendix
+                and candidate.item_id == chunk_question_id
+                and len(candidates) > 1
+            ):
+                continue
             if zone_kind == "solution" and candidate.item_id in assigned_solution_item_ids:
                 continue
             if zone_kind == "rubric" and candidate.item_id in assigned_rubric_item_ids:
                 continue
-            priority = _anchored_candidate_priority(zone_kind, candidate.question_type)
+            effective_type = str(candidate.question_type or "unknown")
+            if zone_kind == "solution" and solution_hint != "none" and effective_type == "unknown":
+                # Disambiguate common patterns in the canonical corpus where question numbers repeat
+                # across parts (e.g. PHẦN I/II/III all contain "Câu 1"). Do not guess an answer;
+                # only use structure to choose the correct target candidate.
+                hint = _infer_question_mode_hint(candidate)
+                if hint == "single_choice":
+                    effective_type = "single_choice"
+                elif hint == "boolean_group":
+                    effective_type = "true_false"
+                elif hint == "short_answer":
+                    effective_type = "short_answer"
+                elif solution_hint == "boolean_group":
+                    effective_type = "true_false"
+                elif solution_hint == "short_answer":
+                    effective_type = "short_answer"
+                elif solution_hint == "single_choice":
+                    effective_type = "single_choice"
+
+            priority = _anchored_candidate_priority(zone_kind, effective_type)
             if priority is None:
                 continue
+            mode_penalty = _solution_mode_penalty(solution_hint, _infer_question_mode_hint(candidate)) if zone_kind == "solution" else 0
+            solution_variant_penalty = 0
+            if has_non_solution_variant and _text_has_solution_marker(str(candidate.text_content or "")):
+                solution_variant_penalty = 1
             compatible_candidates.append(
                 (
                     priority,
+                    mode_penalty,
+                    solution_variant_penalty,
                     int(candidate.start_line or 0),
                     -_safe_float(candidate.parse_confidence, 0.0),
                     candidate.item_id,
@@ -1682,8 +2541,8 @@ def _build_anchored_source_index(questions: List[ParsedQuestion]) -> Dict[str, A
         if not compatible_candidates:
             continue
 
-        compatible_candidates.sort(key=lambda item: (item[0], item[1], item[2], item[3]))
-        target = compatible_candidates[0][4]
+        compatible_candidates.sort(key=lambda item: (item[0], item[1], item[2], item[3], item[4], item[5]))
+        target = compatible_candidates[0][6]
 
         if zone_kind == "solution":
             if target.item_id not in solution_blocks_by_item_id:
@@ -1775,6 +2634,19 @@ def _question_solution_zone_text(question: ParsedQuestion) -> Tuple[str, bool, L
     if not zone_started or not zone_lines:
         return "", False, zone_cues
     return " ".join(zone_lines).strip(), True, zone_cues
+
+
+def _question_pre_solution_text(question: ParsedQuestion) -> str:
+    lines = [_normalize_space(line) for line in question.block_texts if _normalize_space(line)]
+    if not lines:
+        return ""
+
+    cutoff = len(lines)
+    for idx, line in enumerate(lines):
+        if _is_inline_solution_heading(line) or _is_answer_zone_heading(line) or _is_rubric_heading(line):
+            cutoff = idx
+            break
+    return " ".join(lines[:cutoff]).strip()
 
 
 def _detect_document_family(parsed: Dict[str, Any], answer_summary: Dict[str, Any]) -> Dict[str, Any]:
@@ -2125,6 +2997,99 @@ def _extract_local_answer(question: ParsedQuestion) -> Tuple[Dict[str, Any], Lis
     source_cues: List[Dict[str, Any]] = []
     text = question.text_content
 
+    if question.question_type == "true_false":
+        table_rows = _extract_table_rows(question.html_content)
+        if table_rows:
+            table_answer = _extract_true_false_group_from_table_html(question.html_content)
+            if table_answer:
+                source_cues.append({"type": "table", "value": "true_false_matrix"})
+                return (
+                    {
+                        "mode": "boolean_group",
+                        "subanswers": table_answer,
+                        "source": "local_formatting",
+                        "confidence": 0.92,
+                        "answer_detection": {
+                            "source_cues": source_cues,
+                            "confidence": 0.92,
+                            "parser_notes": [],
+                        },
+                    },
+                    issues,
+                )
+        local_text = _question_pre_solution_text(question)
+        if re.search(r"(?iu)\bphát\s*biểu\b", local_text) and re.search(r"(?iu)\bđúng\b", local_text) and re.search(r"(?iu)\bsai\b", local_text):
+            text_answer = _extract_boolean_group_from_text(local_text)
+            if text_answer:
+                source_cues.append({"type": "marker", "value": "Phát biểu/Đúng/Sai"})
+                return (
+                    {
+                        "mode": "boolean_group",
+                        "subanswers": text_answer,
+                        "source": "local_formatting",
+                        "confidence": 0.90,
+                        "answer_detection": {
+                            "source_cues": source_cues,
+                            "confidence": 0.90,
+                            "parser_notes": [],
+                        },
+                    },
+                    issues,
+                )
+        return (
+            {
+                "mode": "none",
+                "source": "local_formatting",
+                "confidence": 0.0,
+                "answer_detection": {
+                    "source_cues": [],
+                    "confidence": 0.0,
+                    "parser_notes": ["no_local_answer_marker_detected"],
+                },
+            },
+            issues,
+        )
+
+    if question.question_type == "unknown":
+        table_rows = _extract_table_rows(question.html_content)
+        if table_rows:
+            table_answer = _extract_true_false_group_from_table_html(question.html_content)
+            if table_answer:
+                source_cues.append({"type": "table", "value": "true_false_matrix"})
+                return (
+                    {
+                        "mode": "boolean_group",
+                        "subanswers": table_answer,
+                        "source": "local_formatting",
+                        "confidence": 0.92,
+                        "answer_detection": {
+                            "source_cues": source_cues,
+                            "confidence": 0.92,
+                            "parser_notes": [],
+                        },
+                    },
+                    issues,
+                )
+        local_text = _question_pre_solution_text(question)
+        if re.search(r"(?iu)\bphát\s*biểu\b", local_text) and re.search(r"(?iu)\bđúng\b", local_text) and re.search(r"(?iu)\bsai\b", local_text):
+            text_answer = _extract_boolean_group_from_text(local_text)
+            if text_answer:
+                source_cues.append({"type": "marker", "value": "Phát biểu/Đúng/Sai"})
+                return (
+                    {
+                        "mode": "boolean_group",
+                        "subanswers": text_answer,
+                        "source": "local_formatting",
+                        "confidence": 0.90,
+                        "answer_detection": {
+                            "source_cues": source_cues,
+                            "confidence": 0.90,
+                            "parser_notes": [],
+                        },
+                    },
+                    issues,
+                )
+
     # true/false local cues
     boolean_hits = [(m.group(1).lower(), m.group(2)) for m in LOCAL_BOOLEAN_ROW_RE.finditer(text)]
     if boolean_hits:
@@ -2190,7 +3155,10 @@ def _extract_local_answer(question: ParsedQuestion) -> Tuple[Dict[str, Any], Lis
             continue
         if _normalize_choice_value(cleaned) is not None and question.question_type in {"single_choice", "multiple_choice"}:
             continue
-        normalized_shorts.append(_normalize_short_answer_value(cleaned))
+        short_value = _normalize_solution_short_text(cleaned)
+        if short_value is None:
+            continue
+        normalized_shorts.append(short_value)
     if normalized_shorts:
         source_cues.append({"type": "marker", "value": "Đáp số/Đáp án"})
         return (
@@ -2233,6 +3201,12 @@ def _normalize_solution_short_text(value: str) -> Optional[Dict[str, str]]:
     compact = _normalize_space(normalized.get("normalized", ""))
     if not compact:
         return None
+    compact = re.sub(r"(?iu)\s*[-–—\s]*(?:h[eêéèẻẽẹếềểễệ]t)\s*[-–—\s]*$", "", compact).strip()
+    normalized["raw"] = compact
+    normalized["normalized"] = compact
+    compact = _normalize_space(normalized.get("normalized", ""))
+    if not compact:
+        return None
     if len(compact) > 60:
         return None
     word_count = len(compact.split())
@@ -2241,12 +3215,37 @@ def _normalize_solution_short_text(value: str) -> Optional[Dict[str, str]]:
     return normalized
 
 
+def _is_heading_like_solution_value(raw: str) -> bool:
+    normalized = re.sub(r"\s+", " ", unicodedata.normalize("NFKC", raw or "")).strip().lower()
+    if not normalized:
+        return True
+    normalized = normalized.strip(" .,:;!-–—")
+    if normalized in {
+        "đáp án",
+        "đáp số",
+        "tham khảo",
+        "lời giải",
+        "lời giải tham khảo",
+        "và lời giải tham khảo",
+        "đáp án và lời giải",
+        "đáp án và lời giải tham khảo",
+    }:
+        return True
+    if "tham khảo" in normalized and len(normalized.split()) <= 5:
+        # Generic heading fragments like "VÀ LỜI GIẢI THAM KHẢO" should not be
+        # promoted to short-answer content.
+        return True
+    return False
+
+
 def _extract_explicit_solution_value(solution_text: str) -> Optional[Dict[str, Any]]:
     m_explicit = SOLUTION_EXPLICIT_VALUE_RE.search(solution_text)
     if not m_explicit:
         return None
     raw = _normalize_space(m_explicit.group(1))
     if not raw:
+        return None
+    if _is_heading_like_solution_value(raw):
         return None
 
     choice = _normalize_choice_value(raw)
@@ -2437,6 +3436,51 @@ def _infer_single_choice_from_solution(question: ParsedQuestion, solution_text_o
         ]
         if len(matching_letters) == 1:
             return matching_letters[0]
+
+    # 1b. Numeric-choice questions where the solution explicitly identifies the correct
+    #     statement labels (a/b/c/d). Example:
+    #       Options: A. 3. B. 2. C. 4. D. 1.
+    #       Solution: "Các biện pháp (a), (b), (c) đều đúng ..."
+    #     This is deterministic structure matching (no semantic guessing).
+    numeric_options: Dict[str, int] = {}
+    pure_numeric_count = 0
+    for letter, option_text in options.items():
+        normalized = _normalize_space(option_text)
+        # Prefer strict numeric-only options (allow trailing punctuation like "3."), but tolerate
+        # one polluted option when the other options are clearly numeric (common segmentation artifact).
+        full = re.fullmatch(r"(?iu)(\d{1,2})[.,]?", normalized)
+        if full:
+            numeric_options[letter] = int(full.group(1))
+            pure_numeric_count += 1
+            continue
+        prefix = re.match(r"(?iu)^(\d{1,2})[.,]?(?:\s|$)", normalized)
+        if prefix:
+            numeric_options[letter] = int(prefix.group(1))
+    if numeric_options and (len(numeric_options) == len(options)) and (pure_numeric_count >= max(3, len(options) - 1)):
+        # Explicit per-label verdicts: "(a) Đúng", "(b) Sai", ...
+        true_labels = {
+            label.lower()
+            for label, verdict in re.findall(r"(?iu)\(([a-d])\)\s*(đúng|sai)", solution_text)
+            if verdict.lower().startswith("đúng")
+        }
+        if true_labels:
+            desired = len(true_labels)
+            matching_letters = [letter for letter, value in numeric_options.items() if value == desired]
+            if len(matching_letters) == 1:
+                return matching_letters[0]
+
+        # Group verdict: "... (a), (b), (c) đều đúng ..."
+        group_match = re.search(
+            r"(?iu)(?:các\s+)?(?:biện\s*pháp|phát\s*biểu|mệnh\s*đề).{0,160}?đều\s*đúng",
+            solution_text,
+        )
+        if group_match:
+            labels = {m.lower() for m in re.findall(r"(?iu)\(([a-d])\)", group_match.group(0))}
+            if labels:
+                desired = len(labels)
+                matching_letters = [letter for letter, value in numeric_options.items() if value == desired]
+                if len(matching_letters) == 1:
+                    return matching_letters[0]
 
     # 2. Statement-set questions like "(a), (b)".
     true_labels = {
@@ -2993,6 +4037,18 @@ def _resolve_answer_for_question(
                             "chosen_source": primary_source,
                             "notes": ["consistent sources"],
                         }
+                        if len(values) > 1:
+                            issues.append(
+                                _build_answer_issue(
+                                    code="answer_summary_redundant_but_consistent",
+                                    severity="info",
+                                    message="Summary/local sources are redundant but consistent",
+                                    exam_id=question.exam_id,
+                                    question_id=question.item_id,
+                                    line=question.start_line,
+                                    stage="answer_reconciliation",
+                                )
+                            )
                 elif primary_source == "anchored_solution_block":
                     reconciliation = {
                         "status": "resolved",
@@ -3810,6 +4866,7 @@ def _refresh_parsed_aggregates(parsed: Dict[str, Any]) -> None:
     summary["min_confidence"] = min(confidences) if confidences else 0.0
     summary["unknown_question_type_count"] = sum(1 for q in questions if q.question_type == "unknown")
     summary["warning_count"] = len(warnings)
+    summary["parser_support_packages"] = dict(PARSER_SUPPORT_PACKAGES)
     parsed["summary"] = summary
     parsed["confidence_histogram"] = confidence_histogram
     parsed["sections"] = [sections[key] for key in sorted(sections.keys(), key=exam_sort_key)]
@@ -4133,7 +5190,7 @@ def main() -> None:
     parser.add_argument("--html", type=Path, required=True)
     parser.add_argument("--qa-json", type=Path, required=True)
     parser.add_argument("--source-docx", type=Path, default=None)
-    parser.add_argument("--subject", choices=["generic", "physics", "chemistry", "math", "biology"], default=None)
+    parser.add_argument("--subject", choices=["generic", "physics", "chemistry", "math", "biology", "english", "literature"], default=None)
     parser.add_argument("--output-mode", choices=["internal", "publish"], default="publish")
     parser.add_argument("--override-manifest", type=Path, default=None)
     parser.add_argument("--out-dir", type=Path, required=True)
@@ -4193,6 +5250,7 @@ def main() -> None:
     answer_detection["document_family_priority_path"] = list(document_family.get("priority_path", []))
     answer_detection["source_priority_path"] = list(document_family.get("priority_path", []))
     answer_detection["document_family_evidence"] = list(document_family.get("evidence", []))
+    answer_detection["parser_support_packages"] = dict(PARSER_SUPPORT_PACKAGES)
     answer_summary["detection"] = answer_detection
     if document_family.get("issue_code"):
         parsed.setdefault("warnings", []).append(

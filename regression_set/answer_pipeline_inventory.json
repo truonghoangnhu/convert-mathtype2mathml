@@ -36,7 +36,7 @@
       "expected": {
         "answer_summary_present": true,
         "answer_mode": "boolean_group",
-        "reconciliation_status": "resolved_with_fill",
+        "reconciliation_status": "resolved",
         "publish_verdict": "safe_to_publish"
       }
     },
@@ -46,7 +46,7 @@
       "expected": {
         "answer_summary_present": true,
         "answer_mode": "short_answer",
-        "reconciliation_status": "resolved_normalized_equivalent",
+        "reconciliation_status": "resolved_with_fill",
         "publish_verdict": "safe_to_publish"
       }
     },

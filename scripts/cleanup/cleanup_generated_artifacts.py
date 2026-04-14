@@ -13,6 +13,7 @@ from typing import Dict, List, Set
 
 
 RUN_DIR_PATTERN = re.compile(r".*-\d{8}-\d{6}$")
+DATE_DIR_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}$")
 HTML_REF_PATTERN = re.compile(r"""(?:src|href)\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
 CSS_URL_PATTERN = re.compile(r"""url\(\s*['"]?([^'")]+)['"]?\s*\)""", re.IGNORECASE)
 
@@ -49,10 +50,11 @@ def list_run_dirs_for_cleanup(
     keep_latest: int,
     min_age_hours: float,
     protected_names: Set[str],
+    name_pattern: re.Pattern[str] = RUN_DIR_PATTERN,
 ) -> List[Candidate]:
     if not root.exists():
         return []
-    run_dirs = [p for p in root.iterdir() if p.is_dir() and RUN_DIR_PATTERN.match(p.name)]
+    run_dirs = [p for p in root.iterdir() if p.is_dir() and name_pattern.match(p.name)]
     run_dirs.sort(key=lambda p: p.stat().st_mtime_ns, reverse=True)
     now = time.time()
     keep_set: Set[str] = set(protected_names)
@@ -137,11 +139,14 @@ def remove_candidate(candidate: Candidate) -> bool:
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description="Safe cleanup for generated batch artifacts.")
+    parser.add_argument("--in-root", type=Path, default=repo_root / "in")
     parser.add_argument("--work-root", type=Path, default=repo_root / "work")
     parser.add_argument("--out-root", type=Path, default=repo_root / "out")
+    parser.add_argument("--keep-in-runs", type=int, default=0)
     parser.add_argument("--keep-work-runs", type=int, default=6)
     parser.add_argument("--keep-out-runs", type=int, default=12)
-    parser.add_argument("--min-age-hours", type=float, default=24.0)
+    parser.add_argument("--min-age-hours", type=float, default=720.0)
+    parser.add_argument("--prune-in-runs", action="store_true")
     parser.add_argument("--prune-work-runs", action="store_true")
     parser.add_argument("--prune-out-runs", action="store_true")
     parser.add_argument("--prune-orphan-assets", action="store_true")
@@ -153,6 +158,16 @@ def main() -> None:
     protected_names = set(args.protected_name)
     all_candidates: List[Candidate] = []
 
+    if args.prune_in_runs:
+        all_candidates.extend(
+            list_run_dirs_for_cleanup(
+                args.in_root.resolve(),
+                keep_latest=max(0, args.keep_in_runs),
+                min_age_hours=args.min_age_hours,
+                protected_names=protected_names,
+                name_pattern=DATE_DIR_PATTERN,
+            )
+        )
     if args.prune_work_runs:
         all_candidates.extend(
             list_run_dirs_for_cleanup(
@@ -206,12 +221,15 @@ def main() -> None:
     summary = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "mode": "apply" if args.apply else "dry-run",
+        "in_root": str(args.in_root.resolve()),
         "work_root": str(args.work_root.resolve()),
         "out_root": str(args.out_root.resolve()),
         "rules": {
+            "prune_in_runs": args.prune_in_runs,
             "prune_work_runs": args.prune_work_runs,
             "prune_out_runs": args.prune_out_runs,
             "prune_orphan_assets": args.prune_orphan_assets,
+            "keep_in_runs": args.keep_in_runs,
             "keep_work_runs": args.keep_work_runs,
             "keep_out_runs": args.keep_out_runs,
             "min_age_hours": args.min_age_hours,
@@ -232,4 +250,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

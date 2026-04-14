@@ -30,6 +30,8 @@ That keeps the final HTML semantic and web-friendly.
 - `scripts/transpect/generate_sidecars.sh` run transpect on extracted WMF/BIN files
 - `scripts/transpect/run_docx_with_transpect.sh` end-to-end wrapper
 
+Stable operational smoke gate: `python3 scripts/workflow/run_stable_pilot_smoke.py`
+
 ## Build the Java converter
 
 Requirements:
@@ -256,6 +258,10 @@ See:
 - `docs/core-promotion/candidate_registry.md`
 - `docs/override_manifest_v1.md`
 - `docs/docx_export_direction_v1.md`
+
+Working notes, internal specs, and active planning documents are grouped under:
+
+- `docs/working/README.md`
 
 Override manifest example and validator:
 

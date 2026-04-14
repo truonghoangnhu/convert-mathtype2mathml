@@ -54,6 +54,10 @@ public final class MathmlSidecarRegistry {
         return resolveMathmlPath(partName) != null;
     }
 
+    public boolean isEmpty() {
+        return byPartName.isEmpty() && byLeafName.isEmpty();
+    }
+
     public String readMathmlForPart(String partName) throws IOException {
         Path p = resolveMathmlPath(partName);
         if (p == null) {
