@@ -2,6 +2,8 @@ target/
 work/
 in/
 tools/
+out/
+codex_reports/
 __pycache__/
 *.pyc
 *.class
