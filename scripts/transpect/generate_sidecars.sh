@@ -798,6 +798,42 @@ while IFS= read -r digest; do
   source_bin="$OUT_DIR/stage/bin-needed-src/$digest.bin"
   target_mathml="$OUT_DIR/mathml/bin/$digest.bin.mathml"
   run_single_file "$source_bin" "$target_mathml" "single-bin-fallback" || true
+  if python3 - <<'PY' "$target_mathml" "$CACHE_DIR/bin/$digest.bin.failed"
+from pathlib import Path
+import sys
+import xml.etree.ElementTree as ET
+
+output_path = Path(sys.argv[1])
+failed_marker = Path(sys.argv[2])
+
+def is_usable_math(path: Path) -> bool:
+    if not path.exists() or path.stat().st_size == 0:
+        return False
+    text = path.read_text(encoding='utf-8', errors='ignore').strip()
+    if '<math' not in text:
+        return False
+    try:
+        root = ET.fromstring(text)
+    except ET.ParseError:
+        return False
+    if root.tag.split('}')[-1] != 'math':
+        return False
+    children = [child for child in list(root) if isinstance(child.tag, str)]
+    if children:
+        return True
+    if (root.text or '').strip():
+        return True
+    return False
+
+if not is_usable_math(output_path):
+    if output_path.exists():
+        output_path.unlink()
+    failed_marker.write_text("failed\n", encoding='utf-8')
+    raise SystemExit(1)
+PY
+  then
+    : # usable output, keep going
+  fi
 done < "$OUT_DIR/tmp/bin-fallback-hashes.txt"
 t_bin_fallback_end=$(now_ms)
 

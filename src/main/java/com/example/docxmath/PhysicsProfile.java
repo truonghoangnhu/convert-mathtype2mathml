@@ -26,6 +26,16 @@ public final class PhysicsProfile extends GenericProfile {
         rules.add(new TextReplacementRule(Pattern.compile("(?iu)\\bmo\\s+l\\s*(?:\\^?\\s*-\\s*1|−\\s*1|⁻\\s*1)\\b"), "mol⁻¹"));
         rules.add(new TextReplacementRule(Pattern.compile("(?iu)\\bmo\\s+l\\b"), "mol"));
         rules.add(new TextReplacementRule(Pattern.compile("\\bMpa\\b"), "MPa"));
+        rules.add(new TextReplacementRule(Pattern.compile(""), "λ"));
+        rules.add(new TextReplacementRule(Pattern.compile(""), "μ"));
+        rules.add(new TextReplacementRule(Pattern.compile(""), "φ"));
+        rules.add(new TextReplacementRule(Pattern.compile(""), "ω"));
+        rules.add(new TextReplacementRule(Pattern.compile(""), "π"));
+        rules.add(new TextReplacementRule(Pattern.compile(""), "Ω"));
+        rules.add(new TextReplacementRule(Pattern.compile(""), "∠"));
+        rules.add(new TextReplacementRule(Pattern.compile(""), "≈"));
+        rules.add(new TextReplacementRule(Pattern.compile("(?m)^[\\h\\u00A0]*»\\s*(?=\\p{L})"), ""));
+        rules.add(new TextReplacementRule(Pattern.compile("(?m)^[\\h\\u00A0]*[\\uE000-\\uF8FF]+\\s*(?=\\p{L})"), ""));
         return List.copyOf(rules);
     }
 

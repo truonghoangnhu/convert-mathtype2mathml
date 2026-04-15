@@ -26,6 +26,9 @@ TYPE_KEYS = (
 )
 
 
+SAFE_ARTIFACT_PART_RE = re.compile(r"[^A-Za-z0-9._-]+")
+
+
 def is_under(path: Path, parent: Path) -> bool:
     try:
         path.resolve().relative_to(parent.resolve())
@@ -56,6 +59,25 @@ def discover_docx_inputs(input_dir: Path, output_root: Path, repo_root_path: Pat
 
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
+
+
+def safe_artifact_part(raw_part: str) -> str:
+    normalized = unicodedata.normalize("NFKD", raw_part)
+    ascii_part = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+    safe = SAFE_ARTIFACT_PART_RE.sub("-", ascii_part).strip("._-")
+    safe = re.sub(r"-{2,}", "-", safe)
+    if safe and safe == raw_part and SAFE_ARTIFACT_PART_RE.search(raw_part) is None:
+        return raw_part
+    if not safe:
+        safe = "item"
+    digest = hashlib.sha1(raw_part.encode("utf-8")).hexdigest()[:8]
+    return f"{safe}--{digest}"
+
+
+def safe_artifact_stem(rel_stem: Path) -> Path:
+    if not rel_stem.parts:
+        return Path("item")
+    return Path(*(safe_artifact_part(part) for part in rel_stem.parts))
 
 
 def detect_subject(raw_name: str) -> str:
@@ -416,21 +438,22 @@ def main() -> None:
         except ValueError:
             rel_docx = Path(docx_path.name)
         rel_stem = rel_docx.with_suffix("")
+        artifact_stem = safe_artifact_stem(rel_stem)
         subject = args.subject or detect_subject(docx_path.name)
         by_subject[subject] += 1
 
-        html_path = (html_root / rel_stem).with_name(rel_stem.name + "-transpect.html")
-        qa_json = (qa_root / rel_stem).with_name(rel_stem.name + ".qa.json")
-        qa_md = (qa_root / rel_stem).with_name(rel_stem.name + ".qa.md")
-        conversion_log = (logs_root / rel_stem).with_name(rel_stem.name + ".conversion.log")
-        qa_log = (logs_root / rel_stem).with_name(rel_stem.name + ".qa.log")
-        contract_log = (logs_root / rel_stem).with_name(rel_stem.name + ".contract.log")
-        contract_dir = batch_dir / "contracts" / rel_stem
+        html_path = (html_root / artifact_stem).with_name(artifact_stem.name + "-transpect.html")
+        qa_json = (qa_root / artifact_stem).with_name(artifact_stem.name + ".qa.json")
+        qa_md = (qa_root / artifact_stem).with_name(artifact_stem.name + ".qa.md")
+        conversion_log = (logs_root / artifact_stem).with_name(artifact_stem.name + ".conversion.log")
+        qa_log = (logs_root / artifact_stem).with_name(artifact_stem.name + ".qa.log")
+        contract_log = (logs_root / artifact_stem).with_name(artifact_stem.name + ".contract.log")
+        contract_dir = batch_dir / "contracts" / artifact_stem
         contract_manifest = contract_dir / "manifest.json"
         contract_exam_bundle = contract_dir / "exam_bundle.json"
         contract_question_bank_items = contract_dir / "question_bank_items.json"
         contract_qa = contract_dir / "qa.json"
-        work_dir = work_root / rel_stem
+        work_dir = work_root / artifact_stem
         cache_meta = work_dir / ".conversion-cache.json"
 
         html_path.parent.mkdir(parents=True, exist_ok=True)
@@ -638,6 +661,7 @@ def main() -> None:
             {
                 "source": str(docx_path.resolve()),
                 "source_relative": str(rel_docx),
+                "artifact_relative": str(artifact_stem),
                 "subject": subject,
                 "status": "ok",
                 "html": str(html_path.resolve()),

@@ -301,4 +301,4 @@ for ordinary extracted images and any remaining OLE preview images.
 ## Included third-party resource
 
 This project bundles `src/main/resources/omml2mml.xsl` from `transpect/docx2hub`.
-See `THIRD_PARTY_LICENSES_transpect_docx2hub_BSD-2-Clause.txt`.
+See `LICENSE_transpect_docx2hub.txt`.

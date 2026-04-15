@@ -96,6 +96,9 @@ public final class DocxToHtmlConverter {
             "(</span>)(<span\\b(?=[^>]*class=\"[^\"]*math-inline[^\"]*\")[^>]*>)",
             Pattern.DOTALL
     );
+    private static final Pattern INLINE_MATH_DEGREE_C_SUFFIX_PATTERN = Pattern.compile(
+            "(?is)(<span\\b(?=[^>]*class=\"[^\"]*math-inline[^\"]*\")[^>]*><math\\b[^>]*>)(?<before>.*?)<msup\\b[^>]*>\\s*<mn\\b[^>]*>\\s*(?<value>[^<\\s]+)\\s*</mn>\\s*<(?:mo|mtext)\\b[^>]*>\\s*[∘°]\\s*</(?:mo|mtext)>\\s*</msup>(?<after>.*?)</math></span>\\s*C\\b"
+    );
     private static final Pattern SINGLE_INLINE_MATH_PATTERN = Pattern.compile("^<span class=\"math-inline([^\\\"]*)\">(.*)</span>$", Pattern.DOTALL);
     private static final Pattern SINGLE_BLOCK_MATH_PATTERN = Pattern.compile("^<div class=\"math-block([^\\\"]*)\">(.*)</div>$", Pattern.DOTALL);
     private static final Pattern LEADING_IMAGES_PATTERN = Pattern.compile("^(?:\\s*)(?<images>(?:<img\\b[^>]*?/?>\\s*)+)(?<rest>.+)$", Pattern.DOTALL);
@@ -197,6 +200,24 @@ public final class DocxToHtmlConverter {
     private static final Pattern MATHML_M_PER_S2_PATTERN = Pattern.compile(
             "(?is)(<mtext\\b[^>]*>)([\\s\\u00A0]*)m\\s*/\\s*</mtext>\\s*<msup\\b[^>]*>\\s*<mtext\\b[^>]*>\\s*s\\s*</mtext>\\s*<(?:mtext|mn)\\b[^>]*>\\s*2\\s*</(?:mtext|mn)>\\s*</msup>"
     );
+    private static final Pattern MATHML_EMPTY_BASE_ISOTOPE_PATTERN = Pattern.compile(
+            "(?is)<msup\\b[^>]*>\\s*(?:<mrow\\b[^>]*/>|<mrow\\b[^>]*>\\s*</mrow>)\\s*<(?:mn|mi|mtext)\\b[^>]*>\\s*([^<\\s]+)\\s*</(?:mn|mi|mtext)>\\s*</msup>\\s*<(?:mn|mi|mtext)\\b[^>]*>\\s*([^<\\s]+)\\s*</(?:mn|mi|mtext)>\\s*<(?<symbolTag>mi|mtext)\\b(?<symbolAttrs>[^>]*)>\\s*(?<symbol>[A-Z][a-z]?)\\s*</(?:mi|mtext)>"
+    );
+    private static final Pattern MATHML_EMPTY_BASE_MSUBSUP_ISOTOPE_PATTERN = Pattern.compile(
+            "(?is)<msubsup\\b(?<attrs>[^>]*)>\\s*<mn\\b[^>]*>\\s*(?:&nbsp;|\\u00A0|\\s)*</mn>\\s*<(?:mn|mi|mtext)\\b[^>]*>\\s*(?<atomic>[^<\\s]+)\\s*</(?:mn|mi|mtext)>\\s*<(?:mn|mi|mtext)\\b[^>]*>\\s*(?<mass>[^<\\s]+)\\s*</(?:mn|mi|mtext)>\\s*</msubsup>\\s*<(?<symbolTag>mi|mtext)\\b(?<symbolAttrs>[^>]*)>\\s*(?<symbol>[A-Z][a-z]?)\\s*</(?:mi|mtext)>"
+    );
+    private static final Pattern MATHML_DEGREE_C_SUP_PATTERN = Pattern.compile(
+            "(?is)<msup\\b[^>]*>\\s*<mn\\b[^>]*>\\s*([^<\\s]+)\\s*</mn>\\s*<(?:mo|mtext)\\b[^>]*>\\s*[∘°]\\s*</(?:mo|mtext)>\\s*</msup>\\s*<mtext\\b[^>]*>\\s*C\\s*</mtext>"
+    );
+    private static final Pattern MATHML_NUMBER_WITH_TRAILING_COMMA_BEFORE_UNIT_PATTERN = Pattern.compile(
+            "(?is)<mn\\b(?<numAttrs>[^>]*)>\\s*(?<value>\\d+(?:,\\d+)?)\\s*,\\s*</mn>\\s*(?<unit><(?:mi\\b[^>]*mathvariant=\"normal\"[^>]*>\\s*Ω\\s*</mi>|mtext\\b[^>]*>\\s*(?:Ω|psi|MW|T|N|W|V)\\s*</mtext>))"
+    );
+    private static final Pattern MATHML_SPLIT_MICRO_UNIT_PATTERN = Pattern.compile(
+            "(?is)<mn\\b(?<numAttrs>[^>]*)>\\s*(?<value>\\d+(?:,\\d+)?)\\s*</mn>\\s*<mi\\b[^>]*>\\s*[μµ]\\s*</mi>\\s*<mi\\b[^>]*>\\s*(?<suffix>[mF])\\s*</mi>"
+    );
+    private static final Pattern MATHML_SPLIT_TRIG_FUNCTION_PATTERN = Pattern.compile(
+            "(?is)<mi\\b(?<prefixAttrs>[^>]*)>\\s*(?<head>[cst])\\s*</mi>\\s*<mtext\\b[^>]*>\\s*(?<tail>(?:os|in|an))\\s*</mtext>(?<open>\\s*<mo\\b[^>]*>\\s*\\(\\s*</mo>)?"
+    );
     private static final Pattern MATHML_DEGREE_SYMBOL_PLUS_C_PATTERN = Pattern.compile(
             "(?is)<mo\\b[^>]*>\\s*[∘°]\\s*</mo>\\s*<mtext\\b[^>]*>\\s*C\\s*</mtext>"
     );
@@ -227,7 +248,9 @@ public final class DocxToHtmlConverter {
     );
     private static final Map<Integer, String> CORE_SYMBOL_FONT_LOW_BYTE_MAP = Map.ofEntries(
             Map.entry(0xDE, "⇒"),
-            Map.entry(0xB7, "•")
+            Map.entry(0xB7, "•"),
+            Map.entry(0x6C, "λ"),
+            Map.entry(0x6D, "μ")
     );
     private static final Map<Integer, String> CORE_WINGDINGS_FONT_LOW_BYTE_MAP = Map.of(
             0x77, "•"
@@ -267,6 +290,7 @@ public final class DocxToHtmlConverter {
     private static final Pattern ADJACENT_HTML_SUP_TAG_PATTERN = Pattern.compile("(?s)<sup>\\s*([^<]*?)\\s*</sup>\\s*<sup>\\s*([^<]*?)\\s*</sup>");
     private static final Pattern EMPTY_SUBSCRIPT_SPACER_PATTERN = Pattern.compile("(?is)<sub>\\s*(?:&emsp;|&nbsp;|&#160;|\\u00A0|\\s)+\\s*</sub>");
     private static final Pattern HTML_TEMP_SUP_C_PATTERN = Pattern.compile("(?iu)(\\d+)\\s*<sup>\\s*(?:0|º|o|⁰)\\s*</sup>\\s*C\\b");
+    private static final Pattern HTML_PHYSICS_TEMP_SUP_C_PATTERN = Pattern.compile("(?iu)(\\d+)\\s*<sup>\\s*(?:0|º|o|⁰)\\s*</sup>\\s*C\\b");
     private static final Pattern CHEM_PUNCTUATION_IN_SCRIPT_PATTERN = Pattern.compile(
             "(?is)<(?:sub|sup)>\\s*([,.;:!?])\\s*</(?:sub|sup)>"
     );
@@ -627,6 +651,9 @@ public final class DocxToHtmlConverter {
             if (containsCoreHtmlScriptNormalizationSignals(out)) {
                 out = normalizeCoreHtmlScriptRuns(out);
             }
+            if (subject == Subject.PHYSICS) {
+                out = normalizePhysicsInlineMathTemperatureSuffix(out);
+            }
             if (subjectRules.chemistryHtmlScriptNormalizationEnabled()) {
                 out = normalizeChemistryHtmlScriptRuns(out);
             }
@@ -799,6 +826,9 @@ public final class DocxToHtmlConverter {
         out = mergeAdjacentSuperscripts(out, UNICODE_SUP_BEFORE_HTML_SUP_PATTERN, true);
         out = mergeAdjacentSuperscripts(out, HTML_SUP_BEFORE_UNICODE_SUP_PATTERN, false);
         out = mergeAdjacentHtmlSupTags(out);
+        if (subject == Subject.PHYSICS) {
+            out = normalizePhysicsInlineTemperatureHtml(out);
+        }
         return replaceAndCount(out, EMPTY_SUBSCRIPT_SPACER_PATTERN, "&emsp;", true);
     }
 
@@ -820,6 +850,51 @@ public final class DocxToHtmlConverter {
         out = replaceAndCountChemistryHtmlFix(out, FALSE_STRUCTURAL_CO_NH_CHARGE_PATTERN, "$1-");
         out = replaceAndCountChemistryHtmlFix(out, FALSE_STRUCTURAL_CO_CHARGE_PATTERN, "$1-");
         return out;
+    }
+
+    private String normalizePhysicsInlineTemperatureHtml(String html) {
+        Matcher matcher = HTML_PHYSICS_TEMP_SUP_C_PATTERN.matcher(html);
+        StringBuffer out = null;
+        int hitCount = 0;
+        while (matcher.find()) {
+            if (out == null) {
+                out = new StringBuffer(html.length() + 16);
+            }
+            hitCount++;
+            matcher.appendReplacement(out, Matcher.quoteReplacement(matcher.group(1) + " °C"));
+        }
+        if (out == null || hitCount == 0) {
+            return html;
+        }
+        matcher.appendTail(out);
+        normalizedTextFixCounter.addAndGet(hitCount);
+        physicsUnitFixCounter.addAndGet(hitCount);
+        return out.toString();
+    }
+
+    private String normalizePhysicsInlineMathTemperatureSuffix(String html) {
+        Matcher matcher = INLINE_MATH_DEGREE_C_SUFFIX_PATTERN.matcher(html);
+        StringBuffer out = null;
+        int hitCount = 0;
+        while (matcher.find()) {
+            if (out == null) {
+                out = new StringBuffer(html.length() + 32);
+            }
+            hitCount++;
+            String replacement = matcher.group(1)
+                    + Objects.toString(matcher.group("before"), "")
+                    + "<mn>" + HtmlUtil.escape(Objects.toString(matcher.group("value"), "").trim()) + "</mn><mspace width=\"0.33em\"/><mtext>°C</mtext>"
+                    + Objects.toString(matcher.group("after"), "")
+                    + "</math></span>";
+            matcher.appendReplacement(out, Matcher.quoteReplacement(replacement));
+        }
+        if (out == null || hitCount == 0) {
+            return html;
+        }
+        matcher.appendTail(out);
+        normalizedTextFixCounter.addAndGet(hitCount);
+        physicsUnitFixCounter.addAndGet(hitCount);
+        return out.toString();
     }
 
     private String stripWordFieldCodeLeakage(String html) {
@@ -1410,15 +1485,184 @@ public final class DocxToHtmlConverter {
             return mathml;
         }
         String out = mathml;
+        out = normalizePhysicsIsotopeMathml(out);
         out = replaceMathmlLayoutAndCount(out, MATHML_CM2_SPLIT_PATTERN, "$1$2cm²</mtext>");
         out = replaceMathmlLayoutAndCount(out, MATHML_CM3_SPLIT_PATTERN, "$1$2cm³</mtext>");
         out = replaceMathmlLayoutAndCount(out, MATHML_MOL_INV_SPLIT_PATTERN, "$1$2mol⁻¹</mtext>");
         out = replaceMathmlLayoutAndCount(out, MATHML_BLANK_BASE_DEGREE_C_PATTERN, "$1°C</mtext>");
+        out = normalizePhysicsDegreeCMathml(out);
+        out = normalizePhysicsNumberUnitMathml(out);
+        out = normalizePhysicsTrigFunctionMathml(out);
         out = replaceMathmlLayoutAndCount(out, MATHML_DEGREE_SYMBOL_PLUS_C_PATTERN, "<mtext>°C</mtext>");
         out = replaceMathmlLayoutAndCount(out, MATHML_J_PER_MOL_DOT_K_PATTERN, "$1$2J/mol·K</mtext>");
         out = replaceMathmlLayoutAndCount(out, MATHML_R_CONSTANT_UNIT_PATTERN, "$1J·mol⁻¹·K⁻¹</mtext>");
         out = replaceMathmlLayoutAndCount(out, MATHML_M_PER_S2_PATTERN, "$1$2m/s²</mtext>");
         return out;
+    }
+
+    private String normalizePhysicsIsotopeMathml(String input) {
+        String cleaned = normalizePhysicsEmptyBaseMsubsupIsotope(input);
+        Matcher matcher = MATHML_EMPTY_BASE_ISOTOPE_PATTERN.matcher(cleaned);
+        StringBuffer out = null;
+        int hitCount = 0;
+        while (matcher.find()) {
+            String massNumber = Objects.toString(matcher.group(1), "").trim();
+            String atomicNumber = Objects.toString(matcher.group(2), "").trim();
+            String symbolTag = Objects.toString(matcher.group("symbolTag"), "mtext");
+            String symbolAttrs = Objects.toString(matcher.group("symbolAttrs"), "");
+            String symbol = Objects.toString(matcher.group("symbol"), "").trim();
+            if (massNumber.isEmpty() || atomicNumber.isEmpty() || symbol.isEmpty()) {
+                continue;
+            }
+            if (out == null) {
+                out = new StringBuffer(input.length() + 48);
+            }
+            hitCount++;
+            String replacement = "<msubsup><mrow/>"
+                    + buildMathmlScalarToken(atomicNumber)
+                    + buildMathmlScalarToken(massNumber)
+                    + "</msubsup><" + symbolTag + symbolAttrs + ">" + HtmlUtil.escape(symbol) + "</" + symbolTag + ">";
+            matcher.appendReplacement(out, Matcher.quoteReplacement(replacement));
+        }
+        if (out == null || hitCount == 0) {
+            return cleaned;
+        }
+        matcher.appendTail(out);
+        mixedMathTextCleanupCounter.addAndGet(hitCount);
+        return out.toString();
+    }
+
+    private String normalizePhysicsEmptyBaseMsubsupIsotope(String input) {
+        Matcher matcher = MATHML_EMPTY_BASE_MSUBSUP_ISOTOPE_PATTERN.matcher(input);
+        StringBuffer out = null;
+        int hitCount = 0;
+        while (matcher.find()) {
+            String attrs = Objects.toString(matcher.group("attrs"), "");
+            String atomic = Objects.toString(matcher.group("atomic"), "").trim();
+            String mass = Objects.toString(matcher.group("mass"), "").trim();
+            String symbolTag = Objects.toString(matcher.group("symbolTag"), "mtext");
+            String symbolAttrs = Objects.toString(matcher.group("symbolAttrs"), "");
+            String symbol = Objects.toString(matcher.group("symbol"), "").trim();
+            if (atomic.isEmpty() || mass.isEmpty() || symbol.isEmpty()) {
+                continue;
+            }
+            if (out == null) {
+                out = new StringBuffer(input.length() + 48);
+            }
+            hitCount++;
+            String replacement = "<msubsup" + attrs + "><mrow/>"
+                    + buildMathmlScalarToken(atomic)
+                    + buildMathmlScalarToken(mass)
+                    + "</msubsup><" + symbolTag + symbolAttrs + ">" + HtmlUtil.escape(symbol) + "</" + symbolTag + ">";
+            matcher.appendReplacement(out, Matcher.quoteReplacement(replacement));
+        }
+        if (out == null || hitCount == 0) {
+            return input;
+        }
+        matcher.appendTail(out);
+        mixedMathTextCleanupCounter.addAndGet(hitCount);
+        return out.toString();
+    }
+
+    private String normalizePhysicsDegreeCMathml(String input) {
+        Matcher matcher = MATHML_DEGREE_C_SUP_PATTERN.matcher(input);
+        StringBuffer out = null;
+        int hitCount = 0;
+        while (matcher.find()) {
+            if (out == null) {
+                out = new StringBuffer(input.length() + 32);
+            }
+            hitCount++;
+            String replacement = "<mn>" + HtmlUtil.escape(matcher.group(1).trim()) + "</mn><mspace width=\"0.33em\"/><mtext>°C</mtext>";
+            matcher.appendReplacement(out, Matcher.quoteReplacement(replacement));
+        }
+        if (out == null || hitCount == 0) {
+            return input;
+        }
+        matcher.appendTail(out);
+        mixedMathTextCleanupCounter.addAndGet(hitCount);
+        return out.toString();
+    }
+
+    private String normalizePhysicsNumberUnitMathml(String input) {
+        String out = normalizePhysicsTrailingCommaUnits(input);
+        return normalizePhysicsSplitMicroUnits(out);
+    }
+
+    private String normalizePhysicsTrailingCommaUnits(String input) {
+        Matcher matcher = MATHML_NUMBER_WITH_TRAILING_COMMA_BEFORE_UNIT_PATTERN.matcher(input);
+        StringBuffer out = null;
+        int hitCount = 0;
+        while (matcher.find()) {
+            if (out == null) {
+                out = new StringBuffer(input.length() + 32);
+            }
+            hitCount++;
+            String replacement = "<mn" + matcher.group("numAttrs") + ">" + HtmlUtil.escape(matcher.group("value").trim())
+                    + "</mn><mspace width=\"0.33em\"/>" + matcher.group("unit");
+            matcher.appendReplacement(out, Matcher.quoteReplacement(replacement));
+        }
+        if (out == null || hitCount == 0) {
+            return input;
+        }
+        matcher.appendTail(out);
+        mixedMathTextCleanupCounter.addAndGet(hitCount);
+        return out.toString();
+    }
+
+    private String normalizePhysicsSplitMicroUnits(String input) {
+        Matcher matcher = MATHML_SPLIT_MICRO_UNIT_PATTERN.matcher(input);
+        StringBuffer out = null;
+        int hitCount = 0;
+        while (matcher.find()) {
+            if (out == null) {
+                out = new StringBuffer(input.length() + 32);
+            }
+            hitCount++;
+            String replacement = "<mn" + matcher.group("numAttrs") + ">" + HtmlUtil.escape(matcher.group("value").trim())
+                    + "</mn><mspace width=\"0.33em\"/><mtext>μ" + HtmlUtil.escape(matcher.group("suffix").trim()) + "</mtext>";
+            matcher.appendReplacement(out, Matcher.quoteReplacement(replacement));
+        }
+        if (out == null || hitCount == 0) {
+            return input;
+        }
+        matcher.appendTail(out);
+        mixedMathTextCleanupCounter.addAndGet(hitCount);
+        return out.toString();
+    }
+
+    private String normalizePhysicsTrigFunctionMathml(String input) {
+        Matcher matcher = MATHML_SPLIT_TRIG_FUNCTION_PATTERN.matcher(input);
+        StringBuffer out = null;
+        int hitCount = 0;
+        while (matcher.find()) {
+            String head = Objects.toString(matcher.group("head"), "");
+            String tail = Objects.toString(matcher.group("tail"), "");
+            String combined = head + tail;
+            if (!combined.equals("cos") && !combined.equals("sin") && !combined.equals("tan")) {
+                continue;
+            }
+            if (out == null) {
+                out = new StringBuffer(input.length() + 24);
+            }
+            hitCount++;
+            String openParen = Objects.toString(matcher.group("open"), "").isEmpty() ? "" : "<mo>(</mo>";
+            String replacement = "<mi" + matcher.group("prefixAttrs") + ">" + combined + "</mi>" + openParen;
+            matcher.appendReplacement(out, Matcher.quoteReplacement(replacement));
+        }
+        if (out == null || hitCount == 0) {
+            return input;
+        }
+        matcher.appendTail(out);
+        mixedMathTextCleanupCounter.addAndGet(hitCount);
+        return out.toString();
+    }
+
+    private static String buildMathmlScalarToken(String value) {
+        if (value != null && value.chars().allMatch(Character::isDigit)) {
+            return "<mn>" + HtmlUtil.escape(value) + "</mn>";
+        }
+        return "<mi>" + HtmlUtil.escape(Objects.toString(value, "")) + "</mi>";
     }
 
     private String normalizeMathMathmlGlyphLayout(String mathml) {
@@ -2785,7 +3029,8 @@ public final class DocxToHtmlConverter {
                         sourceExtTrace,
                         sourceAssetTrace,
                         buildUnresolvedPlaceholderFamily(oleKind),
-                        "ole-render-exception:" + ex.getClass().getSimpleName()
+                        "ole-render-exception:" + ex.getClass().getSimpleName(),
+                        shouldHideOlePlaceholder(oleKind)
                 );
             }
 
@@ -2820,7 +3065,8 @@ public final class DocxToHtmlConverter {
                             renderSourceUsed,
                             sourceExtTrace,
                             sourceAssetTrace
-                    )
+                    ),
+                    shouldHideOlePlaceholder(oleKind)
             );
         } finally {
             stageImageRenderingNanos.addAndGet(System.nanoTime() - start);
@@ -2852,7 +3098,8 @@ public final class DocxToHtmlConverter {
                             renderSourceUsed,
                             sourceExtTrace,
                             sourceAssetTrace
-                    )
+                    ),
+                    shouldHideOlePlaceholder(oleKind)
             );
         }
         String cssClass = buildOleCssClass(oleKind);
@@ -2930,7 +3177,8 @@ public final class DocxToHtmlConverter {
                 resolution.sourceExtTrace(),
                 resolution.sourceAssetTrace(),
                 buildUnresolvedPlaceholderFamily(OleKind.DSMT4_EQUATION),
-                unresolvedReason
+                unresolvedReason,
+                shouldHideOlePlaceholder(OleKind.DSMT4_EQUATION)
         );
     }
 
@@ -3016,15 +3264,21 @@ public final class DocxToHtmlConverter {
             String sourceExtTrace,
             String sourceAssetTrace,
             String placeholderFamily,
-            String unresolvedReason
+            String unresolvedReason,
+            boolean qaHidden
     ) {
         StringBuilder span = new StringBuilder(240);
+        String visibleLabel = qaHidden ? "" : "[" + HtmlUtil.escape(label) + "]";
         span.append("<span class=\"")
-                .append(buildOlePlaceholderClass(oleKind))
-                .append("\"")
+                .append(buildOlePlaceholderClass(oleKind));
+        if (qaHidden) {
+            span.append(" qa-hidden");
+        }
+        span.append("\"")
                 .append(" title=\"").append(HtmlUtil.escapeAttribute(label)).append("\"")
                 .append(" data-ole-kind=\"").append(HtmlUtil.escapeAttribute(oleKind.dataValue())).append("\"")
                 .append(" data-placeholder-family=\"").append(HtmlUtil.escapeAttribute(placeholderFamily)).append("\"")
+                .append(" data-placeholder-label=\"").append(HtmlUtil.escapeAttribute(label)).append("\"")
                 .append(" data-unresolved-reason=\"").append(HtmlUtil.escapeAttribute(unresolvedReason)).append("\"")
                 .append(" data-render-attempted=\"").append(renderAttempted ? "true" : "false").append("\"")
                 .append(" data-render-source-used=\"").append(HtmlUtil.escapeAttribute(renderSourceUsed)).append("\"")
@@ -3035,10 +3289,13 @@ public final class DocxToHtmlConverter {
         if (progId != null && !progId.isBlank()) {
             span.append(" data-ole-progid=\"").append(HtmlUtil.escapeAttribute(progId)).append("\"");
         }
-        span.append(">[")
-                .append(HtmlUtil.escape(label))
-                .append("]</span>");
+        span.append(">").append(visibleLabel).append("</span>");
         return span.toString();
+    }
+
+    private boolean shouldHideOlePlaceholder(OleKind oleKind) {
+        return outputMode == OutputMode.PUBLISH
+                && (oleKind == OleKind.DSMT4_EQUATION || oleKind == OleKind.EQUATION);
     }
 
     private static String buildUnsupportedInlineImagePlaceholder(
@@ -3949,10 +4206,8 @@ public final class DocxToHtmlConverter {
 
             ProcessBuilder builder = new ProcessBuilder(command);
             builder.redirectErrorStream(true);
+            builder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
             Process process = builder.start();
-            try (InputStream stdout = process.getInputStream()) {
-                stdout.transferTo(OutputStream.nullOutputStream());
-            }
             if (!process.waitFor(25, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
                 officeRenderFailureCounter.incrementAndGet();
