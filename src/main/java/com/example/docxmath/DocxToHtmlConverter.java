@@ -275,7 +275,7 @@ public final class DocxToHtmlConverter {
     private static final Pattern CHEMICAL_ENTHALPY_TOKEN_PATTERN = Pattern.compile("Δ([fr])H°\\s*([0-9]{2,4})");
     private static final Pattern CHEMICAL_ELECTRON_CHARGE_PATTERN = Pattern.compile("(?iu)(?<!\\p{L})(\\d*)\\s*e\\s*([+−-])(?!\\p{L})");
     private static final Pattern CHEMICAL_ELECTRON_LOOSE_PLUS_PATTERN = Pattern.compile("(?iu)(?<!\\p{L})(\\d*)\\s*e\\s*\\+\\s*(?=[A-Z(\\[])");
-    private static final Pattern CHEMICAL_BI_ARROW_PATTERN = Pattern.compile("(?<=\\S)\\s*(?:<=>|<->|&lt;=&gt;|&lt;-&gt;|⇄|↔)\\s*(?=\\S)");
+    private static final Pattern CHEMICAL_BI_ARROW_PATTERN = Pattern.compile("(?<=\\S)\\s*(?:<=>|<->|&lt;=&gt;|&lt;-&gt;|⇌|⇄|↔)\\s*(?=\\S)");
     private static final Pattern CHEMICAL_FORWARD_ARROW_PATTERN = Pattern.compile("(?<=\\S)\\s*(?:->|=>|-&gt;|=&gt;|â†’|âž”|⟶)\\s*(?=\\S)");
     private static final Pattern SVG_BOUNDING_BOX_RECT_PATTERN = Pattern.compile(
             "<rect\\b(?=[^>]*class=\"[^\"]*BoundingBox[^\"]*\")[^>]*>",
