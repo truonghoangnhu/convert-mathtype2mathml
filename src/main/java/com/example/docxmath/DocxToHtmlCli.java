@@ -1,5 +1,7 @@
 package com.example.docxmath;
 
+import com.example.docxmath.word.DocxMathPatchMain;
+import com.example.docxmath.word.ManifestMathSidecarRepository;
 import org.apache.poi.openxml4j.util.ZipSecureFile;
 
 import java.nio.file.Path;
@@ -13,6 +15,10 @@ public final class DocxToHtmlCli {
 
         if (args.length > 0 && "review-server".equals(args[0])) {
             ReviewServerCli.run(sliceArgs(args, 1));
+            return;
+        }
+        if (args.length > 0 && "--patch-docx".equals(args[0])) {
+            runPatchDocx(sliceArgs(args, 1));
             return;
         }
 
@@ -138,6 +144,8 @@ public final class DocxToHtmlCli {
                         + "[--native-mathml-only] [--mathml-manifest manifest.tsv] "
                         + "[--subject generic|physics|chemistry|math|biology|english|literature] "
                         + "[--output-mode internal|publish]\n"
+                        + "   or: java -jar docx-html-math.jar --patch-docx <input.docx> <output.docx> "
+                        + "[--mathml-manifest manifest.tsv]\n"
                         + "   or: java -jar docx-html-math.jar review-server --review-root <dir> "
                         + "[or --root <dir>] "
                         + "[--host 127.0.0.1] [--port 8080]"
@@ -165,5 +173,45 @@ public final class DocxToHtmlCli {
             }
         }
         ZipSecureFile.setMaxFileCount(limit);
+    }
+
+    private static void runPatchDocx(String[] args) throws Exception {
+        if (args.length < 2) {
+            usageAndExit(1);
+        }
+        Path input = Path.of(args[0]).toAbsolutePath().normalize();
+        Path output = Path.of(args[1]).toAbsolutePath().normalize();
+        Path mathmlManifest = null;
+
+        for (int i = 2; i < args.length; i++) {
+            String arg = args[i];
+            if ("--mathml-manifest".equals(arg)) {
+                if (i + 1 >= args.length) {
+                    System.err.println("Missing value after --mathml-manifest");
+                    usageAndExit(2);
+                }
+                mathmlManifest = Path.of(args[++i]).toAbsolutePath().normalize();
+            } else {
+                System.err.println("Unknown option for --patch-docx: " + arg);
+                usageAndExit(2);
+            }
+        }
+
+        ManifestMathSidecarRepository repository = mathmlManifest == null
+                ? ManifestMathSidecarRepository.empty()
+                : ManifestMathSidecarRepository.load(mathmlManifest);
+        DocxMathPatchMain.PatchSummary summary = new DocxMathPatchMain(repository).patch(input, output);
+
+        System.out.println("Input:  " + input);
+        System.out.println("Output: " + output);
+        if (mathmlManifest != null) {
+            System.out.println("MathML manifest: " + mathmlManifest);
+        }
+        System.out.println("Patch mode: DOCX -> DOCX (native OMML)");
+        System.out.println("Math occurrences scanned: " + summary.totalOccurrences());
+        System.out.println("Block equations patched: " + summary.patchedBlocks());
+        System.out.println("Native OMML untouched: " + summary.nativeOmmlUntouched());
+        System.out.println("Unresolved objects kept: " + summary.unresolved());
+        System.out.println("Inline/non-block objects skipped: " + summary.skippedInline());
     }
 }

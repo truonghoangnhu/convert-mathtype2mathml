@@ -13,6 +13,13 @@ This branch combines two strategies:
    - external conversion to **MathML sidecars**
    - final HTML renders the MathML with **MathJax**
 
+This repo now also contains a parallel MVP path for patching legacy math objects back into native Word math:
+
+3. **DOCX patch mode** for Word-native output:
+   - consume the same `manifest.tsv` + sidecar `*.mathml`
+   - convert MathML to **OMML**
+   - write a new `.docx` with native Word equations for block-math cases
+
 ## Why this branch exists
 
 For documents that contain many legacy MathType equations, a POI-only converter usually falls back to preview images.
@@ -27,6 +34,7 @@ That keeps the final HTML semantic and web-friendly.
 
 - `src/main/java/...` Java converter
 - `src/main/resources/omml2mml.xsl` open-source OMML -> MathML stylesheet
+- `src/main/resources/mml2omml.xsl` open-source MathML -> OMML stylesheet
 - `scripts/transpect/generate_sidecars.sh` run transpect on extracted WMF/BIN files
 - `scripts/transpect/run_docx_with_transpect.sh` end-to-end wrapper
 
@@ -164,10 +172,56 @@ If no match exists:
 - it falls back to the image preview when possible
 - otherwise it emits a visible placeholder
 
+## DOCX patch mode
+
+The HTML flow stays unchanged. The new mode adds a separate branch:
+
+```text
+DOCX -> DOCX(native OMML)
+```
+
+Current MVP scope:
+
+- native OMML is left untouched
+- only block equations are patched first
+- standalone OLE/WMF equation paragraphs are the target shape
+- inline equations are intentionally deferred to a later phase
+- OLE binaries are never edited directly
+- if a manifest entry cannot be resolved, the original object is kept and a warning is logged
+
+Run it with the same sidecar manifest:
+
+```bash
+java -jar target/docx-html-math-1.0.0-jar-with-dependencies.jar \
+  --patch-docx \
+  input.docx \
+  output.docx \
+  --mathml-manifest work/transpect/manifest.tsv
+```
+
+Patch path architecture:
+
+- detect `NATIVE_OMML`, `OLE_BIN`, `WMF_PREVIEW`, `UNKNOWN`
+- reuse manifest exact match first, then unique leaf-name fallback
+- normalize sidecar MathML
+- convert MathML -> OMML through `mml2omml.xsl` + Saxon
+- inject OMML back into the DOCX for block-equation paragraphs
+
+Manual smoke path:
+
+```bash
+java -jar target/docx-html-math-1.0.0-jar-with-dependencies.jar \
+  --patch-docx \
+  in/Hoa_Ha_Tinh_L1.docx \
+  out/Hoa_Ha_Tinh_L1-omml.docx \
+  --mathml-manifest work/batches/convert-chem-no-leading-underscore-hoa-ha-tinh-l1-20260421-181615-03/Hoa_Ha_Tinh_L1/manifest.tsv
+```
+
 ## CLI options
 
 ```text
 java -jar ... <input.docx> <output.html> [--native-mathml-only] [--mathml-manifest manifest.tsv] [--subject ...] [--output-mode internal|publish]
+java -jar ... --patch-docx <input.docx> <output.docx> [--mathml-manifest manifest.tsv]
 ```
 
 `--output-mode` behavior:
