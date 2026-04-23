@@ -43,6 +43,7 @@ This document is the canonical baseline for the current DSMT4 degenerate taxonom
 
 ## Canonical Evidence
 
+- Spec/reference semantics note: [dsmt4_mtef_spec_reference_note.md](./dsmt4_mtef_spec_reference_note.md)
 - Deep-audit for `METADATA_ONLY_NO_RENDERABLE_BODY_OTHER`: [dsmt4_metadata_only_no_renderable_body_other_deep_audit.md](./dsmt4_metadata_only_no_renderable_body_other_deep_audit.md)
 - Deep-audit for `EMPTY_GENERATED_SIDECAR_WITH_RENDERABLE_BODY`: [empty_generated_sidecar_with_renderable_body_investigation_10_toan_hcm_2026.md](./empty_generated_sidecar_with_renderable_body_investigation_10_toan_hcm_2026.md)
 - Underscore-group taxonomy audit: [dsmt4_underscore_big_group_audit_2026-04-23.md](./dsmt4_underscore_big_group_audit_2026-04-23.md)
