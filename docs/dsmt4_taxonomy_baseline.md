@@ -47,6 +47,7 @@ This document is the canonical baseline for the current DSMT4 degenerate taxonom
 - Deep-audit for `METADATA_ONLY_NO_RENDERABLE_BODY_OTHER`: [dsmt4_metadata_only_no_renderable_body_other_deep_audit.md](./dsmt4_metadata_only_no_renderable_body_other_deep_audit.md)
 - Deep-audit for `EMPTY_GENERATED_SIDECAR_WITH_RENDERABLE_BODY`: [empty_generated_sidecar_with_renderable_body_investigation_10_toan_hcm_2026.md](./empty_generated_sidecar_with_renderable_body_investigation_10_toan_hcm_2026.md)
 - Underscore-group taxonomy audit: [dsmt4_underscore_big_group_audit_2026-04-23.md](./dsmt4_underscore_big_group_audit_2026-04-23.md)
+- Full `in/*` corpus audit: [dsmt4_full_in_corpus_audit_2026-04-23.md](./dsmt4_full_in_corpus_audit_2026-04-23.md)
 - Source-local split note for `_30_Li_2025`: [dsmt4_30_li_2025_source_local_split.md](./dsmt4_30_li_2025_source_local_split.md)
 - Taxonomy lines report: [dsmt4_taxonomy_lines_report.md](./dsmt4_taxonomy_lines_report.md)
 
