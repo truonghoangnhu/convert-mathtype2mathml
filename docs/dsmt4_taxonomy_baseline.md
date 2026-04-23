@@ -21,12 +21,19 @@ This document is the canonical baseline for the current DSMT4 degenerate taxonom
 - Do not change Java matching.
 - Do not change usable-sidecar filtering.
 - Do not change converter logic.
+- Do not change parser/converter default behavior.
 - Do not merge any default parser/converter decode rule without new parser-stage/body evidence.
 
 ## Recommended Next Branch
 
 - If work continues, the next branch should be a narrow upstream converter/classification-boundary investigation for `EMPTY_GENERATED_SIDECAR_WITH_RENDERABLE_BODY`.
 - `METADATA_ONLY_NO_RENDERABLE_BODY_OTHER` should remain taxonomy-only unless new evidence creates a stable split from `METADATA_ONLY_FULL_END_ONLY`.
+
+## Current Recommendation
+
+- Do not open a production fix yet.
+- If any follow-up is needed, prefer only a narrow investigation for `EMPTY_GENERATED_SIDECAR_WITH_RENDERABLE_BODY`.
+- Otherwise, treat the taxonomy as frozen until new corpus, new reference evidence, or new parser-stage/body evidence appears.
 
 ## Why No Production Fix Yet
 
