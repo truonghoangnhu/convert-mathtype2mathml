@@ -20,75 +20,116 @@ public final class PoiMathSourceDetector implements MathSourceDetector {
     public List<MathOccurrence> detect(XWPFDocument document, XWPFParagraph paragraph) {
         List<MathOccurrence> results = new ArrayList<>();
         Node paragraphNode = paragraph.getCTP().getDomNode();
-        if (containsMathNode(paragraphNode)) {
+        boolean paragraphHasNativeOmml = containsMathNode(paragraphNode);
+        int paragraphObjectCount = countObjects(paragraph);
+        if (paragraphHasNativeOmml) {
             results.add(new MathOccurrence(
                     MathOccurrence.SourceType.NATIVE_OMML,
                     document,
                     paragraph,
                     paragraphNode,
+                    -1,
                     null,
                     null,
                     null,
                     null,
-                    false
+                    false,
+                    true,
+                    paragraphObjectCount
             ));
-            return results;
         }
-        for (XWPFRun run : paragraph.getRuns()) {
+        List<XWPFRun> runs = paragraph.getRuns();
+        for (int runIndex = 0; runIndex < runs.size(); runIndex++) {
+            XWPFRun run = runs.get(runIndex);
             Node runNode = run.getCTR().getDomNode();
-            Element objectElement = findFirstDescendant(runNode, "object");
-            if (objectElement == null) {
-                continue;
+            List<Element> objectElements = findDescendants(runNode, "object");
+            for (Element objectElement : objectElements) {
+                Element oleObject = findFirstDescendant(objectElement, "OLEObject");
+                Element imageData = findFirstDescendant(objectElement, "imagedata");
+
+                String oleRelId = attrByLocalName(oleObject, "id");
+                String previewRelId = attrByLocalName(imageData, "id");
+                String olePartName = resolveRelatedPartName(document, oleRelId);
+                String previewPartName = resolveRelatedPartName(document, previewRelId);
+                String oleExt = extensionOf(olePartName);
+                String previewExt = extensionOf(previewPartName);
+
+                MathOccurrence.SourceType sourceType = MathOccurrence.SourceType.UNKNOWN;
+                if (".bin".equals(oleExt)) {
+                    sourceType = MathOccurrence.SourceType.OLE_BIN;
+                } else if (".wmf".equals(previewExt) || ".emf".equals(previewExt)) {
+                    sourceType = MathOccurrence.SourceType.WMF_PREVIEW;
+                }
+
+                results.add(new MathOccurrence(
+                        sourceType,
+                        document,
+                        paragraph,
+                        objectElement,
+                        runIndex,
+                        oleRelId,
+                        previewRelId,
+                        olePartName,
+                        previewPartName,
+                        isBlockEquationCandidate(paragraph, paragraphHasNativeOmml, paragraphObjectCount, runIndex),
+                        paragraphHasNativeOmml,
+                        paragraphObjectCount
+                ));
             }
-
-            Element oleObject = findFirstDescendant(objectElement, "OLEObject");
-            Element imageData = findFirstDescendant(objectElement, "imagedata");
-
-            String oleRelId = attrByLocalName(oleObject, "id");
-            String previewRelId = attrByLocalName(imageData, "id");
-            String olePartName = resolveRelatedPartName(document, oleRelId);
-            String previewPartName = resolveRelatedPartName(document, previewRelId);
-            String oleExt = extensionOf(olePartName);
-            String previewExt = extensionOf(previewPartName);
-
-            MathOccurrence.SourceType sourceType = MathOccurrence.SourceType.UNKNOWN;
-            if (".bin".equals(oleExt)) {
-                sourceType = MathOccurrence.SourceType.OLE_BIN;
-            } else if (".wmf".equals(previewExt) || ".emf".equals(previewExt)) {
-                sourceType = MathOccurrence.SourceType.WMF_PREVIEW;
-            }
-
-            results.add(new MathOccurrence(
-                    sourceType,
-                    document,
-                    paragraph,
-                    objectElement,
-                    oleRelId,
-                    previewRelId,
-                    olePartName,
-                    previewPartName,
-                    isBlockEquationCandidate(paragraph)
-            ));
         }
         return results;
     }
 
-    static boolean isBlockEquationCandidate(XWPFParagraph paragraph) {
+    static boolean isBlockEquationCandidate(
+            XWPFParagraph paragraph,
+            boolean paragraphHasNativeOmml,
+            int paragraphObjectCount,
+            int objectRunIndex
+    ) {
+        if (paragraphHasNativeOmml) {
+            return false;
+        }
         String text = Objects.toString(paragraph.getText(), "");
         String compactText = text.replaceAll("\\s+", "").trim();
-        int objectCount = 0;
-        for (XWPFRun run : paragraph.getRuns()) {
-            if (findFirstDescendant(run.getCTR().getDomNode(), "object") != null) {
-                objectCount++;
-            }
-        }
-        if (objectCount != 1) {
+        if (paragraphObjectCount != 1) {
             return false;
         }
         if (compactText.isEmpty()) {
             return true;
         }
-        return compactText.length() <= 12;
+        if (hasVisibleTextOnBothSides(paragraph, objectRunIndex)) {
+            return false;
+        }
+        return compactText.length() <= 7;
+    }
+
+    private static boolean hasVisibleTextOnBothSides(XWPFParagraph paragraph, int objectRunIndex) {
+        StringBuilder before = new StringBuilder();
+        StringBuilder after = new StringBuilder();
+        List<XWPFRun> runs = paragraph.getRuns();
+        for (int i = 0; i < runs.size(); i++) {
+            if (i == objectRunIndex) {
+                continue;
+            }
+            String text = Objects.toString(runs.get(i).text(), "");
+            if (text.isBlank()) {
+                continue;
+            }
+            if (i < objectRunIndex) {
+                before.append(text);
+            } else {
+                after.append(text);
+            }
+        }
+        return !before.toString().trim().isEmpty() && !after.toString().trim().isEmpty();
+    }
+
+    private static int countObjects(XWPFParagraph paragraph) {
+        int objectCount = 0;
+        for (XWPFRun run : paragraph.getRuns()) {
+            objectCount += findDescendants(run.getCTR().getDomNode(), "object").size();
+        }
+        return objectCount;
     }
 
     private static boolean containsMathNode(Node node) {
@@ -132,6 +173,25 @@ public final class PoiMathSourceDetector implements MathSourceDetector {
             }
         }
         return null;
+    }
+
+    static List<Element> findDescendants(Node node, String localName) {
+        List<Element> results = new ArrayList<>();
+        collectDescendants(node, localName, results);
+        return results;
+    }
+
+    private static void collectDescendants(Node node, String localName, List<Element> results) {
+        if (node == null) {
+            return;
+        }
+        if (node instanceof Element element && localName.equals(element.getLocalName())) {
+            results.add(element);
+        }
+        NodeList children = node.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            collectDescendants(children.item(i), localName, results);
+        }
     }
 
     static String attrByLocalName(Element element, String localName) {

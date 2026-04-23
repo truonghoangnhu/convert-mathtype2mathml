@@ -1,0 +1,81 @@
+{
+  "presets": [
+    {
+      "name": "chemistry-bac-ninh",
+      "subject": "chemistry",
+      "input": "in/Hoa_Bac-Ninh_L1.docx",
+      "manifest": "work/batches/convert-chem-no-leading-underscore-hoa-bac-ninh-l1-20260421-181615-01/Hoa_Bac-Ninh_L1/manifest.tsv",
+      "output_name": "Hoa_Bac-Ninh_L1-omml-smoke.docx"
+    },
+    {
+      "name": "chemistry-ha-noi",
+      "subject": "chemistry",
+      "input": "in/Hoa_Ha_Noi_L1.docx",
+      "manifest": "work/batches/convert-chem-no-leading-underscore-hoa-ha-noi-l1-20260421-181615-02/Hoa_Ha_Noi_L1/manifest.tsv",
+      "output_name": "Hoa_Ha_Noi_L1-omml-smoke.docx"
+    },
+    {
+      "name": "chemistry-hatinh",
+      "subject": "chemistry",
+      "input": "in/Hoa_Ha_Tinh_L1.docx",
+      "manifest": "work/batches/convert-chem-no-leading-underscore-hoa-ha-tinh-l1-20260421-181615-03/Hoa_Ha_Tinh_L1/manifest.tsv",
+      "output_name": "Hoa_Ha_Tinh_L1-omml-smoke.docx"
+    },
+    {
+      "name": "math-1202",
+      "subject": "math",
+      "input": "in/Toan_de_1202.docx",
+      "manifest": "work/batches/convert-math-toan-prefix-toan-de-1202-20260421-183511-02/Toan_de_1202/manifest.tsv",
+      "output_name": "Toan_de_1202-omml-smoke.docx"
+    },
+    {
+      "name": "math-phi",
+      "subject": "math",
+      "input": "in/Toan_Phi.docx",
+      "manifest": "work/batches/convert-math-toan-prefix-toan-phi-20260421-183511-01/Toan_Phi/manifest.tsv",
+      "output_name": "Toan_Phi-omml-smoke.docx"
+    },
+    {
+      "name": "math-deso-11-tb",
+      "subject": "math",
+      "input": "in/Toan_deso_11_TB.docx",
+      "manifest": "work/batches/convert-math-toan-prefix-toan-deso-11-tb-20260421-183511-03/Toan_deso_11_TB/manifest.tsv",
+      "output_name": "Toan_deso_11_TB-omml-smoke.docx"
+    },
+    {
+      "name": "math-deso-12-small",
+      "subject": "math",
+      "input": "in/Toan_deso_12_small.docx",
+      "manifest": "work/batches/convert-math-toan-prefix-toan-deso-12-small-20260421-183511-04/Toan_deso_12_small/manifest.tsv",
+      "output_name": "Toan_deso_12_small-omml-smoke.docx"
+    },
+    {
+      "name": "math-deso-22-small",
+      "subject": "math",
+      "input": "in/Toan_deso_22_small.docx",
+      "manifest": "work/batches/convert-math-toan-prefix-toan-deso-22-small-20260421-183511-05/Toan_deso_22_small/manifest.tsv",
+      "output_name": "Toan_deso_22_small-omml-smoke.docx"
+    },
+    {
+      "name": "mixed-pham-nghia",
+      "subject": "mixed",
+      "input": "in/Pham Nghia.docx",
+      "manifest": "work/batches/convert-no-underscore-pham-nghia-20260421-181207-01/Pham-Nghia--d7e588e6/manifest.tsv",
+      "output_name": "Pham-Nghia-omml-smoke.docx"
+    },
+    {
+      "name": "physics-207",
+      "subject": "physics",
+      "input": "in/Vat_Ly_207_nam_2021.docx",
+      "manifest": "work/batches/subject-profiles-v1-20260422-091825/Vat_Ly_207_nam_2021/manifest.tsv",
+      "output_name": "Vat_Ly_207_nam_2021-omml-smoke.docx"
+    },
+    {
+      "name": "physics-le-khiet",
+      "subject": "physics",
+      "input": "in/Vat_Ly_Le_Khiet.docx",
+      "manifest": "work/batches/subject-profiles-v1-20260422-091800/Vat_Ly_Le_Khiet/manifest.tsv",
+      "output_name": "Vat_Ly_Le_Khiet-omml-smoke.docx"
+    }
+  ]
+}

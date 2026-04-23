@@ -2,6 +2,7 @@ package com.example.docxmath;
 
 import com.example.docxmath.word.DocxMathPatchMain;
 import com.example.docxmath.word.ManifestMathSidecarRepository;
+import com.example.docxmath.word.PatchSkipReason;
 import org.apache.poi.openxml4j.util.ZipSecureFile;
 
 import java.nio.file.Path;
@@ -145,7 +146,7 @@ public final class DocxToHtmlCli {
                         + "[--subject generic|physics|chemistry|math|biology|english|literature] "
                         + "[--output-mode internal|publish]\n"
                         + "   or: java -jar docx-html-math.jar --patch-docx <input.docx> <output.docx> "
-                        + "[--mathml-manifest manifest.tsv]\n"
+                        + "[--mathml-manifest manifest.tsv] [--patch-log-level summary|warnings]\n"
                         + "   or: java -jar docx-html-math.jar review-server --review-root <dir> "
                         + "[or --root <dir>] "
                         + "[--host 127.0.0.1] [--port 8080]"
@@ -182,6 +183,7 @@ public final class DocxToHtmlCli {
         Path input = Path.of(args[0]).toAbsolutePath().normalize();
         Path output = Path.of(args[1]).toAbsolutePath().normalize();
         Path mathmlManifest = null;
+        DocxMathPatchMain.LogLevel patchLogLevel = DocxMathPatchMain.LogLevel.WARNINGS;
 
         for (int i = 2; i < args.length; i++) {
             String arg = args[i];
@@ -191,6 +193,20 @@ public final class DocxToHtmlCli {
                     usageAndExit(2);
                 }
                 mathmlManifest = Path.of(args[++i]).toAbsolutePath().normalize();
+            } else if ("--patch-log-level".equals(arg)) {
+                if (i + 1 >= args.length) {
+                    System.err.println("Missing value after --patch-log-level");
+                    usageAndExit(2);
+                }
+                String value = args[++i].trim().toLowerCase();
+                if ("summary".equals(value)) {
+                    patchLogLevel = DocxMathPatchMain.LogLevel.SUMMARY;
+                } else if ("warnings".equals(value)) {
+                    patchLogLevel = DocxMathPatchMain.LogLevel.WARNINGS;
+                } else {
+                    System.err.println("Unsupported value for --patch-log-level: " + value);
+                    usageAndExit(2);
+                }
             } else {
                 System.err.println("Unknown option for --patch-docx: " + arg);
                 usageAndExit(2);
@@ -200,7 +216,7 @@ public final class DocxToHtmlCli {
         ManifestMathSidecarRepository repository = mathmlManifest == null
                 ? ManifestMathSidecarRepository.empty()
                 : ManifestMathSidecarRepository.load(mathmlManifest);
-        DocxMathPatchMain.PatchSummary summary = new DocxMathPatchMain(repository).patch(input, output);
+        DocxMathPatchMain.PatchSummary summary = new DocxMathPatchMain(repository, patchLogLevel).patch(input, output);
 
         System.out.println("Input:  " + input);
         System.out.println("Output: " + output);
@@ -208,10 +224,21 @@ public final class DocxToHtmlCli {
             System.out.println("MathML manifest: " + mathmlManifest);
         }
         System.out.println("Patch mode: DOCX -> DOCX (native OMML)");
-        System.out.println("Math occurrences scanned: " + summary.totalOccurrences());
-        System.out.println("Block equations patched: " + summary.patchedBlocks());
-        System.out.println("Native OMML untouched: " + summary.nativeOmmlUntouched());
-        System.out.println("Unresolved objects kept: " + summary.unresolved());
-        System.out.println("Inline/non-block objects skipped: " + summary.skippedInline());
+        System.out.println("Patch summary: "
+                + "scanned=" + summary.totalOccurrences()
+                + " block=" + summary.patchedBlocks()
+                + " inline=" + summary.patchedInline()
+                + " native=" + summary.nativeOmmlUntouched()
+                + " unresolved=" + summary.unresolved()
+                + " skipped_unsafe_inline=" + summary.skippedUnsafeInlineObjects()
+                + " skipped_multi=" + summary.skippedMultiObjectParagraphs()
+                + " skipped_unknown=" + summary.skippedUnknownOrAmbiguous()
+                + " multi_patched=" + summary.multiObjectPatchedParagraphs()
+                + " multi_skipped_unsafe=" + summary.multiObjectSkippedUnsafeParagraphs()
+                + " multi_skipped_ambiguous=" + summary.multiObjectSkippedAmbiguousParagraphs());
+        System.out.println("Skip breakdown:");
+        for (PatchSkipReason reason : PatchSkipReason.values()) {
+            System.out.println("- " + reason.name() + "=" + summary.skipBreakdownCount(reason));
+        }
     }
 }

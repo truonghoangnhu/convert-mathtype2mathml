@@ -9,11 +9,14 @@ public record MathOccurrence(
         XWPFDocument document,
         XWPFParagraph paragraph,
         Node sourceNode,
+        int runIndex,
         String oleRelationshipId,
         String previewRelationshipId,
         String olePartName,
         String previewPartName,
-        boolean blockCandidate
+        boolean blockCandidate,
+        boolean paragraphHasNativeOmml,
+        int paragraphObjectCount
 ) {
     public enum SourceType {
         NATIVE_OMML,
