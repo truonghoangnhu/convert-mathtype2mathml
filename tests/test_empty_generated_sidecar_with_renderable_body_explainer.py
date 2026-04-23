@@ -69,6 +69,22 @@ class EmptyGeneratedSidecarWithRenderableBodyExplainerTest(unittest.TestCase):
         self.assertEqual(diagnosis["diagnosis"], "CLASSIFICATION_BOUNDARY_AROUND_MT_COMMENT")
         self.assertFalse(diagnosis["renderable_body_evidence_before_mathml"])
         self.assertTrue(diagnosis["mt_comment_prefix_present"])
+        self.assertEqual(diagnosis["renderable_body_status"], "COMMENT_ARTIFACT_ONLY")
+        self.assertTrue(diagnosis["comment_artifact_only"])
+        self.assertEqual(
+            diagnosis["comment_artifact_tag_counts"],
+            {
+                "bin": {
+                    "comment_data": 1,
+                    "comment_length": 1,
+                    "comment_type": 1,
+                    "mt_comment": 1,
+                },
+                "preview": {
+                    "mt_comment": 1,
+                },
+            },
+        )
 
     def test_summarize_target_family_keeps_investigation_at_converter_boundary_without_fix_branch(self) -> None:
         target_classes = [
@@ -77,6 +93,8 @@ class EmptyGeneratedSidecarWithRenderableBodyExplainerTest(unittest.TestCase):
                 "source_families": ["10-toan-hcm-2026--5c97b34e92a9"],
                 "occurrence_count": 1,
                 "class_key": "abc|def",
+                "ole_parts": ["/word/embeddings/oleObject3009.bin"],
+                "preview_parts": ["/word/media/image2537.wmf"],
                 "pattern_stage": "CONVERTER_INVESTIGATION",
                 "pattern_signature": {
                     "bin_parser_class": "Mathtype::OleFileParser",
@@ -135,6 +153,14 @@ class EmptyGeneratedSidecarWithRenderableBodyExplainerTest(unittest.TestCase):
         self.assertEqual(summary["final_label"], "INVESTIGATE_TRANSPECT_CONVERTER")
         self.assertFalse(summary["open_production_fix_branch"])
         self.assertEqual(summary["target_stage_if_reopened"], "CONVERTER_CLASSIFICATION_BOUNDARY")
+        self.assertEqual(
+            summary["entries"][0]["source_parts"],
+            {
+                "ole_parts": ["/word/embeddings/oleObject3009.bin"],
+                "preview_parts": ["/word/media/image2537.wmf"],
+            },
+        )
+        self.assertEqual(summary["entries"][0]["main_signature"]["bin_sidecar_status"], "missing")
 
 
 if __name__ == "__main__":

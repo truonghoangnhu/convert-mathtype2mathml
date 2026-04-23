@@ -140,33 +140,56 @@ def classify_stage_level_root_cause(entry: dict) -> dict:
         "bin": renderable_record_names(bin_parser),
         "preview": renderable_record_names(preview_parser),
     }
+    comment_artifact_tag_counts = {
+        "bin": {
+            tag: count
+            for tag, count in sorted((bin_summary.get("body_tag_counts") or {}).items())
+            if tag in NON_RENDERABLE_COMMENT_TAGS
+        },
+        "preview": {
+            tag: count
+            for tag, count in sorted((preview_summary.get("body_tag_counts") or {}).items())
+            if tag in NON_RENDERABLE_COMMENT_TAGS
+        },
+    }
     any_renderable_before_mathml = bool(renderable_tags["bin"] or renderable_tags["preview"] or renderable_records["bin"] or renderable_records["preview"])
     comment_prefix_present = (
         (bin_parser.get("top_level_records") or [{}])[0].get("name") == "mt_comment"
         or (preview_parser.get("top_level_records") or [{}])[0].get("name") == "mt_comment"
     )
+    comment_artifact_only = bool(comment_prefix_present and (comment_artifact_tag_counts["bin"] or comment_artifact_tag_counts["preview"]) and not any_renderable_before_mathml)
     if any_renderable_before_mathml:
         diagnosis = "CONVERTER_STAGE_CANDIDATE"
         reason = (
             "Renderable math body records/tags are visible before MathML filtering, so loss in the MTEF->MathML or converter stage is the strongest current explanation."
         )
+        renderable_body_status = "REAL_RENDERABLE_MATH_BODY_VISIBLE"
+        mt_comment_boundary_role = "mt_comment may still be present, but it does not define the boundary because real renderable body evidence exists."
     elif comment_prefix_present:
         diagnosis = "CLASSIFICATION_BOUNDARY_AROUND_MT_COMMENT"
         reason = (
             "The family is classified as body-present because mt_comment/comment tags survive into MTEF XML, but no renderable math body records are visible before MathML generation."
         )
+        renderable_body_status = "COMMENT_ARTIFACT_ONLY"
+        mt_comment_boundary_role = "The mt_comment prefix is the boundary trigger: it adds comment-tag surface area ahead of encoding_def while the payload still ends at eqn_prefs -> full -> end with no renderable math records."
     else:
         diagnosis = "PARSER_STAGE_NO_RENDERABLE_BODY"
         reason = (
             "No renderable body records are visible before MathML generation, so the current issue does not look like a usable-sidecar classification bug."
         )
+        renderable_body_status = "NO_RENDERABLE_BODY_VISIBLE"
+        mt_comment_boundary_role = "No mt_comment prefix is present, so this case does not hinge on the comment-artifact boundary."
     return {
         "diagnosis": diagnosis,
         "reason": reason,
+        "renderable_body_status": renderable_body_status,
         "renderable_body_evidence_before_mathml": any_renderable_before_mathml,
         "renderable_body_tag_counts": renderable_tags,
         "renderable_record_names": renderable_records,
+        "comment_artifact_tag_counts": comment_artifact_tag_counts,
+        "comment_artifact_only": comment_artifact_only,
         "mt_comment_prefix_present": comment_prefix_present,
+        "mt_comment_boundary_role": mt_comment_boundary_role,
     }
 
 
@@ -195,9 +218,13 @@ def summarize_target_family(target_classes: list[dict]) -> dict:
                 "source_families": entry.get("source_families", []),
                 "occurrence_count": entry.get("occurrence_count", 0),
                 "class_key": entry.get("class_key"),
+                "source_parts": {
+                    "ole_parts": entry.get("ole_parts", []),
+                    "preview_parts": entry.get("preview_parts", []),
+                },
                 "parser_pair": [signature.get("bin_parser_class"), signature.get("preview_parser_class")],
                 "equation_bytes_pair": [signature.get("bin_equation_bytes"), signature.get("preview_equation_bytes")],
-                "signature": {
+                "main_signature": {
                     "record_sequence": signature.get("bin_top_level_record_sequence"),
                     "tail_after_eqn_prefs": signature.get("bin_tail_after_eqn_prefs"),
                     "bin_sidecar_status": signature.get("bin_sidecar_status"),
@@ -278,7 +305,8 @@ def emit_text(payload: dict) -> None:
             f"- entry class_key={entry['class_key']} occurrences={entry['occurrence_count']} "
             f"parser_pair={entry['parser_pair']} equation_bytes_pair={entry['equation_bytes_pair']}"
         )
-        print(f"  signature={entry['signature']}")
+        print(f"  source_parts={entry['source_parts']}")
+        print(f"  main_signature={entry['main_signature']}")
         print(f"  stage_level_diagnosis={entry['stage_level_diagnosis']}")
         print(f"  decision_label={entry['decision_label']}")
         print(f"  decision_reason={entry['decision_reason']}")
