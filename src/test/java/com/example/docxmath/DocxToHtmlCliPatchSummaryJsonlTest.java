@@ -282,4 +282,88 @@ final class DocxToHtmlCliPatchSummaryJsonlTest {
                         < summaryLine.indexOf(" omml_before=eq:1,inline:1,block:0,shape:inline_only")
         );
     }
+
+    @Test
+    void keepsStableHumanSummaryFieldOrderingAroundOmmlPreservationForExpectedDrift() throws Exception {
+        DocxMathPatchMain.PatchSummary summary = new DocxMathPatchMain.PatchSummary(
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                java.util.List.of(),
+                new DocxMathPatchMain.OmmlStructureSnapshot(0, 0, 0, "no_omml"),
+                new DocxMathPatchMain.OmmlStructureSnapshot(1, 0, 1, "block_only")
+        );
+
+        String rendered = DocxToHtmlCli.renderPatchSummaryOutput(
+                Path.of("/tmp/in.docx"),
+                Path.of("/tmp/out.docx"),
+                null,
+                summary,
+                false
+        );
+
+        String summaryLine = Arrays.stream(rendered.split("\\R"))
+                .filter(line -> line.startsWith("Patch summary: "))
+                .findFirst()
+                .orElse("");
+        assertTrue(summaryLine.contains(" multi_skipped_ambiguous=0"));
+        assertTrue(summaryLine.contains(" omml_preservation=drift_expected:eq|block|shape"));
+        assertTrue(summaryLine.contains(" omml_before=eq:0,inline:0,block:0,shape:no_omml"));
+        assertTrue(
+                summaryLine.indexOf(" multi_skipped_ambiguous=0")
+                        < summaryLine.indexOf(" omml_preservation=drift_expected:eq|block|shape")
+                        && summaryLine.indexOf(" omml_preservation=drift_expected:eq|block|shape")
+                        < summaryLine.indexOf(" omml_before=eq:0,inline:0,block:0,shape:no_omml")
+        );
+    }
+
+    @Test
+    void keepsStableHumanSummaryFieldOrderingAroundOmmlPreservationForUnexpectedDrift() throws Exception {
+        DocxMathPatchMain.PatchSummary summary = new DocxMathPatchMain.PatchSummary(
+                1,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                java.util.List.of(),
+                new DocxMathPatchMain.OmmlStructureSnapshot(1, 1, 0, "inline_only"),
+                new DocxMathPatchMain.OmmlStructureSnapshot(2, 1, 1, "mixed_inline_block")
+        );
+
+        String rendered = DocxToHtmlCli.renderPatchSummaryOutput(
+                Path.of("/tmp/in.docx"),
+                Path.of("/tmp/out.docx"),
+                null,
+                summary,
+                false
+        );
+
+        String summaryLine = Arrays.stream(rendered.split("\\R"))
+                .filter(line -> line.startsWith("Patch summary: "))
+                .findFirst()
+                .orElse("");
+        assertTrue(summaryLine.contains(" multi_skipped_ambiguous=0"));
+        assertTrue(summaryLine.contains(" omml_preservation=drift_unexpected:eq|block|shape"));
+        assertTrue(summaryLine.contains(" omml_before=eq:1,inline:1,block:0,shape:inline_only"));
+        assertTrue(
+                summaryLine.indexOf(" multi_skipped_ambiguous=0")
+                        < summaryLine.indexOf(" omml_preservation=drift_unexpected:eq|block|shape")
+                        && summaryLine.indexOf(" omml_preservation=drift_unexpected:eq|block|shape")
+                        < summaryLine.indexOf(" omml_before=eq:1,inline:1,block:0,shape:inline_only")
+        );
+    }
 }
