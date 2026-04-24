@@ -95,6 +95,19 @@ Run the generated-output gate with:
 python3 scripts/workflow/run_modern_docx_omml_generated_output_gate.py
 ```
 
+Required status check policy:
+
+- required GitHub Actions check: `modern-docx-omml-generated-output-gate`
+- treat this workflow as required for changes in the modern DOCX + OMML generated-output surface:
+- `.github/workflows/modern-docx-omml-generated-output-gate.yml`
+- `scripts/workflow/run_modern_docx_omml_generated_output_gate.py`
+- `scripts/workflow/generate_modern_docx_omml_output_manifest.py`
+- `scripts/workflow/validate_modern_docx_omml.py`
+- `scripts/workflow/validate_modern_docx_omml_structure.py`
+- `regression_set/modern_docx_omml_inventory.json`
+- `samples/` fixtures covered by the modern gate
+- `src/main/` or `pom.xml` when the built modern `--patch-docx` path can change generated DOCX output
+
 Equivalent debug commands:
 
 ```bash

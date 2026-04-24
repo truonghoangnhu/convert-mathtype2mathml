@@ -122,6 +122,20 @@ GitHub Actions preservation:
 - uploaded artifact name: `modern-docx-omml-generated-output-gate-report`
 - archived file: `out/modern-docx-omml-generated/modern_docx_omml_generated_output_gate_report.json`
 
+Required status check policy for modern-path changes:
+
+- required check name: `modern-docx-omml-generated-output-gate`
+- require this check for changes that affect the modern DOCX + OMML generated-output path, especially:
+- `.github/workflows/modern-docx-omml-generated-output-gate.yml`
+- `scripts/workflow/run_modern_docx_omml_generated_output_gate.py`
+- `scripts/workflow/generate_modern_docx_omml_output_manifest.py`
+- `scripts/workflow/validate_modern_docx_omml.py`
+- `scripts/workflow/validate_modern_docx_omml_structure.py`
+- `regression_set/modern_docx_omml_inventory.json`
+- `samples/` modern OMML gate fixtures
+- `src/main/` code that can change the modern `--patch-docx` output path
+- `pom.xml` when it changes the build used by this gate
+
 Equivalent debug commands:
 
 ```bash
