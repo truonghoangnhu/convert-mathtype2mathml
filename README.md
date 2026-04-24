@@ -10,6 +10,7 @@ Official support scope is now limited to modern `.docx` inputs with:
 Legacy DSMT4 / old MathType OLE material remains in this repository only as historical investigation and reporting context. It is no longer an active product target.
 
 See also: [docs/support_scope_policy.md](./docs/support_scope_policy.md)
+Technical checklist: [docs/modern_docx_omml_todo.md](./docs/modern_docx_omml_todo.md)
 
 ## Why this branch exists
 
@@ -28,6 +29,14 @@ The repository still contains legacy investigation scripts and reports because t
 - equation content that the current pipeline converts stably to OMML
 - HTML and DOCX flows that stay on the OMML-backed path
 
+## Acceptance criteria
+
+- equation count stays stable after round-trip through the supported pipeline
+- equation placement stays stable in the reopened Word document
+- block equations remain editable native OMML where the pipeline already supports them
+- inline equations remain on the OMML-backed path without introducing legacy MathType/OLE regression
+- multi-equation paragraphs stay readable and reopen safely in Word when they are already supported by the current pipeline
+
 ## Out of scope
 
 - legacy DSMT4 / old MathType OLE objects as an official product target
@@ -41,6 +50,20 @@ The repository still contains legacy investigation scripts and reports because t
 - native OMML preservation and OMML-backed conversion
 - predictable HTML output for modern documents
 - stable DOCX output where the pipeline already converts equation content cleanly to OMML
+
+## Current mainline pipeline focus
+
+- preserve native OMML without forcing a legacy recovery path
+- convert only equation content that already maps stably to OMML
+- keep block equations, inline equations, and supported multi-equation paragraphs in the modern DOCX path
+- treat legacy MathType/OLE recovery as historical context, not a target for new product work
+
+## Regression expectations
+
+- supported modern `.docx` inputs should keep equation count and placement stable
+- reopened files should remain safe to edit in Word
+- diagnostics should clearly separate supported modern inputs from out-of-scope legacy or malformed packages
+- smoke and regression runs should use the modern DOCX + OMML path as the baseline
 
 ## Migration guidance for legacy files
 
