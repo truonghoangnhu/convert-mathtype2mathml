@@ -4,7 +4,25 @@ This document defines the active regression-pack requirements for the modern `.d
 
 ## Active Target
 
-The active regression target is a small modern-only pack for supported `.docx` inputs.
+The active regression target is a small modern-only pack for supported `.docx` inputs. Regression pack v1 is now the official smoke gate for the modern DOCX + OMML path.
+
+Run the gate with:
+
+```bash
+python3 scripts/workflow/run_modern_docx_omml_smoke.py
+```
+
+Expected success summary shape:
+
+```text
+Summary: passed=<n> expected_failed=<n> unexpected_failed=0 skipped=<n>
+```
+
+Gate rule:
+
+- only `unexpected_failed > 0` fails the gate
+- `expected_failed` is reserved for locked negative modern-scope cases
+- `skipped` is reported for visibility and does not fail the gate by itself
 
 Coverage categories:
 
@@ -19,6 +37,7 @@ Coverage categories:
 The planning scaffold for this pack lives at:
 
 - `regression_set/modern_docx_omml_inventory.json`
+- `scripts/workflow/run_modern_docx_omml_smoke.py`
 
 Historical export inventory remains in the repo for older prototype context:
 
@@ -61,7 +80,10 @@ For supported cases, exported `.docx` output passes only if:
 
 This target is intended to drive:
 
-- inventory scaffolding
-- future smoke-runner wiring
-- structural validation for output OMML
+- official smoke gating for modern DOCX + OMML changes
+- structural validation for output OMML in supported generated `.docx` files
 - count and placement regression checks for supported modern files
+
+Suggested next implementation step:
+
+- harden the modern mainline by validating generated DOCX output structure against the same count, placement, and `m:oMath` / `m:oMathPara` expectations before changing product behavior

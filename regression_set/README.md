@@ -76,14 +76,14 @@ Coverage includes:
 2. real sample with images and answer summary
 3. harder MathType/OLE/preview-heavy sample
 
-## Modern DOCX + OMML Regression Pack
+## Modern DOCX + OMML Smoke Gate
 
-The active planning target for the new phase is a modern-only regression pack:
+The official smoke gate for the modern path is the modern-only DOCX + OMML regression pack:
 
-- inventory scaffold: `modern_docx_omml_inventory.json`
+- inventory: `modern_docx_omml_inventory.json`
 - smoke command: `python3 scripts/workflow/run_modern_docx_omml_smoke.py`
 - scope: supported modern `.docx` inputs only
-- purpose: define smoke-ready expectations for count, placement, Word reopenability, and OMML structure
+- purpose: enforce smoke-ready expectations for count, placement, Word reopenability, and OMML structure
 
 The smoke command runs `regression_set/modern_docx_omml_inventory.json` through the current validator and prints:
 
@@ -91,7 +91,11 @@ The smoke command runs `regression_set/modern_docx_omml_inventory.json` through 
 Summary: passed=<n> expected_failed=<n> unexpected_failed=<n> skipped=<n>
 ```
 
-It exits nonzero only when `unexpected_failed` is greater than zero.
+Gate rule:
+
+- only `unexpected_failed > 0` fails the gate
+- `expected_failed` is allowed for locked negative modern-scope cases
+- `skipped` is visible in the report but does not fail the gate by itself
 
 Required coverage:
 
@@ -105,3 +109,7 @@ Historical note:
 
 - `docx_export_inventory.json` remains in the repo as historical prototype context
 - DSMT4 / old MathType OLE cases are not part of the active modern regression pack
+
+Suggested next implementation step:
+
+- harden the modern DOCX + OMML mainline by adding structural output validation for supported generated `.docx` files before changing parser, patch engine, or exporter behavior

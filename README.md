@@ -86,7 +86,25 @@ Operational output acceptance for supported modern `.docx`:
 - reopened files should remain safe to edit in Word
 - supported output should keep valid `oMath` / `oMathPara` structure
 - diagnostics should clearly separate supported modern inputs from out-of-scope legacy or malformed packages
-- smoke and regression runs should use the modern DOCX + OMML path as the baseline
+- smoke and regression runs should use the official modern DOCX + OMML smoke gate as the baseline
+
+Official modern DOCX + OMML smoke gate:
+
+```bash
+python3 scripts/workflow/run_modern_docx_omml_smoke.py
+```
+
+Expected success summary shape:
+
+```text
+Summary: passed=<n> expected_failed=<n> unexpected_failed=0 skipped=<n>
+```
+
+Gate rule:
+
+- only `unexpected_failed > 0` fails the gate
+- `expected_failed` is allowed for locked negative modern-scope cases
+- `skipped` is reported but should not fail the gate by itself
 
 ## Migration guidance for legacy files
 
@@ -110,7 +128,9 @@ Operational output acceptance for supported modern `.docx`:
 - `scripts/transpect/generate_sidecars.sh` run transpect on extracted WMF/BIN files
 - `scripts/transpect/run_docx_with_transpect.sh` end-to-end wrapper
 
-Stable operational smoke gate: `python3 scripts/workflow/run_stable_pilot_smoke.py`
+Official modern DOCX + OMML smoke gate: `python3 scripts/workflow/run_modern_docx_omml_smoke.py`
+
+Historical stable-pilot smoke remains available for older workflow checks: `python3 scripts/workflow/run_stable_pilot_smoke.py`
 
 ## Build the Java converter
 

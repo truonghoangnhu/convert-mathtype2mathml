@@ -63,7 +63,25 @@ They may be cited for background, but they are not active backlog items and shou
 
 ## Regression Pack Requirements
 
-The active regression pack must cover supported modern `.docx` files only.
+The active regression pack must cover supported modern `.docx` files only. Regression pack v1 is the official smoke gate for the modern DOCX + OMML path.
+
+Run:
+
+```bash
+python3 scripts/workflow/run_modern_docx_omml_smoke.py
+```
+
+Expected success summary shape:
+
+```text
+Summary: passed=<n> expected_failed=<n> unexpected_failed=0 skipped=<n>
+```
+
+Gate rule:
+
+- only `unexpected_failed > 0` fails the gate
+- `expected_failed` is allowed for locked negative modern-scope cases
+- `skipped` is reported for visibility and does not fail the gate by itself
 
 Required sample categories:
 
@@ -124,20 +142,19 @@ Nice-to-have after the scaffold exists:
 
 - fixture-level extraction of equation summaries from `word/document.xml`
 - per-case golden summaries for count and placement
-- a smoke runner that emits one concise pass/fail report for the modern pack
+- generated-output structural validation against the same modern-pack expectations
 
 ## Backlog Order
 
-1. finalize the modern regression inventory and expected metadata
-2. add structural validation for `m:oMath` and `m:oMathPara`
-3. add count and placement verification for supported samples
-4. wire a modern-only smoke gate
-5. make only the smallest code changes needed to satisfy the modern acceptance checks
+1. keep the official smoke gate green for every modern DOCX + OMML change
+2. add structural validation for generated `.docx` outputs using `m:oMath` and `m:oMathPara`
+3. extend count and placement verification from source fixtures to supported generated outputs
+4. make only the smallest product changes needed to satisfy the modern acceptance checks
 
 ## Definition Of Done For This Phase
 
 - README and support docs clearly state the modern `.docx` + OMML only scope
 - one technical roadmap exists for the modern path
-- one regression-pack definition exists for supported modern `.docx` files
+- one official smoke gate exists for supported modern `.docx` files
 - output `.docx` acceptance criteria are explicit and testable
 - DSMT4 and other legacy work are clearly marked as frozen historical background
