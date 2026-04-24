@@ -102,7 +102,7 @@
     },
     {
       "case_id": "modern_patchable_modern_object_path_sample",
-      "status": "active",
+      "status": "local_only",
       "source_docx": "in/Hoa_Ha_Noi_L1.docx",
       "classification": "supported",
       "expected": {
@@ -120,12 +120,13 @@
       },
       "notes": [
         "real modern DOCX with native OMML and object-path content in the same package",
-        "expands confidence for modern object-path/no-op native-present behavior under real corpus input"
+        "expands confidence for modern object-path/no-op native-present behavior under real corpus input",
+        "local corpus confidence case; excluded from default CI-required smoke/generated-output gate paths"
       ]
     },
     {
       "case_id": "modern_mixed_block_object_path_sample",
-      "status": "active",
+      "status": "local_only",
       "source_docx": "in/Hoa50/Đề 26. MHTHPT 2024 - TRẦN THANH HIÊN - QUẢNG NGÃI. đã sửa.docx",
       "classification": "supported",
       "expected": {
@@ -143,7 +144,8 @@
       },
       "notes": [
         "real modern DOCX with mixed inline+block native OMML and object-path content",
-        "expands practical acceptance confidence on a larger real mixed-structure corpus input"
+        "expands practical acceptance confidence on a larger real mixed-structure corpus input",
+        "local corpus confidence case; excluded from default CI-required smoke/generated-output gate paths"
       ]
     },
     {

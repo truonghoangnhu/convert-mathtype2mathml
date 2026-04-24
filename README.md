@@ -112,7 +112,7 @@ Next hardening check for generated modern `.docx` outputs:
 python3 scripts/workflow/run_modern_docx_omml_generated_output_gate.py
 ```
 
-This wrapper generates outputs with the current modern `--patch-docx` path for the six positive modern cases, writes `out/modern-docx-omml-generated/modern_docx_omml_generated_outputs.json`, checks basic DOCX package openability, then validates that manifest structurally.
+This wrapper generates outputs with the current modern `--patch-docx` path for the four CI-required modern fixture cases, writes `out/modern-docx-omml-generated/modern_docx_omml_generated_outputs.json`, checks basic DOCX package openability, then validates that manifest structurally.
 
 It also writes a machine-readable gate report artifact at `out/modern-docx-omml-generated/modern_docx_omml_generated_output_gate_report.json` so the exact verdict can be archived without parsing console output.
 
@@ -151,7 +151,7 @@ python3 scripts/workflow/validate_modern_docx_omml_structure.py \
   --inventory out/modern-docx-omml-generated/modern_docx_omml_generated_outputs.json
 ```
 
-This 6-case generated-output gate is the official precondition before product behavior changes. It reports the openability summary, structural summary, writes the JSON gate artifact above, and exits nonzero if openability or structural validation fails.
+This 4-case generated-output gate is the official precondition before product behavior changes. It reports the openability summary, structural summary, writes the JSON gate artifact above, and exits nonzero if openability or structural validation fails.
 
 Modern-path PR/release checklist (operational):
 

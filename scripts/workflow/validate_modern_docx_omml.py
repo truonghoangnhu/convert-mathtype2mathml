@@ -478,7 +478,15 @@ def validate_inventory(inventory_path: Path) -> Dict[str, Any]:
     if not isinstance(cases, list):
         raise ValueError("inventory cases must be a list")
 
-    results = [validate_case(case, inventory_path) for case in cases if isinstance(case, dict)]
+    def _is_active(case: Dict[str, Any]) -> bool:
+        status = str(case.get("status", "active")).strip().lower()
+        return status in {"", "active"}
+
+    results = [
+        validate_case(case, inventory_path)
+        for case in cases
+        if isinstance(case, dict) and _is_active(case)
+    ]
     passed = sum(1 for item in results if item["result"] == "passed")
     expected_failed = sum(1 for item in results if item["result"] == "expected_failed")
     unexpected_failed = sum(1 for item in results if item["result"] == "unexpected_failed")
