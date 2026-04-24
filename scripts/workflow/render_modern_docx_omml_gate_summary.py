@@ -124,6 +124,13 @@ def _render_omml_attention_signal(patch_summary: Dict[str, Any]) -> str:
     return " ".join(parts)
 
 
+def _has_omml_attention_signal(patch_summary: Dict[str, Any]) -> bool:
+    return any(
+        str(patch_summary.get(key, "")).strip()
+        for key in ("omml_preservation", "omml_drift_class", "omml_drift_warning")
+    )
+
+
 def render_summary_markdown(report: Dict[str, Any]) -> str:
     structural_summary = report.get("structural_summary", {})
     interesting_cases = _interesting_cases(report)
@@ -153,7 +160,7 @@ def render_summary_markdown(report: Dict[str, Any]) -> str:
                     f"expected={check.get('expected')!r} actual={check.get('actual')!r}"
                 )
             patch_summary = case["patch_summary_record"]
-            if patch_summary:
+            if patch_summary and _has_omml_attention_signal(patch_summary):
                 lines.append(f"- omml_attention: `{_render_omml_attention_signal(patch_summary)}`")
             for key in (
                 "omml_before",
@@ -172,10 +179,11 @@ def render_summary_markdown(report: Dict[str, Any]) -> str:
         lines.extend(["### Serializer-Only Drift Cases", ""])
         for case in serializer_only_cases:
             lines.append(f"- case_id: `{case['case_id']}`")
-            lines.append(
-                "- omml_attention: "
-                f"`{_render_omml_attention_signal(case)}`"
-            )
+            if _has_omml_attention_signal(case):
+                lines.append(
+                    "- omml_attention: "
+                    f"`{_render_omml_attention_signal(case)}`"
+                )
             if case["omml_drift_class"]:
                 lines.append(f"- omml_drift_class: `{case['omml_drift_class']}`")
             if case["drift_origin_hint"]:

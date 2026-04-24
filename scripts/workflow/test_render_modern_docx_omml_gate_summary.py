@@ -55,6 +55,43 @@ class RenderModernDocxOmmlGateSummaryTest(unittest.TestCase):
             markdown,
         )
 
+    def test_omml_attention_line_is_omitted_when_no_signal_fields_present(self) -> None:
+        report = {
+            "overall_gate_result": "failed",
+            "structural_summary": {
+                "case_count": 1,
+                "passed_count": 0,
+                "expected_failed_count": 0,
+                "unexpected_failed_count": 1,
+                "skipped_count": 0,
+                "structural_failed_check_count": 1,
+            },
+            "case_statuses": [
+                {
+                    "case_id": "case-b",
+                    "gate_status": "failed",
+                    "structural_status": "failed",
+                }
+            ],
+            "structural_diffs": [],
+            "patch_path_diagnostics": {
+                "cases": [
+                    {
+                        "case_id": "case-b",
+                        "drift_origin_hint": "equation_count_or_block_inline_split_changed_across_patch_docx",
+                        "drift_class": "structural_drift",
+                        "patch_summary_record": {
+                            "omml_before": "eq:1,inline:1,block:0,shape:inline_only",
+                            "omml_after": "eq:1,inline:1,block:0,shape:inline_only",
+                        },
+                    }
+                ]
+            },
+        }
+
+        markdown = render_summary_markdown(report)
+        self.assertNotIn("- omml_attention:", markdown)
+
 
 if __name__ == "__main__":
     unittest.main()

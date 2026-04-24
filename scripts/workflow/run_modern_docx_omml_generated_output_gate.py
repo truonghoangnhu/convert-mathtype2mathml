@@ -397,17 +397,32 @@ def render_patch_path_diagnostics_summary(report: Optional[Dict[str, Any]]) -> s
         f"drift_candidates={report.get('drift_candidate_count', 0)} "
         f"serializer_only={counts.get(SERIALIZER_ONLY_DRIFT, 0)}"
     ]
+    attention_cases: List[str] = []
     for case in report.get("cases", []):
         if not isinstance(case, dict):
             continue
         hint = str(case.get("drift_origin_hint", ""))
         drift_class = str(case.get("drift_class", ""))
+        patch_summary = case.get("patch_summary_record", {}) if isinstance(case.get("patch_summary_record"), dict) else {}
+        omml_preservation = str(patch_summary.get("omml_preservation", "")).strip()
+        omml_drift_class = str(patch_summary.get("omml_drift_class", "")).strip()
+        omml_drift_warning = str(patch_summary.get("omml_drift_warning", "")).strip()
         if drift_class == SERIALIZER_ONLY_DRIFT:
             lines.append(
                 f"- {case.get('case_id', '')}: {SERIALIZER_ONLY_DRIFT}"
             )
         elif hint != "no_structural_drift_detected":
             lines.append(f"- {case.get('case_id', '')}: {hint}")
+        if omml_preservation.startswith("drift_") or omml_drift_class or omml_drift_warning:
+            attention_cases.append(
+                f"- {case.get('case_id', '')}: "
+                f"omml_attention preservation={omml_preservation or 'n/a'} "
+                f"drift_class={omml_drift_class or 'n/a'} "
+                f"drift_warning={omml_drift_warning or 'n/a'}"
+            )
+    if attention_cases:
+        lines.append("Patch-path OMML attention:")
+        lines.extend(attention_cases)
     return "\n".join(lines)
 
 
