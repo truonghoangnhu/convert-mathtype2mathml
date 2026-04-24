@@ -1,0 +1,44 @@
+name: modern-docx-omml-generated-output-gate
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/modern-docx-omml-generated-output-gate.yml"
+      - "pom.xml"
+      - "samples/**"
+      - "regression_set/modern_docx_omml_inventory.json"
+      - "scripts/workflow/run_modern_docx_omml_generated_output_gate.py"
+      - "scripts/workflow/generate_modern_docx_omml_output_manifest.py"
+      - "scripts/workflow/validate_modern_docx_omml.py"
+      - "scripts/workflow/validate_modern_docx_omml_structure.py"
+      - "src/main/**"
+
+jobs:
+  generated-output-gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Build patch-docx jar
+        run: mvn -q -DskipTests package
+
+      - name: Run modern DOCX + OMML generated-output gate
+        run: python3 scripts/workflow/run_modern_docx_omml_generated_output_gate.py
+
+      - name: Upload generated-output gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: modern-docx-omml-generated-output-gate-report
+          path: out/modern-docx-omml-generated/modern_docx_omml_generated_output_gate_report.json
+          if-no-files-found: error

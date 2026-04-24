@@ -116,6 +116,12 @@ This wrapper generates outputs with the current modern `--patch-docx` path for t
 
 It also writes a machine-readable gate report artifact at `out/modern-docx-omml-generated/modern_docx_omml_generated_output_gate_report.json` so the exact verdict can be archived without parsing console output.
 
+GitHub Actions preservation:
+
+- workflow: `.github/workflows/modern-docx-omml-generated-output-gate.yml`
+- uploaded artifact name: `modern-docx-omml-generated-output-gate-report`
+- archived file: `out/modern-docx-omml-generated/modern_docx_omml_generated_output_gate_report.json`
+
 Equivalent debug commands:
 
 ```bash

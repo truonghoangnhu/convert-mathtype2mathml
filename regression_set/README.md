@@ -129,3 +129,9 @@ python3 scripts/workflow/validate_modern_docx_omml_structure.py \
 ```
 
 This 4-case generated-output gate is the official precondition before product behavior changes. The wrapper prints the generated manifest path, basic DOCX openability summary, structural summary, and final validation status.
+
+CI artifact preservation:
+
+- workflow: `.github/workflows/modern-docx-omml-generated-output-gate.yml`
+- uploaded artifact: `modern-docx-omml-generated-output-gate-report`
+- preserved report path inside the run: `out/modern-docx-omml-generated/modern_docx_omml_generated_output_gate_report.json`
