@@ -13,6 +13,17 @@ on:
       - "scripts/workflow/validate_modern_docx_omml.py"
       - "scripts/workflow/validate_modern_docx_omml_structure.py"
       - "src/main/**"
+  pull_request:
+    paths:
+      - ".github/workflows/modern-docx-omml-generated-output-gate.yml"
+      - "pom.xml"
+      - "samples/**"
+      - "regression_set/modern_docx_omml_inventory.json"
+      - "scripts/workflow/run_modern_docx_omml_generated_output_gate.py"
+      - "scripts/workflow/generate_modern_docx_omml_output_manifest.py"
+      - "scripts/workflow/validate_modern_docx_omml.py"
+      - "scripts/workflow/validate_modern_docx_omml_structure.py"
+      - "src/main/**"
 
 jobs:
   generated-output-gate:
