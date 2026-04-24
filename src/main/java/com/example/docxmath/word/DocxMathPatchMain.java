@@ -176,6 +176,14 @@ public final class DocxMathPatchMain {
                     SkipClassification.of(PatchSkipReason.UNKNOWN_SOURCE_KIND, "detector classified occurrence as UNKNOWN")
             );
         }
+        if (occurrence.blockCandidate() && occurrence.paragraphHasNativeOmml()) {
+            SkipClassification classification = SkipClassification.of(
+                    PatchSkipReason.NATIVE_OMML_PRESENT,
+                    "native OMML already present in paragraph"
+            );
+            warn("Skipped block math object: " + describeClassification(classification));
+            return SingleOccurrenceOutcome.skippedNoPatchWork(classification);
+        }
 
         InlinePatchPlan inlinePlan = null;
         if (!occurrence.blockCandidate()) {
@@ -467,6 +475,10 @@ public final class DocxMathPatchMain {
 
         private static SingleOccurrenceOutcome skippedUnsafeInline(SkipClassification classification) {
             return new SingleOccurrenceOutcome(0, 0, 0, 1, 0, classification);
+        }
+
+        private static SingleOccurrenceOutcome skippedNoPatchWork(SkipClassification classification) {
+            return new SingleOccurrenceOutcome(0, 0, 0, 0, 0, classification);
         }
 
         private static SingleOccurrenceOutcome skippedUnknown(SkipClassification classification) {

@@ -272,6 +272,76 @@ final class DocxMathPatchWorkflowTest {
     }
 
     @Test
+    void copiesInputBytesWhenSingleBlockObjectSkipsEarlyWithNativeOmmlPresent() throws Exception {
+        MathObjectRef object = mathObjectRef(1, wmfMathml("a", "+", "1"));
+        Path tempDir = Files.createTempDirectory("docx-patch-native-single-block-copy");
+        Path input = tempDir.resolve("input.docx");
+        Path output = tempDir.resolve("output.docx");
+        writeMinimalDocx(
+                input,
+                inlineObjectDocumentXml(
+                        "<m:oMath><m:r><m:t>z</m:t></m:r></m:oMath>",
+                        List.of(objectRunXml(object))
+                ),
+                List.of(object)
+        );
+
+        MathSourceDetector detector = (document, paragraph) -> new PoiMathSourceDetector().detect(document, paragraph).stream()
+                .map(occurrence -> occurrence.sourceType() == MathOccurrence.SourceType.NATIVE_OMML
+                        ? occurrence
+                        : new MathOccurrence(
+                                occurrence.sourceType(),
+                                occurrence.document(),
+                                occurrence.paragraph(),
+                                occurrence.sourceNode(),
+                                occurrence.runIndex(),
+                                occurrence.oleRelationshipId(),
+                                occurrence.previewRelationshipId(),
+                                occurrence.olePartName(),
+                                occurrence.previewPartName(),
+                                true,
+                                occurrence.paragraphHasNativeOmml(),
+                                occurrence.paragraphObjectCount()
+                        ))
+                .toList();
+
+        DocxMathPatchMain.PatchSummary summary = new DocxMathPatchMain(
+                partName -> {
+                    throw new AssertionError("sidecar lookup should not run for native-OMML single-block no-op");
+                },
+                rawMathml -> {
+                    throw new AssertionError("mathml normalizer should not run for native-OMML single-block no-op");
+                },
+                normalizedMathml -> {
+                    throw new AssertionError("mathml-to-omml should not run for native-OMML single-block no-op");
+                },
+                new OmmlInjector() {
+                    @Override
+                    public boolean inject(MathOccurrence occurrence, String ommlXml) {
+                        throw new AssertionError("single-occurrence injector should not run for native-OMML single-block no-op");
+                    }
+
+                    @Override
+                    public boolean inject(MultiObjectPatchPlan patchPlan) {
+                        throw new AssertionError("multi-object injector should not run for native-OMML single-block no-op");
+                    }
+                },
+                new DocxWalker(detector),
+                new InlineSafetyEvaluator(),
+                new MultiObjectSafetyEvaluator(),
+                DocxMathPatchMain.LogLevel.SUMMARY
+        ).patch(input, output);
+
+        assertEquals(1, summary.nativeOmmlUntouched());
+        assertEquals(0, summary.patchedBlocks());
+        assertEquals(0, summary.patchedInline());
+        assertEquals(0, summary.unresolved());
+        assertEquals(0, summary.skippedUnsafeInlineObjects());
+        assertEquals(1, summary.skipBreakdownCount(PatchSkipReason.NATIVE_OMML_PRESENT));
+        assertArrayEquals(Files.readAllBytes(input), Files.readAllBytes(output));
+    }
+
+    @Test
     void copiesInputBytesWhenMixedNativeOmmlCaseSkipsPatchWork() throws Exception {
         MathObjectRef first = mathObjectRef(1, wmfMathml("a", "+", "1"));
         MathObjectRef second = mathObjectRef(2, wmfMathml("b", "-", "2"));
