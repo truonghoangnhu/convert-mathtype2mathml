@@ -138,17 +138,33 @@ Needed first:
 - a structural check for `m:oMath` and `m:oMathPara` usage in output `.docx`
 - a clear place to record Word reopenability results
 
+Generated-output gate command:
+
+```bash
+python3 scripts/workflow/run_modern_docx_omml_generated_output_gate.py
+```
+
+Equivalent debug commands:
+
+```bash
+python3 scripts/workflow/generate_modern_docx_omml_output_manifest.py
+python3 scripts/workflow/validate_modern_docx_omml_structure.py \
+  --inventory out/modern-docx-omml-generated/modern_docx_omml_generated_outputs.json
+```
+
+The generated-output manifest covers the four positive modern cases and lives at `out/modern-docx-omml-generated/modern_docx_omml_generated_outputs.json`. This 4-case generated-output gate is the official precondition before product behavior changes. It checks basic DOCX package openability, runs structural validation, and exits nonzero if either validation fails.
+
 Nice-to-have after the scaffold exists:
 
 - fixture-level extraction of equation summaries from `word/document.xml`
 - per-case golden summaries for count and placement
-- generated-output structural validation against the same modern-pack expectations
+- generated-output manifests extended only when new positive modern cases are accepted into the pack
 
 ## Backlog Order
 
 1. keep the official smoke gate green for every modern DOCX + OMML change
-2. add structural validation for generated `.docx` outputs using `m:oMath` and `m:oMathPara`
-3. extend count and placement verification from source fixtures to supported generated outputs
+2. extend count and placement verification from source fixtures to supported generated outputs
+3. extend the generated-output manifest only after accepting new positive modern cases
 4. make only the smallest product changes needed to satisfy the modern acceptance checks
 
 ## Definition Of Done For This Phase

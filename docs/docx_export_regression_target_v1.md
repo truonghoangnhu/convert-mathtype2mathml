@@ -38,6 +38,7 @@ The planning scaffold for this pack lives at:
 
 - `regression_set/modern_docx_omml_inventory.json`
 - `scripts/workflow/run_modern_docx_omml_smoke.py`
+- `scripts/workflow/validate_modern_docx_omml_structure.py`
 
 Historical export inventory remains in the repo for older prototype context:
 
@@ -87,3 +88,19 @@ This target is intended to drive:
 Suggested next implementation step:
 
 - harden the modern mainline by validating generated DOCX output structure against the same count, placement, and `m:oMath` / `m:oMathPara` expectations before changing product behavior
+
+Run the generated-output gate with:
+
+```bash
+python3 scripts/workflow/run_modern_docx_omml_generated_output_gate.py
+```
+
+Equivalent debug commands:
+
+```bash
+python3 scripts/workflow/generate_modern_docx_omml_output_manifest.py
+python3 scripts/workflow/validate_modern_docx_omml_structure.py \
+  --inventory out/modern-docx-omml-generated/modern_docx_omml_generated_outputs.json
+```
+
+The generated-output manifest covers the four positive modern cases and is written to `out/modern-docx-omml-generated/modern_docx_omml_generated_outputs.json`. This 4-case generated-output gate is the official precondition before product behavior changes. It checks basic DOCX package openability, runs structural validation, and exits nonzero if either validation fails.

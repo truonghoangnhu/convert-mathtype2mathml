@@ -49,6 +49,26 @@ def _count_inline_omath(root: ElementTree.Element) -> int:
     return visit(root, False)
 
 
+def _compute_placement_summary(inline_omath_count: int, omathpara_count: int) -> str:
+    if inline_omath_count > 0 and omathpara_count > 0:
+        return f"mixed inline/block OMML: inline_oMath={inline_omath_count} oMathPara={omathpara_count}"
+    if inline_omath_count > 0:
+        return f"inline OMML only: inline_oMath={inline_omath_count}"
+    if omathpara_count > 0:
+        return f"block OMML only: oMathPara={omathpara_count}"
+    return "no OMML math"
+
+
+def _basic_omml_structure_valid(root: ElementTree.Element) -> bool:
+    omath_count = 0
+    for element in root.iter():
+        if _is_omml(element, "oMath"):
+            omath_count += 1
+        if _is_omml(element, "oMathPara") and not any(_is_omml(child, "oMath") for child in list(element)):
+            return False
+    return omath_count > 0
+
+
 def inspect_docx(path: Path) -> Dict[str, Any]:
     result: Dict[str, Any] = {
         "file_path": str(path),
@@ -61,6 +81,8 @@ def inspect_docx(path: Path) -> Dict[str, Any]:
         "appears_inline_math": False,
         "appears_block_math": False,
         "basic_omml_structure_present": False,
+        "basic_omml_structure_valid": False,
+        "placement_summary": "unavailable",
         "errors": [],
     }
 
@@ -99,6 +121,8 @@ def inspect_docx(path: Path) -> Dict[str, Any]:
     result["appears_inline_math"] = inline_omath_count > 0
     result["appears_block_math"] = omathpara_count > 0
     result["basic_omml_structure_present"] = omath_count > 0 or omathpara_count > 0
+    result["basic_omml_structure_valid"] = _basic_omml_structure_valid(root)
+    result["placement_summary"] = _compute_placement_summary(inline_omath_count, omathpara_count)
     return result
 
 
@@ -130,6 +154,76 @@ def _expected_bool(expected: Dict[str, Any], key: str) -> Optional[bool]:
     if isinstance(value, bool):
         return value
     return None
+
+
+def _expected_string(expected: Dict[str, Any], key: str) -> Optional[str]:
+    value = expected.get(key)
+    if isinstance(value, str) and value:
+        return value
+    return None
+
+
+def _structural_check(name: str, actual: Any, expected: Any) -> Dict[str, Any]:
+    return {
+        "name": name,
+        "actual": actual,
+        "expected": expected,
+        "passed": expected is None or actual == expected,
+    }
+
+
+def build_structural_checks(case: Dict[str, Any], inspection: Dict[str, Any]) -> List[Dict[str, Any]]:
+    expected = case.get("expected", {})
+    if not isinstance(expected, dict):
+        expected = {}
+
+    return [
+        _structural_check(
+            "document_xml_exists",
+            bool(inspection.get("document_xml_exists")),
+            _expected_bool(expected, "document_xml_exists"),
+        ),
+        _structural_check(
+            "document_xml_parseable",
+            bool(inspection.get("document_xml_parseable")),
+            _expected_bool(expected, "document_xml_parseable"),
+        ),
+        _structural_check(
+            "omath_count",
+            int(inspection.get("omath_count", 0) or 0),
+            _expected_int(expected, "equation_count"),
+        ),
+        _structural_check(
+            "omathpara_count",
+            int(inspection.get("omathpara_count", 0) or 0),
+            _expected_int(expected, "block_equation_count"),
+        ),
+        _structural_check(
+            "inline_omath_count",
+            int(inspection.get("inline_omath_count", 0) or 0),
+            _expected_int(expected, "inline_equation_count"),
+        ),
+        _structural_check(
+            "appears_inline_math",
+            bool(inspection.get("appears_inline_math")),
+            _expected_bool(expected, "appears_inline_math"),
+        ),
+        _structural_check(
+            "appears_block_math",
+            bool(inspection.get("appears_block_math")),
+            _expected_bool(expected, "appears_block_math"),
+        ),
+        _structural_check(
+            "placement_summary",
+            str(inspection.get("placement_summary", "")),
+            _expected_string(expected, "computed_placement_summary"),
+        ),
+        _structural_check(
+            "basic_omml_structure_valid",
+            bool(inspection.get("basic_omml_structure_valid")),
+            _expected_bool(expected, "valid_omath_omathpara_structure"),
+        ),
+    ]
 
 
 def _expected_status(case: Dict[str, Any]) -> str:
@@ -195,28 +289,32 @@ def _validate_counts(case: Dict[str, Any], inspection: Dict[str, Any]) -> List[s
 def validate_case(case: Dict[str, Any], inventory_path: Path) -> Dict[str, Any]:
     case_id = str(case.get("case_id", "")).strip()
     source_docx_value = str(case.get("source_docx", "")).strip()
+    target_docx_value = str(case.get("output_docx") or case.get("generated_docx") or source_docx_value).strip()
     classification = str(case.get("classification", "")).strip() or "unknown"
-    source_docx = _resolve_source_docx(source_docx_value, inventory_path)
+    target_docx = _resolve_source_docx(target_docx_value, inventory_path)
 
     result: Dict[str, Any] = {
         "case_id": case_id,
         "source_docx": source_docx_value,
+        "target_docx": target_docx_value,
         "classification": classification,
         "expected_status": _expected_status(case),
         "status": "failed",
         "result": "unexpected_failed",
         "failures": [],
         "inspection": None,
+        "structural_checks": [],
     }
 
-    if source_docx is None:
+    if target_docx is None:
         result["status"] = "skipped"
         result["result"] = "skipped"
-        result["failures"] = ["source_docx is not set"]
+        result["failures"] = ["target DOCX is not set"]
         return result
 
-    inspection = inspect_docx(source_docx)
+    inspection = inspect_docx(target_docx)
     result["inspection"] = inspection
+    result["structural_checks"] = build_structural_checks(case, inspection)
 
     failures: List[str] = list(inspection.get("errors", []))
     if not inspection.get("document_xml_exists"):
@@ -227,6 +325,8 @@ def validate_case(case: Dict[str, Any], inventory_path: Path) -> Dict[str, Any]:
     if classification == "supported":
         if not inspection.get("basic_omml_structure_present"):
             failures.append("no OMML structure found")
+        if not inspection.get("basic_omml_structure_valid"):
+            failures.append("basic OMML structure is not valid")
         failures.extend(_validate_flags(case, inspection))
         failures.extend(_validate_counts(case, inspection))
 

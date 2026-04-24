@@ -106,6 +106,26 @@ Gate rule:
 - `expected_failed` is allowed for locked negative modern-scope cases
 - `skipped` is reported but should not fail the gate by itself
 
+Next hardening check for generated modern `.docx` outputs:
+
+```bash
+python3 scripts/workflow/run_modern_docx_omml_generated_output_gate.py
+```
+
+This wrapper generates outputs with the current modern `--patch-docx` path for the four positive modern cases, writes `out/modern-docx-omml-generated/modern_docx_omml_generated_outputs.json`, checks basic DOCX package openability, then validates that manifest structurally.
+
+It also writes a machine-readable gate report artifact at `out/modern-docx-omml-generated/modern_docx_omml_generated_output_gate_report.json` so the exact verdict can be archived without parsing console output.
+
+Equivalent debug commands:
+
+```bash
+python3 scripts/workflow/generate_modern_docx_omml_output_manifest.py
+python3 scripts/workflow/validate_modern_docx_omml_structure.py \
+  --inventory out/modern-docx-omml-generated/modern_docx_omml_generated_outputs.json
+```
+
+This 4-case generated-output gate is the official precondition before product behavior changes. It reports the openability summary, structural summary, writes the JSON gate artifact above, and exits nonzero if openability or structural validation fails.
+
 ## Migration guidance for legacy files
 
 - Prefer reopening and resaving legacy material as modern `.docx` before using this repo.

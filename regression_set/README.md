@@ -112,4 +112,20 @@ Historical note:
 
 Suggested next implementation step:
 
-- harden the modern DOCX + OMML mainline by adding structural output validation for supported generated `.docx` files before changing parser, patch engine, or exporter behavior
+- harden the modern DOCX + OMML mainline with generated-output structural validation before changing parser, patch engine, or exporter behavior
+
+Run the generated-output gate:
+
+```bash
+python3 scripts/workflow/run_modern_docx_omml_generated_output_gate.py
+```
+
+Equivalent debug commands:
+
+```bash
+python3 scripts/workflow/generate_modern_docx_omml_output_manifest.py
+python3 scripts/workflow/validate_modern_docx_omml_structure.py \
+  --inventory out/modern-docx-omml-generated/modern_docx_omml_generated_outputs.json
+```
+
+This 4-case generated-output gate is the official precondition before product behavior changes. The wrapper prints the generated manifest path, basic DOCX openability summary, structural summary, and final validation status.
