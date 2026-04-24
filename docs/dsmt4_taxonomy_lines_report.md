@@ -1,6 +1,6 @@
 # DSMT4 Taxonomy Lines Report
 
-This report freezes the current taxonomy-only comparison for three degenerate DSMT4 lines.
+Frozen historical baseline only. This report preserves the last taxonomy-only comparison for three degenerate DSMT4 lines and is not an active roadmap document.
 
 Scope:
 

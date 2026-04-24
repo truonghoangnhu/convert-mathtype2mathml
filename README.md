@@ -1,34 +1,60 @@
-# docx-html-math (transpect branch for many MathType WMF files)
+# docx-html-math
 
-A practical pipeline for converting `.docx` to HTML while keeping equations renderable on the web.
+A practical pipeline for converting modern `.docx` documents while keeping equations on the native Word/OMML path.
 
-This branch combines two strategies:
+Official support scope is now limited to modern `.docx` inputs with:
 
-1. **Apache POI + Saxon-HE** for the stable path:
-   - regular text and tables
-   - normal images
-   - native Word equations stored as **OMML**
-2. **transpect mathtype-extension** for the difficult path:
-   - MathType equations stored as **WMF previews** and/or **OLE `.bin` objects**
-   - external conversion to **MathML sidecars**
-   - final HTML renders the MathML with **MathJax**
+- native Word equations stored as **OMML**
+- equation content that the current pipeline converts stably to **OMML**
 
-This repo now also contains a parallel MVP path for patching legacy math objects back into native Word math:
+Legacy DSMT4 / old MathType OLE material remains in this repository only as historical investigation and reporting context. It is no longer an active product target.
 
-3. **DOCX patch mode** for Word-native output:
-   - consume the same `manifest.tsv` + sidecar `*.mathml`
-   - convert MathML to **OMML**
-   - write a new `.docx` with native Word equations for block-math cases
+See also: [docs/support_scope_policy.md](./docs/support_scope_policy.md)
 
 ## Why this branch exists
 
-For documents that contain many legacy MathType equations, a POI-only converter usually falls back to preview images.
-This branch adds a second stage:
+The mainline path is a modern DOCX + OMML workflow:
 
-- first generate **MathML sidecars** from `/word/media/*.wmf` and `/word/embeddings/*.bin`
-- then let the Java converter replace matching DOCX assets with real MathML
+- keep native OMML intact where it already exists
+- preserve a canonical math representation that can round-trip through OMML cleanly
+- keep the repository focused on stable `.docx` inputs instead of broad legacy format recovery
 
-That keeps the final HTML semantic and web-friendly.
+The repository still contains legacy investigation scripts and reports because they document past limits of old MathType / DSMT4 material, but those lines are frozen reference material rather than the active roadmap.
+
+## Supported input scope
+
+- modern `.docx` documents
+- native OMML equations already stored in WordprocessingML
+- equation content that the current pipeline converts stably to OMML
+- HTML and DOCX flows that stay on the OMML-backed path
+
+## Out of scope
+
+- legacy DSMT4 / old MathType OLE objects as an official product target
+- old `.doc` equation workflows
+- malformed or partially packaged pseudo-`.docx` files that fail normal DOCX package handling
+- previously audited degenerate legacy equation families as active roadmap items
+
+## Current project focus
+
+- modern DOCX ingestion
+- native OMML preservation and OMML-backed conversion
+- predictable HTML output for modern documents
+- stable DOCX output where the pipeline already converts equation content cleanly to OMML
+
+## Migration guidance for legacy files
+
+- Prefer reopening and resaving legacy material as modern `.docx` before using this repo.
+- Prefer converting or recreating equations as native OMML in Word when possible.
+- Treat old `.doc`, DSMT4, and MathType OLE-heavy sources as migration inputs, not as supported steady-state formats.
+- If legacy files must be studied, use the frozen DSMT4 docs as historical reference only; do not treat them as the current roadmap.
+
+## Non-goals
+
+- Do not expand official support back to legacy DSMT4 / MathType OLE.
+- Do not treat old `.doc` compatibility as part of the mainline product path.
+- Do not open new legacy investigation or production-fix work from this policy update alone.
+- Do not infer active support from historical audit scripts or archived reports.
 
 ## Repository layout
 
@@ -73,7 +99,9 @@ Optional: skip MathJax and emit plain HTML + MathML only:
 java -jar target/docx-html-math-1.0.0-jar-with-dependencies.jar input.docx output.html --native-mathml-only
 ```
 
-## Run with transpect sidecars
+## Legacy sidecar workflow (historical reference only)
+
+This section remains for historical and migration reference. It is not the official support boundary for the repository.
 
 ### 1) Prepare transpect prerequisites
 
@@ -173,6 +201,8 @@ If no match exists:
 - otherwise it emits a visible placeholder
 
 ## DOCX patch mode
+
+Officially supported use is the modern DOCX + OMML path. Legacy object patching details below are retained as historical implementation notes, not as the current support promise.
 
 The HTML flow stays unchanged. The new mode adds a separate branch:
 
@@ -921,7 +951,7 @@ This is an investigation branch for the dominant pattern family, not a patch/fix
 
 ### Current DSMT4 investigation baseline
 
-Use this branch as a freeze/documentation baseline for the current DSMT4 state, not as a production-fix branch.
+Historical baseline only. Use these notes as archived legacy reference, not as the active roadmap or official support scope.
 
 Confirmed findings:
 
@@ -1141,12 +1171,20 @@ python3 scripts/overrides/validate_override_manifest.py \
 
 ## Important scope note
 
-This branch is designed for the real-world case:
+Official support direction is now:
+
+- modern `.docx`
+- native OMML first
+- only equation formats that the current pipeline converts stably to OMML
+
+Historical legacy context in this branch still includes:
 
 - **OMML** -> handled directly in Java
 - **MathType WMF/OLE** -> handled by transpect outside Java, then fed back as sidecars
 
-It does **not** attempt to embed the full transpect stack into Maven.
+Legacy MathType/DSMT4 material is retained for reference and migration context only. It is not the current product target.
+
+The repository does **not** attempt to embed the full transpect stack into Maven.
 That keeps the core Java project cleaner and makes troubleshooting easier.
 
 The external runtime is expected to live under `tools/calabash/` for a reproducible local setup.

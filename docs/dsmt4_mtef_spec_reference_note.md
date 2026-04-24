@@ -1,6 +1,6 @@
 # DSMT4 MTEF Semantics Note
 
-This note freezes the current spec/reference-level interpretation that the repo can support from local evidence only.
+Frozen historical baseline only. This note preserves the last DSMT4/MTEF spec-reference reading for legacy reference and is not an active roadmap item.
 
 Scope:
 

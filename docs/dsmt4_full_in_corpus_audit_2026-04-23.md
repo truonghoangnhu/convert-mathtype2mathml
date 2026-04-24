@@ -1,5 +1,7 @@
 # DSMT4 Full `in/*` Corpus Audit
 
+Frozen historical baseline only. This corpus audit remains as legacy reference, not as the active roadmap or support scope.
+
 Scope:
 
 - audit/taxonomy/reporting only

@@ -1,6 +1,6 @@
 # DSMT4 Taxonomy Baseline
 
-This document is the canonical baseline for the current DSMT4 degenerate taxonomy.
+Frozen historical baseline only. This document is kept for legacy reference and is not the active product roadmap or support target.
 
 ## Current Labels
 
