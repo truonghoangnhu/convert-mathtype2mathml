@@ -100,6 +100,8 @@ def _serializer_only_cases(report: Dict[str, Any]) -> List[Dict[str, Any]]:
         serializer_cases.append(
             {
                 "case_id": case_id,
+                "omml_preservation": str(patch_summary.get("omml_preservation", "")),
+                "omml_drift_warning": str(patch_summary.get("omml_drift_warning", "")),
                 "omml_drift_class": str(patch_summary.get("omml_drift_class", "")),
                 "drift_origin_hint": str(case.get("drift_origin_hint", "")),
                 "omml_before": str(patch_summary.get("omml_before", "")),
@@ -108,6 +110,18 @@ def _serializer_only_cases(report: Dict[str, Any]) -> List[Dict[str, Any]]:
             }
         )
     return sorted(serializer_cases, key=lambda item: item["case_id"])
+
+
+def _render_omml_attention_signal(patch_summary: Dict[str, Any]) -> str:
+    preservation = str(patch_summary.get("omml_preservation", "")).strip()
+    drift_class = str(patch_summary.get("omml_drift_class", "")).strip()
+    drift_warning = str(patch_summary.get("omml_drift_warning", "")).strip()
+    parts = [
+        f"preservation={preservation or 'n/a'}",
+        f"drift_class={drift_class or 'n/a'}",
+        f"drift_warning={drift_warning or 'n/a'}",
+    ]
+    return " ".join(parts)
 
 
 def render_summary_markdown(report: Dict[str, Any]) -> str:
@@ -139,6 +153,8 @@ def render_summary_markdown(report: Dict[str, Any]) -> str:
                     f"expected={check.get('expected')!r} actual={check.get('actual')!r}"
                 )
             patch_summary = case["patch_summary_record"]
+            if patch_summary:
+                lines.append(f"- omml_attention: `{_render_omml_attention_signal(patch_summary)}`")
             for key in (
                 "omml_before",
                 "omml_after",
@@ -156,6 +172,10 @@ def render_summary_markdown(report: Dict[str, Any]) -> str:
         lines.extend(["### Serializer-Only Drift Cases", ""])
         for case in serializer_only_cases:
             lines.append(f"- case_id: `{case['case_id']}`")
+            lines.append(
+                "- omml_attention: "
+                f"`{_render_omml_attention_signal(case)}`"
+            )
             if case["omml_drift_class"]:
                 lines.append(f"- omml_drift_class: `{case['omml_drift_class']}`")
             if case["drift_origin_hint"]:
