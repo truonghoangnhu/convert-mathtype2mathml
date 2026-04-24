@@ -391,12 +391,35 @@ def render_patch_path_diagnostics_summary(report: Optional[Dict[str, Any]]) -> s
     if not isinstance(report, dict):
         return "Patch-path diagnostics: not_run"
     counts = report.get("drift_class_counts", {})
+    attention_case_ids: List[str] = []
+    attention_expected = 0
+    attention_unexpected = 0
+    for case in report.get("cases", []):
+        if not isinstance(case, dict):
+            continue
+        patch_summary = case.get("patch_summary_record", {}) if isinstance(case.get("patch_summary_record"), dict) else {}
+        omml_preservation = str(patch_summary.get("omml_preservation", "")).strip()
+        omml_drift_class = str(patch_summary.get("omml_drift_class", "")).strip()
+        omml_drift_warning = str(patch_summary.get("omml_drift_warning", "")).strip()
+        if omml_preservation.startswith("drift_") or omml_drift_class or omml_drift_warning:
+            attention_case_ids.append(str(case.get("case_id", "")).strip())
+            if omml_drift_class == "expected_patch_drift":
+                attention_expected += 1
+            elif omml_drift_class == "unexpected_native_drift":
+                attention_unexpected += 1
+    attention_case_ids = [case_id for case_id in attention_case_ids if case_id]
+    attention_case_ids.sort()
     lines = [
         "Patch-path diagnostics: "
         f"cases={report.get('case_count', 0)} "
         f"drift_candidates={report.get('drift_candidate_count', 0)} "
-        f"serializer_only={counts.get(SERIALIZER_ONLY_DRIFT, 0)}"
+        f"serializer_only={counts.get(SERIALIZER_ONLY_DRIFT, 0)} "
+        f"attention_cases={len(attention_case_ids)} "
+        f"attention_expected={attention_expected} "
+        f"attention_unexpected={attention_unexpected}"
     ]
+    if attention_case_ids:
+        lines.append(f"Patch-path attention case_ids: {','.join(attention_case_ids)}")
     attention_cases: List[str] = []
     for case in report.get("cases", []):
         if not isinstance(case, dict):
@@ -421,6 +444,7 @@ def render_patch_path_diagnostics_summary(report: Optional[Dict[str, Any]]) -> s
                 f"drift_warning={omml_drift_warning or 'n/a'}"
             )
     if attention_cases:
+        attention_cases.sort()
         lines.append("Patch-path OMML attention:")
         lines.extend(attention_cases)
     return "\n".join(lines)
