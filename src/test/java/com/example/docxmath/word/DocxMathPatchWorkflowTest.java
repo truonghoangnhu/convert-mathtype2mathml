@@ -244,6 +244,28 @@ final class DocxMathPatchWorkflowTest {
     }
 
     @Test
+    void copiesInputBytesWhenMixedNativeOmmlCaseSkipsPatchWork() throws Exception {
+        MathObjectRef first = mathObjectRef(1, wmfMathml("a", "+", "1"));
+        MathObjectRef second = mathObjectRef(2, wmfMathml("b", "-", "2"));
+        Path tempDir = Files.createTempDirectory("docx-patch-mixed-copy");
+        Path input = tempDir.resolve("input.docx");
+        Path output = tempDir.resolve("output.docx");
+        writeMinimalDocx(input, nativeOmmlAndMultiObjectDocumentXml(List.of(first, second)), List.of(first, second));
+
+        DocxMathPatchMain.PatchSummary summary = new DocxMathPatchMain(
+                ManifestMathSidecarRepository.load(writeManifest(tempDir, List.of(first, second)))
+        ).patch(input, output);
+
+        assertEquals(1, summary.nativeOmmlUntouched());
+        assertEquals(0, summary.patchedBlocks());
+        assertEquals(0, summary.patchedInline());
+        assertEquals(0, summary.unresolved());
+        assertEquals(1, summary.skippedMultiObjectParagraphs());
+        assertEquals(1, summary.skipBreakdownCount(PatchSkipReason.NATIVE_OMML_PRESENT));
+        assertArrayEquals(Files.readAllBytes(input), Files.readAllBytes(output));
+    }
+
+    @Test
     void skipsMultiObjectParagraphWhenOneObjectHasUnknownSourceType() throws Exception {
         MathObjectRef known = mathObjectRef(1, wmfMathml("a", "+", "1"));
         MathObjectRef unknown = new MathObjectRef(
