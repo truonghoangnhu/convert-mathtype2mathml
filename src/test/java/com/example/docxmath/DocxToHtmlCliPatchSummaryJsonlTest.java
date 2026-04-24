@@ -416,6 +416,28 @@ final class DocxToHtmlCliPatchSummaryJsonlTest {
         assertTrue(Files.exists(output));
     }
 
+    @Test
+    void patchSummaryJsonlFileImplicitlySwitchesPatchLogLevelToSummary() throws Exception {
+        Path tempDir = Files.createTempDirectory("patch-docx-summary-jsonl-implicit");
+        Path input = tempDir.resolve("input.docx");
+        Path output = tempDir.resolve("out.docx");
+        Path summaryJsonl = tempDir.resolve("summary").resolve("patch-summary.jsonl");
+        writeMinimalDocx(input, minimalDocumentXml());
+
+        DocxToHtmlCli.main(new String[]{
+                "--patch-docx",
+                input.toString(),
+                output.toString(),
+                "--patch-summary-jsonl",
+                summaryJsonl.toString()
+        });
+
+        assertTrue(Files.exists(output));
+        assertTrue(Files.exists(summaryJsonl));
+        String record = Files.readString(summaryJsonl, StandardCharsets.UTF_8);
+        assertTrue(record.contains("\"patch_mode\":\"docx_to_docx_native_omml\""));
+    }
+
     private static void writeMinimalDocx(Path docxPath, String documentXml) throws IOException {
         Files.createDirectories(docxPath.toAbsolutePath().normalize().getParent());
         try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(docxPath))) {
