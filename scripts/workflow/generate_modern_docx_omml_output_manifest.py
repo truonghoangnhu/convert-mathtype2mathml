@@ -23,6 +23,7 @@ DEFAULT_CASE_IDS = [
     "modern_mixed_block_inline_sample",
     "modern_supported_multi_equation_paragraph",
     "modern_patchable_modern_object_path_sample",
+    "modern_mixed_block_object_path_sample",
 ]
 
 

@@ -124,6 +124,29 @@
       ]
     },
     {
+      "case_id": "modern_mixed_block_object_path_sample",
+      "status": "active",
+      "source_docx": "in/Hoa50/Đề 26. MHTHPT 2024 - TRẦN THANH HIÊN - QUẢNG NGÃI. đã sửa.docx",
+      "classification": "supported",
+      "expected": {
+        "document_xml_exists": true,
+        "document_xml_parseable": true,
+        "equation_count": 16,
+        "block_equation_count": 2,
+        "inline_equation_count": 14,
+        "appears_inline_math": true,
+        "appears_block_math": true,
+        "basic_omml_structure_present": true,
+        "placement_summary": "mixed inline/block OMML: inline_oMath=14 oMathPara=2",
+        "word_reopens_safely": true,
+        "valid_omath_omathpara_structure": true
+      },
+      "notes": [
+        "real modern DOCX with mixed inline+block native OMML and object-path content",
+        "expands practical acceptance confidence on a larger real mixed-structure corpus input"
+      ]
+    },
+    {
       "case_id": "modern_negative_malformed_or_unsupported_package",
       "status": "active",
       "source_docx": "samples/sample-malformed-document-xml.docx",
