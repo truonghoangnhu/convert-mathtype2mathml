@@ -177,6 +177,15 @@ public final class DocxMathPatchMain {
             );
         }
 
+        InlinePatchPlan inlinePlan = null;
+        if (!occurrence.blockCandidate()) {
+            inlinePlan = inlineSafetyEvaluator.plan(occurrence);
+            if (!inlinePlan.safe() && inlinePlan.skipReason() == InlinePatchPlan.SkipReason.NATIVE_OMML_PRESENT) {
+                warn("Skipped inline math object: " + describeClassification(inlinePlan.classification()));
+                return SingleOccurrenceOutcome.skippedUnsafeInline(inlinePlan.classification());
+            }
+        }
+
         ResolutionResult resolution = resolveOccurrence(occurrence);
         if (resolution.resolvedOccurrence() == null) {
             return SingleOccurrenceOutcome.unresolvedOutcome(resolution.classification());
@@ -193,7 +202,9 @@ public final class DocxMathPatchMain {
             return SingleOccurrenceOutcome.blockPatched();
         }
 
-        InlinePatchPlan inlinePlan = inlineSafetyEvaluator.plan(occurrence);
+        if (inlinePlan == null) {
+            inlinePlan = inlineSafetyEvaluator.plan(occurrence);
+        }
         if (!inlinePlan.safe()) {
             warn("Skipped inline math object: " + describeClassification(inlinePlan.classification()));
             return switch (inlinePlan.skipReason()) {

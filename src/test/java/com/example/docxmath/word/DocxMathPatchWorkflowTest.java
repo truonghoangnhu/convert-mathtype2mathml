@@ -244,6 +244,34 @@ final class DocxMathPatchWorkflowTest {
     }
 
     @Test
+    void copiesInputBytesWhenSingleInlineObjectSharesParagraphWithNativeOmml() throws Exception {
+        MathObjectRef object = mathObjectRef(1, wmfMathml("a", "+", "1"));
+        Path tempDir = Files.createTempDirectory("docx-patch-native-single-copy");
+        Path input = tempDir.resolve("input.docx");
+        Path output = tempDir.resolve("output.docx");
+        writeMinimalDocx(
+                input,
+                inlineObjectDocumentXml(
+                        "<m:oMath><m:r><m:t>z</m:t></m:r></m:oMath>",
+                        List.of(textRunXml(" mix "), objectRunXml(object))
+                ),
+                List.of(object)
+        );
+
+        DocxMathPatchMain.PatchSummary summary = new DocxMathPatchMain(
+                ManifestMathSidecarRepository.load(writeManifest(tempDir, List.of()))
+        ).patch(input, output);
+
+        assertEquals(1, summary.nativeOmmlUntouched());
+        assertEquals(0, summary.patchedBlocks());
+        assertEquals(0, summary.patchedInline());
+        assertEquals(0, summary.unresolved());
+        assertEquals(1, summary.skippedUnsafeInlineObjects());
+        assertEquals(1, summary.skipBreakdownCount(PatchSkipReason.NATIVE_OMML_PRESENT));
+        assertArrayEquals(Files.readAllBytes(input), Files.readAllBytes(output));
+    }
+
+    @Test
     void copiesInputBytesWhenMixedNativeOmmlCaseSkipsPatchWork() throws Exception {
         MathObjectRef first = mathObjectRef(1, wmfMathml("a", "+", "1"));
         MathObjectRef second = mathObjectRef(2, wmfMathml("b", "-", "2"));
