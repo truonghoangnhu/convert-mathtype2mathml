@@ -4,6 +4,8 @@ import com.example.docxmath.word.DocxMathPatchMain;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.io.PrintStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -384,6 +386,33 @@ final class DocxToHtmlCliPatchSummaryJsonlTest {
         DocxToHtmlCli.main(new String[]{"--patch-docx", input.toString(), output.toString(), "--patch-log-level", "summary"});
 
         assertTrue(Files.exists(output.getParent()));
+        assertTrue(Files.exists(output));
+    }
+
+    @Test
+    void patchSummaryJsonlStdoutImplicitlySwitchesPatchLogLevelToSummary() throws Exception {
+        Path tempDir = Files.createTempDirectory("patch-docx-summary-implicit");
+        Path input = tempDir.resolve("input.docx");
+        Path output = tempDir.resolve("out.docx");
+        writeMinimalDocx(input, minimalDocumentXml());
+
+        ByteArrayOutputStream capturedOut = new ByteArrayOutputStream();
+        PrintStream originalOut = System.out;
+        try {
+            System.setOut(new PrintStream(capturedOut, true, StandardCharsets.UTF_8));
+            DocxToHtmlCli.main(new String[]{
+                    "--patch-docx",
+                    input.toString(),
+                    output.toString(),
+                    "--patch-summary-jsonl-stdout"
+            });
+        } finally {
+            System.setOut(originalOut);
+        }
+
+        String rendered = capturedOut.toString(StandardCharsets.UTF_8);
+        assertTrue(rendered.startsWith("{"));
+        assertTrue(rendered.contains("\"patch_mode\":\"docx_to_docx_native_omml\""));
         assertTrue(Files.exists(output));
     }
 

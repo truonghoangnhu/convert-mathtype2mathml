@@ -235,9 +235,9 @@ public final class DocxToHtmlCli {
                 usageAndExit(2);
             }
         }
-        if ((patchSummaryJsonl != null || patchSummaryJsonlStdout) && patchLogLevel != DocxMathPatchMain.LogLevel.SUMMARY) {
-            System.err.println("--patch-summary-jsonl and --patch-summary-jsonl-stdout require --patch-log-level summary");
-            usageAndExit(2);
+        if ((patchSummaryJsonl != null || patchSummaryJsonlStdout)
+                && patchLogLevel != DocxMathPatchMain.LogLevel.SUMMARY) {
+            patchLogLevel = DocxMathPatchMain.LogLevel.SUMMARY;
         }
 
         ManifestMathSidecarRepository repository = mathmlManifest == null
