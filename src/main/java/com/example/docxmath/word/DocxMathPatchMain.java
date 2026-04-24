@@ -422,6 +422,24 @@ public final class DocxMathPatchMain {
                     + ";pair:" + ommlDriftPair();
         }
 
+        public String ommlPreservationToken() {
+            if (structureBeforePatch == null || structureAfterPatch == null) {
+                return "";
+            }
+            String warning = ommlDriftWarningToken();
+            if (warning.isEmpty()) {
+                return "preserved";
+            }
+            String driftClass = ommlDriftClass();
+            if ("expected_patch_drift".equals(driftClass)) {
+                return "drift_expected:" + warning;
+            }
+            if ("unexpected_native_drift".equals(driftClass)) {
+                return "drift_unexpected:" + warning;
+            }
+            return "drift:" + warning;
+        }
+
         private static String formatSnapshot(OmmlStructureSnapshot snapshot) {
             if (snapshot == null) {
                 return "";

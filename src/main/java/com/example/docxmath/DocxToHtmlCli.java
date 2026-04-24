@@ -270,6 +270,9 @@ public final class DocxToHtmlCli {
         payload.put("multi_patched", summary.multiObjectPatchedParagraphs());
         payload.put("multi_skipped_unsafe", summary.multiObjectSkippedUnsafeParagraphs());
         payload.put("multi_skipped_ambiguous", summary.multiObjectSkippedAmbiguousParagraphs());
+        if (!summary.ommlPreservationToken().isEmpty()) {
+            payload.put("omml_preservation", summary.ommlPreservationToken());
+        }
         payload.put("omml_before", formatOmmlSnapshot(summary.structureBeforePatch()));
         payload.put("omml_after", formatOmmlSnapshot(summary.structureAfterPatch()));
         if (!summary.ommlDriftWarningToken().isEmpty()) {
@@ -349,6 +352,7 @@ public final class DocxToHtmlCli {
                 .append(" multi_patched=").append(summary.multiObjectPatchedParagraphs())
                 .append(" multi_skipped_unsafe=").append(summary.multiObjectSkippedUnsafeParagraphs())
                 .append(" multi_skipped_ambiguous=").append(summary.multiObjectSkippedAmbiguousParagraphs())
+                .append(" omml_preservation=").append(summary.ommlPreservationToken())
                 .append(" omml_before=").append(formatOmmlSnapshot(summary.structureBeforePatch()))
                 .append(" omml_after=").append(formatOmmlSnapshot(summary.structureAfterPatch()));
         if (!ommlDriftWarning.isEmpty()) {

@@ -35,6 +35,7 @@ final class DocxToHtmlCliPatchSummaryJsonlTest {
                 summary
         );
 
+        assertTrue(record.contains("\"omml_preservation\":\"preserved\""));
         assertTrue(record.contains("\"omml_before\":\"eq:1,inline:1,block:0,shape:inline_only\""));
         assertTrue(record.contains("\"omml_after\":\"eq:1,inline:1,block:0,shape:inline_only\""));
         assertFalse(record.contains("\"omml_drift_warning\""));
@@ -70,6 +71,7 @@ final class DocxToHtmlCliPatchSummaryJsonlTest {
         );
 
         assertTrue(record.contains("\"mathml_manifest\":\"/tmp/manifest.tsv\""));
+        assertTrue(record.contains("\"omml_preservation\":\"drift_expected:eq|block|shape\""));
         assertTrue(record.contains("\"omml_drift_warning\":\"eq|block|shape\""));
         assertTrue(record.contains("\"omml_drift_class\":\"expected_patch_drift\""));
         assertTrue(record.contains("\"omml_drift_pair\":\"before(eq:0,inline:0,block:0,shape:no_omml)->after(eq:1,inline:0,block:1,shape:block_only)\""));
@@ -105,6 +107,7 @@ final class DocxToHtmlCliPatchSummaryJsonlTest {
 
         assertTrue(rendered.startsWith("{"));
         assertTrue(rendered.endsWith(System.lineSeparator()));
+        assertTrue(rendered.contains("\"omml_preservation\":\"preserved\""));
         assertTrue(rendered.contains("\"omml_before\":\"eq:1,inline:1,block:0,shape:inline_only\""));
         assertFalse(rendered.contains("\"omml_drift_warning\""));
         assertFalse(rendered.contains("Patch summary:"));
@@ -137,6 +140,7 @@ final class DocxToHtmlCliPatchSummaryJsonlTest {
                 true
         );
 
+        assertTrue(rendered.contains("\"omml_preservation\":\"drift_expected:eq|block|shape\""));
         assertTrue(rendered.contains("\"omml_drift_warning\":\"eq|block|shape\""));
         assertTrue(rendered.contains("\"omml_drift_class\":\"expected_patch_drift\""));
         assertTrue(rendered.contains("\"omml_drift_pair\":\"before(eq:0,inline:0,block:0,shape:no_omml)->after(eq:1,inline:0,block:1,shape:block_only)\""));
