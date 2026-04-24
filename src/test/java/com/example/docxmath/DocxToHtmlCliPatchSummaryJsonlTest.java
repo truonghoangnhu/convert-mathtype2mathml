@@ -3,8 +3,14 @@ package com.example.docxmath;
 import com.example.docxmath.word.DocxMathPatchMain;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -364,6 +370,75 @@ final class DocxToHtmlCliPatchSummaryJsonlTest {
                         < summaryLine.indexOf(" omml_preservation=drift_unexpected:eq|block|shape")
                         && summaryLine.indexOf(" omml_preservation=drift_unexpected:eq|block|shape")
                         < summaryLine.indexOf(" omml_before=eq:1,inline:1,block:0,shape:inline_only")
+        );
+    }
+
+    @Test
+    void patchDocxCreatesMissingOutputParentDirectory() throws Exception {
+        Path tempDir = Files.createTempDirectory("patch-docx-output-parent");
+        Path input = tempDir.resolve("input.docx");
+        Path output = tempDir.resolve("nested").resolve("deeper").resolve("output.docx");
+        writeMinimalDocx(input, minimalDocumentXml());
+
+        assertFalse(Files.exists(output.getParent()));
+        DocxToHtmlCli.main(new String[]{"--patch-docx", input.toString(), output.toString(), "--patch-log-level", "summary"});
+
+        assertTrue(Files.exists(output.getParent()));
+        assertTrue(Files.exists(output));
+    }
+
+    private static void writeMinimalDocx(Path docxPath, String documentXml) throws IOException {
+        Files.createDirectories(docxPath.toAbsolutePath().normalize().getParent());
+        try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(docxPath))) {
+            writeZipEntry(
+                    zip,
+                    "[Content_Types].xml",
+                    """
+                            <?xml version="1.0" encoding="UTF-8"?>
+                            <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+                              <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+                              <Default Extension="xml" ContentType="application/xml"/>
+                              <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+                            </Types>
+                            """
+            );
+            writeZipEntry(
+                    zip,
+                    "_rels/.rels",
+                    """
+                            <?xml version="1.0" encoding="UTF-8"?>
+                            <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+                              <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+                            </Relationships>
+                            """
+            );
+            writeZipEntry(
+                    zip,
+                    "word/_rels/document.xml.rels",
+                    """
+                            <?xml version="1.0" encoding="UTF-8"?>
+                            <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>
+                            """
+            );
+            writeZipEntry(zip, "word/document.xml", documentXml);
+        }
+    }
+
+    private static void writeZipEntry(ZipOutputStream zip, String name, String value) throws IOException {
+        zip.putNextEntry(new ZipEntry(name));
+        zip.write(value.getBytes(StandardCharsets.UTF_8));
+        zip.closeEntry();
+    }
+
+    private static String minimalDocumentXml() {
+        return String.join(
+                "",
+                List.of(
+                        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>",
+                        "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">",
+                        "<w:body><w:p><w:r><w:t>Hello</w:t></w:r></w:p></w:body>",
+                        "</w:document>"
+                )
         );
     }
 }

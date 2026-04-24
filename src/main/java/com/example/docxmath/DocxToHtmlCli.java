@@ -191,6 +191,10 @@ public final class DocxToHtmlCli {
         }
         Path input = Path.of(args[0]).toAbsolutePath().normalize();
         Path output = Path.of(args[1]).toAbsolutePath().normalize();
+        Path outputParent = output.getParent();
+        if (outputParent != null) {
+            Files.createDirectories(outputParent);
+        }
         Path mathmlManifest = null;
         Path patchSummaryJsonl = null;
         boolean patchSummaryJsonlStdout = false;
