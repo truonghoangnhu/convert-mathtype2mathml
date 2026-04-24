@@ -36,6 +36,7 @@ The repository still contains legacy investigation scripts and reports because t
 - block equations remain editable native OMML where the pipeline already supports them
 - inline equations remain on the OMML-backed path without introducing legacy MathType/OLE regression
 - multi-equation paragraphs stay readable and reopen safely in Word when they are already supported by the current pipeline
+- supported output `.docx` keeps valid `m:oMath` / `m:oMathPara` structure for the equations it owns
 
 ## Out of scope
 
@@ -62,6 +63,7 @@ The repository still contains legacy investigation scripts and reports because t
 
 - supported modern `.docx` inputs should keep equation count and placement stable
 - reopened files should remain safe to edit in Word
+- supported output should keep valid `oMath` / `oMathPara` structure
 - diagnostics should clearly separate supported modern inputs from out-of-scope legacy or malformed packages
 - smoke and regression runs should use the modern DOCX + OMML path as the baseline
 

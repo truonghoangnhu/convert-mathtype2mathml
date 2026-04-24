@@ -37,6 +37,24 @@ Reference:
 - Keep legacy DSMT4 / old MathType OLE samples only as frozen historical reference, not as active regression targets.
 - Add new samples only when they represent the modern OMML mainline or a clearly supported edge case.
 
+## Regression Pack Requirements
+
+- Define one named modern-path regression pack for supported `.docx` inputs only.
+- The pack should contain at least:
+  - one OMML-native block-equation sample
+  - one OMML-native inline-equation sample
+  - one supported mixed block + inline sample
+  - one supported multi-equation paragraph sample
+  - one negative modern-scope sample for malformed or clearly unsupported package handling
+- For each sample, keep:
+  - source `.docx`
+  - expected equation count
+  - expected block vs inline placement summary
+  - expected reopenability status
+  - expected supported vs out-of-scope classification
+- Keep the pack small enough for smoke use, but stable enough to catch placement regressions.
+- Do not add legacy DSMT4 or old `.doc` files to this pack.
+
 ## Golden Files And Invariants
 
 - Golden files should capture:
@@ -44,6 +62,12 @@ Reference:
   - equation order
   - equation placement
   - reopenability in Word
+- Output DOCX acceptance:
+  - Word reopens safely
+  - equation count is preserved
+  - block placement is preserved
+  - inline placement is preserved
+  - `m:oMath` / `m:oMathPara` structure remains valid for supported outputs
 - OMML validation:
   - output must remain valid OMML for supported cases
   - native OMML should not be rewritten unnecessarily
@@ -79,6 +103,7 @@ Reference:
   - input opens cleanly
   - equations survive round-trip
   - output reopens in Word
+  - output keeps valid `m:oMath` / `m:oMathPara` structure
   - no legacy recovery path is required
 
 ## Backlog Priorities
