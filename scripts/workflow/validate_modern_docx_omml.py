@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_INVENTORY = ROOT / "regression_set" / "modern_docx_omml_inventory.json"
 DOCUMENT_XML = "word/document.xml"
 OMML_NS = "http://schemas.openxmlformats.org/officeDocument/2006/math"
+WORD_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 SCHEMA_VERSION = "modern_docx_omml_validation.v1"
 
 
@@ -33,6 +34,10 @@ def _namespace(tag: str) -> str:
 
 def _is_omml(element: ElementTree.Element, local_name: str) -> bool:
     return _namespace(element.tag) == OMML_NS and _local_name(element.tag) == local_name
+
+
+def _is_word(element: ElementTree.Element, local_name: str) -> bool:
+    return _namespace(element.tag) == WORD_NS and _local_name(element.tag) == local_name
 
 
 def _count_inline_omath(root: ElementTree.Element) -> int:
@@ -69,6 +74,77 @@ def _basic_omml_structure_valid(root: ElementTree.Element) -> bool:
     return omath_count > 0
 
 
+def _paragraph_tokens(element: ElementTree.Element) -> List[Tuple[str, str]]:
+    if _is_omml(element, "oMathPara"):
+        return [("block_math", "")]
+    if _is_omml(element, "oMath"):
+        return [("inline_math", "")]
+    if _is_word(element, "t"):
+        return [("text", element.text or "")]
+
+    tokens: List[Tuple[str, str]] = []
+    for child in list(element):
+        tokens.extend(_paragraph_tokens(child))
+    return tokens
+
+
+def _paragraph_run_safety(root: ElementTree.Element) -> Dict[str, Any]:
+    total_inline_math_count = 0
+    total_block_math_count = 0
+    inline_math_paragraph_count = 0
+    inline_math_text_paragraph_count = 0
+    inline_math_text_before_after_count = 0
+    block_math_paragraph_count = 0
+    multi_inline_paragraph_count = 0
+
+    for paragraph in (element for element in root.iter() if _is_word(element, "p")):
+        tokens = _paragraph_tokens(paragraph)
+        inline_positions = [index for index, (kind, _) in enumerate(tokens) if kind == "inline_math"]
+        block_count = sum(1 for kind, _ in tokens if kind == "block_math")
+        non_math_text_positions = [
+            index for index, (kind, value) in enumerate(tokens) if kind == "text" and value.strip()
+        ]
+        total_inline_math_count += len(inline_positions)
+        total_block_math_count += block_count
+
+        if inline_positions:
+            inline_math_paragraph_count += 1
+            if len(inline_positions) >= 2:
+                multi_inline_paragraph_count += 1
+            if non_math_text_positions:
+                inline_math_text_paragraph_count += 1
+            if non_math_text_positions and any(index < inline_positions[0] for index in non_math_text_positions) and any(
+                index > inline_positions[-1] for index in non_math_text_positions
+            ):
+                inline_math_text_before_after_count += 1
+        if block_count:
+            block_math_paragraph_count += 1
+
+    inline_context_safe = total_inline_math_count == 0 or inline_math_paragraph_count >= 1
+    block_context_safe = total_block_math_count == 0 or block_math_paragraph_count >= 1
+    surrounding_non_math_text_preserved = (
+        inline_math_paragraph_count == 0 or inline_math_text_before_after_count == inline_math_paragraph_count
+    )
+    summary = (
+        f"inline_paragraphs={inline_math_paragraph_count} "
+        f"inline_with_text={inline_math_text_paragraph_count} "
+        f"inline_with_text_before_after={inline_math_text_before_after_count} "
+        f"block_paragraphs={block_math_paragraph_count} "
+        f"multi_inline_paragraphs={multi_inline_paragraph_count}"
+    )
+    return {
+        "inline_math_paragraph_count": inline_math_paragraph_count,
+        "inline_math_text_paragraph_count": inline_math_text_paragraph_count,
+        "inline_math_text_before_after_count": inline_math_text_before_after_count,
+        "block_math_paragraph_count": block_math_paragraph_count,
+        "multi_inline_paragraph_count": multi_inline_paragraph_count,
+        "inline_paragraph_run_context_safe": inline_context_safe,
+        "block_omathpara_context_safe": block_context_safe,
+        "surrounding_non_math_text_preserved": surrounding_non_math_text_preserved,
+        "paragraph_run_safety_summary": summary,
+    }
+
+
 def inspect_docx(path: Path) -> Dict[str, Any]:
     result: Dict[str, Any] = {
         "file_path": str(path),
@@ -83,6 +159,10 @@ def inspect_docx(path: Path) -> Dict[str, Any]:
         "basic_omml_structure_present": False,
         "basic_omml_structure_valid": False,
         "placement_summary": "unavailable",
+        "inline_paragraph_run_context_safe": False,
+        "block_omathpara_context_safe": False,
+        "surrounding_non_math_text_preserved": False,
+        "paragraph_run_safety_summary": "unavailable",
         "errors": [],
     }
 
@@ -123,6 +203,7 @@ def inspect_docx(path: Path) -> Dict[str, Any]:
     result["basic_omml_structure_present"] = omath_count > 0 or omathpara_count > 0
     result["basic_omml_structure_valid"] = _basic_omml_structure_valid(root)
     result["placement_summary"] = _compute_placement_summary(inline_omath_count, omathpara_count)
+    result.update(_paragraph_run_safety(root))
     return result
 
 
@@ -189,17 +270,17 @@ def build_structural_checks(case: Dict[str, Any], inspection: Dict[str, Any]) ->
             _expected_bool(expected, "document_xml_parseable"),
         ),
         _structural_check(
-            "omath_count",
+            "equation_count",
             int(inspection.get("omath_count", 0) or 0),
             _expected_int(expected, "equation_count"),
         ),
         _structural_check(
-            "omathpara_count",
+            "block_equation_count",
             int(inspection.get("omathpara_count", 0) or 0),
             _expected_int(expected, "block_equation_count"),
         ),
         _structural_check(
-            "inline_omath_count",
+            "inline_equation_count",
             int(inspection.get("inline_omath_count", 0) or 0),
             _expected_int(expected, "inline_equation_count"),
         ),
@@ -214,6 +295,11 @@ def build_structural_checks(case: Dict[str, Any], inspection: Dict[str, Any]) ->
             _expected_bool(expected, "appears_block_math"),
         ),
         _structural_check(
+            "basic_omml_structure_present",
+            bool(inspection.get("basic_omml_structure_present")),
+            _expected_bool(expected, "basic_omml_structure_present"),
+        ),
+        _structural_check(
             "placement_summary",
             str(inspection.get("placement_summary", "")),
             _expected_string(expected, "computed_placement_summary"),
@@ -222,6 +308,26 @@ def build_structural_checks(case: Dict[str, Any], inspection: Dict[str, Any]) ->
             "basic_omml_structure_valid",
             bool(inspection.get("basic_omml_structure_valid")),
             _expected_bool(expected, "valid_omath_omathpara_structure"),
+        ),
+        _structural_check(
+            "inline_paragraph_run_context_safe",
+            bool(inspection.get("inline_paragraph_run_context_safe")),
+            _expected_bool(expected, "inline_paragraph_run_context_safe"),
+        ),
+        _structural_check(
+            "block_omathpara_context_safe",
+            bool(inspection.get("block_omathpara_context_safe")),
+            _expected_bool(expected, "block_omathpara_context_safe"),
+        ),
+        _structural_check(
+            "surrounding_non_math_text_preserved",
+            bool(inspection.get("surrounding_non_math_text_preserved")),
+            _expected_bool(expected, "surrounding_non_math_text_preserved"),
+        ),
+        _structural_check(
+            "paragraph_run_safety_summary",
+            str(inspection.get("paragraph_run_safety_summary", "")),
+            _expected_string(expected, "paragraph_run_safety_summary"),
         ),
     ]
 
@@ -250,6 +356,9 @@ def _validate_flags(case: Dict[str, Any], inspection: Dict[str, Any]) -> List[st
         "appears_inline_math",
         "appears_block_math",
         "basic_omml_structure_present",
+        "inline_paragraph_run_context_safe",
+        "block_omathpara_context_safe",
+        "surrounding_non_math_text_preserved",
     ]:
         expected_value = _expected_bool(expected, key)
         if expected_value is None:
@@ -283,6 +392,27 @@ def _validate_counts(case: Dict[str, Any], inspection: Dict[str, Any]) -> List[s
         inline_found = int(inspection.get("inline_omath_count", 0) or 0)
         if inline_found != inline_expected:
             failures.append(f"inline_equation_count expected {inline_expected}, found {inline_found}")
+    return failures
+
+
+def _validate_summaries(case: Dict[str, Any], inspection: Dict[str, Any]) -> List[str]:
+    expected = case.get("expected", {})
+    if not isinstance(expected, dict):
+        return []
+
+    failures: List[str] = []
+    summary_checks: List[Tuple[str, str]] = [
+        ("computed_placement_summary", "placement_summary"),
+        ("paragraph_run_safety_summary", "paragraph_run_safety_summary"),
+    ]
+    for expected_key, actual_key in summary_checks:
+        expected_value = _expected_string(expected, expected_key)
+        if expected_value is None:
+            continue
+        actual_value = str(inspection.get(actual_key, ""))
+        if actual_value != expected_value:
+            label = "placement_summary" if actual_key == "placement_summary" else actual_key
+            failures.append(f"{label} expected {expected_value!r}, found {actual_value!r}")
     return failures
 
 
@@ -329,6 +459,7 @@ def validate_case(case: Dict[str, Any], inventory_path: Path) -> Dict[str, Any]:
             failures.append("basic OMML structure is not valid")
         failures.extend(_validate_flags(case, inspection))
         failures.extend(_validate_counts(case, inspection))
+        failures.extend(_validate_summaries(case, inspection))
 
     result["failures"] = failures
     result["status"] = "passed" if not failures else "failed"

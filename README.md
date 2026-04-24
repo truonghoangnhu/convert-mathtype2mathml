@@ -116,11 +116,18 @@ This wrapper generates outputs with the current modern `--patch-docx` path for t
 
 It also writes a machine-readable gate report artifact at `out/modern-docx-omml-generated/modern_docx_omml_generated_output_gate_report.json` so the exact verdict can be archived without parsing console output.
 
+The structural validator and gate report now record per-case actual-vs-expected structural diffs for the supported modern invariants. This diff layer is the primary diagnostic view before any behavior changes when a generated output drifts.
+
+The generated-output gate also prints a compact structural drift summary in console/CI output that lists only failed invariant diffs by `case_id`, `check`, `expected`, and `actual`.
+
+The same gate report now also carries compact source-vs-generated patch-path diagnostics for count, placement, and paragraph/run safety facts, so future drift can be localized to the current modern `--patch-docx` path without changing behavior.
+
 GitHub Actions preservation:
 
 - workflow: `.github/workflows/modern-docx-omml-generated-output-gate.yml`
 - uploaded artifact name: `modern-docx-omml-generated-output-gate-report`
 - archived file: `out/modern-docx-omml-generated/modern_docx_omml_generated_output_gate_report.json`
+- GitHub Actions job summary: `scripts/workflow/render_modern_docx_omml_gate_summary.py` writes the overall gate result, structural summary counts, and failed-only structural drift entries to the Checks UI via `GITHUB_STEP_SUMMARY`
 
 Required status check policy for modern-path changes:
 

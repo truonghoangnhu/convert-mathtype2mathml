@@ -35,6 +35,10 @@ jobs:
       - name: Run modern DOCX + OMML generated-output gate
         run: python3 scripts/workflow/run_modern_docx_omml_generated_output_gate.py
 
+      - name: Write GitHub job summary
+        if: always()
+        run: python3 scripts/workflow/render_modern_docx_omml_gate_summary.py --write-github-step-summary
+
       - name: Upload generated-output gate report
         if: always()
         uses: actions/upload-artifact@v4

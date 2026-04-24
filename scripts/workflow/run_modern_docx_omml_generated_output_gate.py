@@ -8,7 +8,7 @@ import zipfile
 from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -19,7 +19,7 @@ from scripts.workflow.generate_modern_docx_omml_output_manifest import (
     DEFAULT_OUTPUT_ROOT,
     main as generate_manifest_main,
 )
-from scripts.workflow.validate_modern_docx_omml import validate_inventory
+from scripts.workflow.validate_modern_docx_omml import inspect_docx, validate_inventory
 from scripts.workflow.validate_modern_docx_omml_structure import _augment_report
 from scripts.workflow.validate_modern_docx_omml_structure import main as validate_structure_main
 
@@ -27,6 +27,21 @@ from scripts.workflow.validate_modern_docx_omml_structure import main as validat
 GENERATED_MANIFEST = DEFAULT_OUTPUT_ROOT / "modern_docx_omml_generated_outputs.json"
 GENERATED_GATE_REPORT = DEFAULT_OUTPUT_ROOT / "modern_docx_omml_generated_output_gate_report.json"
 REQUIRED_DOCX_PARTS = ["[Content_Types].xml", "_rels/.rels", "word/document.xml"]
+CONTENT_TYPES_NS = "http://schemas.openxmlformats.org/package/2006/content-types"
+PACKAGE_RELS_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
+CORE_PROPS_NS = "http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
+CORE_PROPS_PART_NAME = "/docProps/core.xml"
+CORE_PROPS_TARGET = "docProps/core.xml"
+CORE_PROPS_CONTENT_TYPE = "application/vnd.openxmlformats-package.core-properties+xml"
+CORE_PROPS_REL_TYPE = "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties"
+SERIALIZER_NORMALIZATION_ALLOWED_DIFFS = {
+    "[Content_Types].xml",
+    "_rels/.rels",
+    "word/document.xml",
+}
+SERIALIZER_ONLY_DRIFT = "serializer_only_drift"
+STRUCTURAL_DRIFT = "structural_drift"
+NO_DRIFT = "no_drift"
 
 
 def _summary_line(output: str) -> str:
@@ -42,6 +57,14 @@ def _resolve_generated_docx(manifest_path: Path, case: Dict[str, Any]) -> Path:
     if path.is_absolute():
         return path
     return manifest_path.parent / path
+
+
+def _resolve_source_docx(case: Dict[str, Any]) -> Path:
+    raw_path = str(case.get("source_docx") or "").strip()
+    path = Path(raw_path)
+    if path.is_absolute():
+        return path
+    return ROOT / path
 
 
 def check_docx_openability(path: Path) -> Dict[str, Any]:
@@ -123,6 +146,268 @@ def render_openability_summary(report: Dict[str, Any]) -> str:
     )
 
 
+def _inspection_snapshot(inspection: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "document_xml_exists": bool(inspection.get("document_xml_exists")),
+        "document_xml_parseable": bool(inspection.get("document_xml_parseable")),
+        "equation_count": int(inspection.get("omath_count", 0) or 0),
+        "block_equation_count": int(inspection.get("omathpara_count", 0) or 0),
+        "inline_equation_count": int(inspection.get("inline_omath_count", 0) or 0),
+        "placement_summary": str(inspection.get("placement_summary", "")),
+        "paragraph_run_safety_summary": str(inspection.get("paragraph_run_safety_summary", "")),
+        "inline_paragraph_run_context_safe": bool(inspection.get("inline_paragraph_run_context_safe")),
+        "block_omathpara_context_safe": bool(inspection.get("block_omathpara_context_safe")),
+        "surrounding_non_math_text_preserved": bool(inspection.get("surrounding_non_math_text_preserved")),
+    }
+
+
+def _drift_origin_hint(source: Dict[str, Any], output: Dict[str, Any]) -> str:
+    if not source.get("document_xml_parseable") or not output.get("document_xml_parseable"):
+        return "document_xml_unavailable_for_comparison"
+    if (
+        source.get("equation_count") != output.get("equation_count")
+        or source.get("block_equation_count") != output.get("block_equation_count")
+        or source.get("inline_equation_count") != output.get("inline_equation_count")
+    ):
+        return "equation_count_or_block_inline_split_changed_across_patch_docx"
+    if source.get("placement_summary") != output.get("placement_summary"):
+        return "placement_summary_changed_across_patch_docx"
+    if (
+        source.get("paragraph_run_safety_summary") != output.get("paragraph_run_safety_summary")
+        or source.get("inline_paragraph_run_context_safe") != output.get("inline_paragraph_run_context_safe")
+        or source.get("block_omathpara_context_safe") != output.get("block_omathpara_context_safe")
+        or source.get("surrounding_non_math_text_preserved") != output.get("surrounding_non_math_text_preserved")
+    ):
+        return "paragraph_run_context_changed_across_patch_docx"
+    return "no_structural_drift_detected"
+
+
+def _read_docx_package(path: Path) -> Dict[str, bytes]:
+    with zipfile.ZipFile(path) as docx:
+        return {name: docx.read(name) for name in docx.namelist()}
+
+
+def _xml_root(xml_bytes: bytes) -> ElementTree.Element:
+    return ElementTree.fromstring(xml_bytes)
+
+
+def _xml_signature(element: ElementTree.Element) -> Tuple[Any, ...]:
+    return (
+        element.tag,
+        tuple(sorted(element.attrib.items())),
+        (element.text or "").strip(),
+        tuple(_xml_signature(child) for child in list(element)),
+    )
+
+
+def _canonical_xml_signature(xml_bytes: bytes) -> Optional[Tuple[Any, ...]]:
+    try:
+        root = _xml_root(xml_bytes)
+    except ElementTree.ParseError:
+        return None
+    return _xml_signature(root)
+
+
+def _canonical_content_types(xml_bytes: bytes) -> Optional[Tuple[Any, ...]]:
+    try:
+        root = _xml_root(xml_bytes)
+    except ElementTree.ParseError:
+        return None
+    for child in list(root):
+        if (
+            child.tag == f"{{{CONTENT_TYPES_NS}}}Override"
+            and child.attrib.get("PartName") == CORE_PROPS_PART_NAME
+            and child.attrib.get("ContentType") == CORE_PROPS_CONTENT_TYPE
+        ):
+            root.remove(child)
+    return _xml_signature(root)
+
+
+def _canonical_root_relationships(xml_bytes: bytes) -> Optional[Tuple[Any, ...]]:
+    try:
+        root = _xml_root(xml_bytes)
+    except ElementTree.ParseError:
+        return None
+    for child in list(root):
+        if (
+            child.tag == f"{{{PACKAGE_RELS_NS}}}Relationship"
+            and child.attrib.get("Target") == CORE_PROPS_TARGET
+            and child.attrib.get("Type") == CORE_PROPS_REL_TYPE
+        ):
+            root.remove(child)
+    return _xml_signature(root)
+
+
+def _is_empty_core_properties(xml_bytes: bytes) -> bool:
+    try:
+        root = _xml_root(xml_bytes)
+    except ElementTree.ParseError:
+        return False
+    return (
+        root.tag == f"{{{CORE_PROPS_NS}}}coreProperties"
+        and len(list(root)) == 0
+        and not (root.text or "").strip()
+    )
+
+
+def _package_drift_details(source_docx: Path, output_docx: Path) -> Dict[str, Any]:
+    try:
+        source_package = _read_docx_package(source_docx)
+        output_package = _read_docx_package(output_docx)
+    except (OSError, zipfile.BadZipFile):
+        return {
+            "package_diff_observed": False,
+            "serializer_only_safe": False,
+            "reason": "package_unavailable_for_comparison",
+        }
+
+    source_names = set(source_package)
+    output_names = set(output_package)
+    extra_output_parts = sorted(output_names - source_names)
+    missing_output_parts = sorted(source_names - output_names)
+    differing_parts = sorted(
+        name for name in (source_names & output_names) if source_package[name] != output_package[name]
+    )
+
+    details: Dict[str, Any] = {
+        "package_diff_observed": bool(extra_output_parts or missing_output_parts or differing_parts),
+        "extra_output_parts": extra_output_parts,
+        "missing_output_parts": missing_output_parts,
+        "differing_parts": differing_parts,
+        "serializer_only_safe": False,
+        "reason": "package_bytes_identical",
+    }
+    if not details["package_diff_observed"]:
+        return details
+
+    if missing_output_parts:
+        details["reason"] = "output_missing_existing_package_parts"
+        return details
+    if any(part != "docProps/core.xml" for part in extra_output_parts):
+        details["reason"] = "unexpected_added_package_parts"
+        return details
+    if any(part not in SERIALIZER_NORMALIZATION_ALLOWED_DIFFS for part in differing_parts):
+        details["reason"] = "unexpected_package_parts_changed"
+        return details
+
+    if "docProps/core.xml" in output_package and not _is_empty_core_properties(output_package["docProps/core.xml"]):
+        details["reason"] = "added_core_properties_part_is_not_empty_normalization"
+        return details
+
+    document_xml_same = _canonical_xml_signature(source_package["word/document.xml"]) == _canonical_xml_signature(
+        output_package["word/document.xml"]
+    )
+    content_types_same = _canonical_content_types(source_package["[Content_Types].xml"]) == _canonical_content_types(
+        output_package["[Content_Types].xml"]
+    )
+    root_relationships_same = _canonical_root_relationships(source_package["_rels/.rels"]) == _canonical_root_relationships(
+        output_package["_rels/.rels"]
+    )
+    if document_xml_same and content_types_same and root_relationships_same:
+        details["serializer_only_safe"] = True
+        details["reason"] = "package_xml_normalization_only"
+        return details
+
+    details["reason"] = "package_xml_difference_not_limited_to_known_normalization"
+    return details
+
+
+def _classify_drift(
+    source_snapshot: Dict[str, Any],
+    output_snapshot: Dict[str, Any],
+    source_docx: Path,
+    output_docx: Path,
+    drift_origin_hint: str,
+) -> Tuple[str, str, Dict[str, Any]]:
+    if drift_origin_hint != "no_structural_drift_detected":
+        return STRUCTURAL_DRIFT, drift_origin_hint, {"reason": drift_origin_hint}
+
+    package_details = _package_drift_details(source_docx, output_docx)
+    if not package_details.get("package_diff_observed"):
+        return NO_DRIFT, "package_bytes_identical", package_details
+    if package_details.get("serializer_only_safe"):
+        return SERIALIZER_ONLY_DRIFT, str(package_details.get("reason", "")), package_details
+    return STRUCTURAL_DRIFT, str(package_details.get("reason", "")), package_details
+
+
+def _build_patch_path_diagnostics(manifest_path: Path) -> Dict[str, Any]:
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    cases = manifest.get("cases", [])
+    if not isinstance(cases, list):
+        raise ValueError("generated-output manifest cases must be a list")
+
+    diagnostics: List[Dict[str, Any]] = []
+    for case in cases:
+        if not isinstance(case, dict):
+            continue
+        source_inspection = inspect_docx(_resolve_source_docx(case))
+        source_docx = _resolve_source_docx(case)
+        output_docx = _resolve_generated_docx(manifest_path, case)
+        output_inspection = inspect_docx(output_docx)
+        source_snapshot = _inspection_snapshot(source_inspection)
+        output_snapshot = _inspection_snapshot(output_inspection)
+        drift_origin_hint = _drift_origin_hint(source_snapshot, output_snapshot)
+        drift_class, drift_class_reason, package_details = _classify_drift(
+            source_snapshot,
+            output_snapshot,
+            source_docx,
+            output_docx,
+            drift_origin_hint,
+        )
+        diagnostics.append(
+            {
+                "case_id": str(case.get("case_id", "")).strip(),
+                "source_docx": str(case.get("source_docx", "")).strip(),
+                "generated_docx": str(case.get("generated_docx", "")).strip(),
+                "source": source_snapshot,
+                "output": output_snapshot,
+                "drift_origin_hint": drift_origin_hint,
+                "drift_class": drift_class,
+                "drift_class_reason": drift_class_reason,
+                "package_diff_details": package_details,
+            }
+        )
+
+    drift_candidates = [
+        item for item in diagnostics if item.get("drift_origin_hint") != "no_structural_drift_detected"
+    ]
+    drift_class_counts = {
+        NO_DRIFT: sum(1 for item in diagnostics if item.get("drift_class") == NO_DRIFT),
+        SERIALIZER_ONLY_DRIFT: sum(1 for item in diagnostics if item.get("drift_class") == SERIALIZER_ONLY_DRIFT),
+        STRUCTURAL_DRIFT: sum(1 for item in diagnostics if item.get("drift_class") == STRUCTURAL_DRIFT),
+    }
+    return {
+        "case_count": len(diagnostics),
+        "drift_candidate_count": len(drift_candidates),
+        "drift_class_counts": drift_class_counts,
+        "cases": diagnostics,
+    }
+
+
+def render_patch_path_diagnostics_summary(report: Optional[Dict[str, Any]]) -> str:
+    if not isinstance(report, dict):
+        return "Patch-path diagnostics: not_run"
+    counts = report.get("drift_class_counts", {})
+    lines = [
+        "Patch-path diagnostics: "
+        f"cases={report.get('case_count', 0)} "
+        f"drift_candidates={report.get('drift_candidate_count', 0)} "
+        f"serializer_only={counts.get(SERIALIZER_ONLY_DRIFT, 0)}"
+    ]
+    for case in report.get("cases", []):
+        if not isinstance(case, dict):
+            continue
+        hint = str(case.get("drift_origin_hint", ""))
+        drift_class = str(case.get("drift_class", ""))
+        if drift_class == SERIALIZER_ONLY_DRIFT:
+            lines.append(
+                f"- {case.get('case_id', '')}: {SERIALIZER_ONLY_DRIFT}"
+            )
+        elif hint != "no_structural_drift_detected":
+            lines.append(f"- {case.get('case_id', '')}: {hint}")
+    return "\n".join(lines)
+
+
 def _utc_timestamp() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -143,6 +428,67 @@ def _structural_summary(report: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         "skipped_count": report.get("skipped_count", 0),
         "structural_failed_check_count": report.get("structural_failed_check_count", 0),
     }
+
+
+def _structural_diffs(structural_report: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    if not isinstance(structural_report, dict):
+        return []
+    diffs: List[Dict[str, Any]] = []
+    for case in structural_report.get("cases", []):
+        if not isinstance(case, dict):
+            continue
+        checks = [
+            {
+                "name": str(check.get("name", "")),
+                "expected": check.get("expected"),
+                "actual": check.get("actual"),
+                "passed": bool(check.get("passed")),
+            }
+            for check in case.get("structural_checks", [])
+            if isinstance(check, dict) and check.get("expected") is not None
+        ]
+        diffs.append(
+            {
+                "case_id": str(case.get("case_id", "")).strip(),
+                "status": str(case.get("result", "")),
+                "structural_checks": checks,
+            }
+        )
+    return diffs
+
+
+def _failed_structural_diffs(structural_report: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    failed: List[Dict[str, Any]] = []
+    for case in _structural_diffs(structural_report):
+        failed_checks = [
+            check
+            for check in case.get("structural_checks", [])
+            if isinstance(check, dict) and not bool(check.get("passed"))
+        ]
+        if failed_checks:
+            failed.append(
+                {
+                    "case_id": case.get("case_id", ""),
+                    "structural_checks": failed_checks,
+                }
+            )
+    return failed
+
+
+def render_structural_drift_summary(structural_report: Optional[Dict[str, Any]]) -> str:
+    failed_cases = _failed_structural_diffs(structural_report)
+    if not failed_cases:
+        return "Structural drift summary: no failed structural diffs"
+
+    lines = ["Structural drift summary:"]
+    for case in failed_cases:
+        lines.append(f"- {case.get('case_id', '')}")
+        for check in case.get("structural_checks", []):
+            lines.append(
+                f"  {check.get('name', '')}: "
+                f"expected={check.get('expected')!r} actual={check.get('actual')!r}"
+            )
+    return "\n".join(lines)
 
 
 def _case_statuses(
@@ -190,6 +536,7 @@ def _write_gate_report(
     generation_result: str,
     openability_report: Optional[Dict[str, Any]],
     structural_report: Optional[Dict[str, Any]],
+    patch_path_diagnostics: Optional[Dict[str, Any]],
     overall_gate_result: str,
 ) -> None:
     payload = {
@@ -207,6 +554,8 @@ def _write_gate_report(
             "failed_count": openability_report.get("failed_count", 0) if isinstance(openability_report, dict) else 0,
         },
         "structural_summary": _structural_summary(structural_report),
+        "structural_diffs": _structural_diffs(structural_report),
+        "patch_path_diagnostics": patch_path_diagnostics if isinstance(patch_path_diagnostics, dict) else {"status": "not_run"},
         "case_statuses": _case_statuses(openability_report, structural_report),
         "overall_gate_result": overall_gate_result,
     }
@@ -231,10 +580,25 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             generation_result="failed",
             openability_report=None,
             structural_report=None,
+            patch_path_diagnostics=None,
             overall_gate_result="failed",
         )
         return generation_rc
     print("Generation: passed")
+
+    try:
+        patch_path_diagnostics = _build_patch_path_diagnostics(GENERATED_MANIFEST)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"Patch-path diagnostics: failed ({exc})")
+        _write_gate_report(
+            GENERATED_MANIFEST,
+            generation_result="passed",
+            openability_report=None,
+            structural_report=None,
+            patch_path_diagnostics=None,
+            overall_gate_result="failed",
+        )
+        return 1
 
     try:
         openability_report = validate_generated_openability(GENERATED_MANIFEST)
@@ -245,6 +609,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             generation_result="passed",
             openability_report=None,
             structural_report=None,
+            patch_path_diagnostics=patch_path_diagnostics,
             overall_gate_result="failed",
         )
         return 1
@@ -256,6 +621,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             generation_result="passed",
             openability_report=openability_report,
             structural_report=None,
+            patch_path_diagnostics=patch_path_diagnostics,
             overall_gate_result="failed",
         )
         return 1
@@ -267,11 +633,14 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     structural_report = _build_structural_report(GENERATED_MANIFEST)
     print(_summary_line(validation_output.getvalue()))
     print("Structural validation: " + ("passed" if validation_rc == 0 else "failed"))
+    print(render_structural_drift_summary(structural_report))
+    print(render_patch_path_diagnostics_summary(patch_path_diagnostics))
     _write_gate_report(
         GENERATED_MANIFEST,
         generation_result="passed",
         openability_report=openability_report,
         structural_report=structural_report,
+        patch_path_diagnostics=patch_path_diagnostics,
         overall_gate_result="passed" if validation_rc == 0 else "failed",
     )
     return validation_rc

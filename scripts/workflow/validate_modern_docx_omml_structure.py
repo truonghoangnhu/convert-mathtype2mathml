@@ -18,6 +18,14 @@ def _check_failed(check: Dict[str, Any]) -> bool:
     return check.get("expected") is not None and not bool(check.get("passed"))
 
 
+def _case_failed_checks(case: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return [
+        check
+        for check in case.get("structural_checks", [])
+        if isinstance(check, dict) and _check_failed(check)
+    ]
+
+
 def _augment_report(report: Dict[str, Any]) -> Dict[str, Any]:
     structural_checks = [
         check
@@ -48,6 +56,7 @@ def render_structure_text(report: Dict[str, Any]) -> str:
 
     for case in report.get("cases", []):
         inspection = case.get("inspection") if isinstance(case.get("inspection"), dict) else {}
+        failed_checks = _case_failed_checks(case)
         lines.append(
             f"- {case.get('case_id', '')}: {case.get('result', '')} "
             f"status={case.get('status', '')} expected={case.get('expected_status', '')} "
@@ -61,14 +70,23 @@ def render_structure_text(report: Dict[str, Any]) -> str:
                 f"inline_oMath={inspection.get('inline_omath_count', 0)}"
             )
             lines.append(f"  placement_summary: {inspection.get('placement_summary', '')}")
-        for check in case.get("structural_checks", []):
-            expected = check.get("expected")
-            expected_label = "<not set>" if expected is None else repr(expected)
-            status = "pass" if check.get("passed") else "fail"
-            lines.append(
-                f"  check {check.get('name', '')}: {status} "
-                f"actual={check.get('actual')!r} expected={expected_label}"
+            lines.append(f"  paragraph_run_safety: {inspection.get('paragraph_run_safety_summary', '')}")
+        if failed_checks:
+            for check in failed_checks:
+                expected = check.get("expected")
+                expected_label = "<not set>" if expected is None else repr(expected)
+                lines.append(
+                    f"  check {check.get('name', '')}: fail "
+                    f"actual={check.get('actual')!r} expected={expected_label}"
+                )
+        else:
+            matched_checks = sum(
+                1
+                for check in case.get("structural_checks", [])
+                if isinstance(check, dict) and check.get("expected") is not None
             )
+            if matched_checks:
+                lines.append(f"  structural_diff: all expected structural checks matched ({matched_checks} checks)")
         for failure in case.get("failures", []):
             lines.append(f"  failure: {failure}")
     return "\n".join(lines)
