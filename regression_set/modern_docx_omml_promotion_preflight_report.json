@@ -1,0 +1,75 @@
+{
+  "schema_version": "modern_docx_omml_promotion_preflight.v1",
+  "generated_at_utc": "2026-04-24T17:19:52+00:00",
+  "scope": {
+    "mode": "promotion_preflight",
+    "modern_docx_only": true,
+    "patch_behavior_changed": false,
+    "inventory": "regression_set/modern_docx_omml_inventory.json"
+  },
+  "criteria": {
+    "structural_suitable": "parseable document.xml + native OMML present + embedded object tags present",
+    "ci_safe": "preflight practical threshold: size<=1MB and total OMML<=50 and object_like_tags<=600",
+    "repo_trackable": "candidate is already repo-tracked",
+    "confidence_gain_if_promoted": "high for mixed inline+block object+OMML, medium for object+OMML non-mixed, low otherwise"
+  },
+  "candidate_evaluations": [
+    {
+      "case_id": "modern_patchable_modern_object_path_sample",
+      "candidate": "in/Hoa_Ha_Noi_L1.docx",
+      "structural": {
+        "suitable": true,
+        "shape_family": "inline_only",
+        "native_omml_present": true,
+        "omath_count": 3,
+        "inline_omath_count": 3,
+        "omathpara_count": 0,
+        "object_like_tag_count": 534,
+        "document_xml_parseable": true
+      },
+      "ci_safe": true,
+      "repo_trackable": false,
+      "confidence_gain_if_promoted": "medium",
+      "blockers": [
+        "not currently repo-tracked (provenance/legal trackability unresolved)"
+      ],
+      "decision": "keep_local_only",
+      "recommended_next_action": "retain local-only; first clear provenance/legal trackability, then re-run preflight",
+      "metrics": {
+        "size_bytes": 499699,
+        "git_tracked": false
+      }
+    },
+    {
+      "case_id": "modern_mixed_block_object_path_sample",
+      "candidate": "in/Hoa50/Đề 26. MHTHPT 2024 - TRẦN THANH HIÊN - QUẢNG NGÃI. đã sửa.docx",
+      "structural": {
+        "suitable": true,
+        "shape_family": "mixed_inline_block",
+        "native_omml_present": true,
+        "omath_count": 16,
+        "inline_omath_count": 14,
+        "omathpara_count": 2,
+        "object_like_tag_count": 64,
+        "document_xml_parseable": true
+      },
+      "ci_safe": true,
+      "repo_trackable": false,
+      "confidence_gain_if_promoted": "high",
+      "blockers": [
+        "not currently repo-tracked (provenance/legal trackability unresolved)"
+      ],
+      "decision": "keep_local_only",
+      "recommended_next_action": "retain local-only; first clear provenance/legal trackability, then re-run preflight",
+      "metrics": {
+        "size_bytes": 162399,
+        "git_tracked": false
+      }
+    }
+  ],
+  "overall": {
+    "best_mixed_candidate": "modern_mixed_block_object_path_sample",
+    "stop_condition": "best local-only mixed candidate still fails promotion preflight",
+    "summary_decision": "stop_with_preflight_only"
+  }
+}
