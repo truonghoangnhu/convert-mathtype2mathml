@@ -15,6 +15,7 @@ import java.util.zip.ZipOutputStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 final class DocxMathPatchWorkflowTest {
     @Test
@@ -32,6 +33,16 @@ final class DocxMathPatchWorkflowTest {
         assertEquals(1, summary.nativeOmmlUntouched());
         assertEquals(0, summary.patchedBlocks());
         assertEquals(0, summary.patchedInline());
+        assertEquals(1, summary.structureBeforePatch().equationCount());
+        assertEquals(1, summary.structureBeforePatch().inlineEquationCount());
+        assertEquals(0, summary.structureBeforePatch().blockEquationCount());
+        assertEquals("inline_only", summary.structureBeforePatch().shapeSummary());
+        assertEquals(summary.structureBeforePatch(), summary.structureAfterPatch());
+        assertEquals("", summary.ommlDriftWarningToken());
+        assertEquals("", summary.ommlDriftClass());
+        assertEquals("", summary.ommlDriftPair());
+        assertEquals("", summary.ommlDriftBundle());
+        assertArrayEquals(Files.readAllBytes(input), Files.readAllBytes(output));
         assertTrue(xml.contains("oMath"));
         assertFalse(xml.contains("<w:object"));
     }
@@ -44,9 +55,52 @@ final class DocxMathPatchWorkflowTest {
         assertEquals(1, result.summary.patchedBlocks());
         assertEquals(0, result.summary.patchedInline());
         assertEquals(0, result.summary.unresolved());
+        assertEquals(0, result.summary.structureBeforePatch().equationCount());
+        assertEquals("no_omml", result.summary.structureBeforePatch().shapeSummary());
+        assertEquals(1, result.summary.structureAfterPatch().equationCount());
+        assertEquals(0, result.summary.structureAfterPatch().inlineEquationCount());
+        assertEquals(1, result.summary.structureAfterPatch().blockEquationCount());
+        assertEquals("block_only", result.summary.structureAfterPatch().shapeSummary());
+        assertEquals("eq|block|shape", result.summary.ommlDriftWarningToken());
+        assertEquals("expected_patch_drift", result.summary.ommlDriftClass());
+        assertEquals(
+                "before(eq:0,inline:0,block:0,shape:no_omml)->after(eq:1,inline:0,block:1,shape:block_only)",
+                result.summary.ommlDriftPair()
+        );
+        assertEquals(
+                "warn:eq|block|shape;class:expected_patch_drift;pair:before(eq:0,inline:0,block:0,shape:no_omml)->after(eq:1,inline:0,block:1,shape:block_only)",
+                result.summary.ommlDriftBundle()
+        );
         assertTrue(result.xml.contains("oMathPara"));
         assertTrue(result.xml.contains("x+1"));
         assertFalse(result.xml.contains("<w:object"));
+    }
+
+    @Test
+    void classifiesUnexpectedNativeDriftWhenStructureChangesWithoutPatchingWork() {
+        DocxMathPatchMain.PatchSummary summary = new DocxMathPatchMain.PatchSummary(
+                1,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                List.of(),
+                new DocxMathPatchMain.OmmlStructureSnapshot(1, 1, 0, "inline_only"),
+                new DocxMathPatchMain.OmmlStructureSnapshot(2, 1, 1, "mixed_inline_block")
+        );
+
+        assertEquals("eq|block|shape", summary.ommlDriftWarningToken());
+        assertEquals("unexpected_native_drift", summary.ommlDriftClass());
+        assertEquals(
+                "before(eq:1,inline:1,block:0,shape:inline_only)->after(eq:2,inline:1,block:1,shape:mixed_inline_block)",
+                summary.ommlDriftPair()
+        );
     }
 
     @Test
@@ -60,6 +114,12 @@ final class DocxMathPatchWorkflowTest {
 
         assertEquals(0, result.summary.patchedBlocks());
         assertEquals(1, result.summary.patchedInline());
+        assertEquals(0, result.summary.structureBeforePatch().equationCount());
+        assertEquals("no_omml", result.summary.structureBeforePatch().shapeSummary());
+        assertEquals(1, result.summary.structureAfterPatch().equationCount());
+        assertEquals(1, result.summary.structureAfterPatch().inlineEquationCount());
+        assertEquals(0, result.summary.structureAfterPatch().blockEquationCount());
+        assertEquals("inline_only", result.summary.structureAfterPatch().shapeSummary());
         assertTrue(result.xml.contains("Alpha "));
         assertTrue(result.xml.contains("omega."));
         assertTrue(result.xml.contains("oMath"));
@@ -272,6 +332,25 @@ final class DocxMathPatchWorkflowTest {
         assertEquals(0, result.summary.patchedInline());
         assertEquals(1, result.summary.skipBreakdownCount(PatchSkipReason.UNRESOLVED_MANIFEST));
         assertTrue(result.xml.contains("<w:object"));
+    }
+
+    @Test
+    void copiesInputBytesWhenUnresolvedObjectSkipsAllPatchWork() throws Exception {
+        MathObjectRef object = mathObjectRef(1, wmfMathml("x", "+", "1"));
+        Path tempDir = Files.createTempDirectory("docx-patch-unresolved-copy");
+        Path input = tempDir.resolve("input.docx");
+        Path output = tempDir.resolve("output.docx");
+        writeMinimalDocx(input, oleObjectDocumentXml(object), List.of(object));
+
+        DocxMathPatchMain.PatchSummary summary = new DocxMathPatchMain(
+                ManifestMathSidecarRepository.load(writeManifest(tempDir, List.of()))
+        ).patch(input, output);
+
+        assertEquals(1, summary.unresolved());
+        assertEquals(0, summary.patchedBlocks());
+        assertEquals(0, summary.patchedInline());
+        assertEquals(1, summary.skipBreakdownCount(PatchSkipReason.UNRESOLVED_MANIFEST));
+        assertArrayEquals(Files.readAllBytes(input), Files.readAllBytes(output));
     }
 
     @Test

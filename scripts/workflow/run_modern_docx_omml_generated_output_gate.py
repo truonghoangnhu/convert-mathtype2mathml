@@ -365,6 +365,9 @@ def _build_patch_path_diagnostics(manifest_path: Path) -> Dict[str, Any]:
                 "drift_class": drift_class,
                 "drift_class_reason": drift_class_reason,
                 "package_diff_details": package_details,
+                "patch_summary_record": case.get("patch_summary_record")
+                if isinstance(case.get("patch_summary_record"), dict)
+                else None,
             }
         )
 

@@ -62,7 +62,11 @@ def _source_path(case: Dict[str, Any]) -> Path:
     return path if path.is_absolute() else ROOT / path
 
 
-def build_manifest_case(case: Dict[str, Any], output_docx: Path) -> Dict[str, Any]:
+def build_manifest_case(
+    case: Dict[str, Any],
+    output_docx: Path,
+    patch_summary_record: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     expected = case.get("expected", {})
     if not isinstance(expected, dict):
         expected = {}
@@ -70,7 +74,7 @@ def build_manifest_case(case: Dict[str, Any], output_docx: Path) -> Dict[str, An
     equation_count = int(expected.get("equation_count", 0) or 0)
     block_count = int(expected.get("block_equation_count", 0) or 0)
     inline_count = int(expected.get("inline_equation_count", 0) or 0)
-    return {
+    manifest_case = {
         "case_id": f"{case['case_id']}_generated_output",
         "source_case_id": case["case_id"],
         "source_docx": str(case.get("source_docx", "")),
@@ -97,10 +101,27 @@ def build_manifest_case(case: Dict[str, Any], output_docx: Path) -> Dict[str, An
             "used as a generated-output precondition before product behavior changes",
         ],
     }
+    if isinstance(patch_summary_record, dict):
+        manifest_case["patch_summary_record"] = patch_summary_record
+    return manifest_case
 
 
-def run_patch_docx(jar: Path, source_docx: Path, output_docx: Path) -> str:
+def _read_single_jsonl_record(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        raise RuntimeError(f"patch summary JSONL not found: {path}")
+    lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if len(lines) != 1:
+        raise RuntimeError(f"expected exactly one patch summary JSONL record in {path}, found {len(lines)}")
+    record = json.loads(lines[0])
+    if not isinstance(record, dict):
+        raise RuntimeError(f"patch summary JSONL record must be an object: {path}")
+    return record
+
+
+def run_patch_docx(jar: Path, source_docx: Path, output_docx: Path, patch_summary_jsonl: Path) -> Dict[str, Any]:
     output_docx.parent.mkdir(parents=True, exist_ok=True)
+    if patch_summary_jsonl.exists():
+        patch_summary_jsonl.unlink()
     cmd = [
         "java",
         "-jar",
@@ -110,11 +131,13 @@ def run_patch_docx(jar: Path, source_docx: Path, output_docx: Path) -> str:
         str(output_docx),
         "--patch-log-level",
         "summary",
+        "--patch-summary-jsonl",
+        str(patch_summary_jsonl),
     ]
     proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
     if proc.returncode != 0:
         raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or f"patch command failed: {source_docx}")
-    return proc.stdout
+    return _read_single_jsonl_record(patch_summary_jsonl)
 
 
 def generate_manifest(
@@ -140,9 +163,10 @@ def generate_manifest(
         if not source_docx.exists():
             raise FileNotFoundError(f"source DOCX not found for {case_id}: {source_docx}")
         output_docx = output_root / f"{case_id}.generated.docx"
-        run_patch_docx(jar, source_docx, output_docx)
+        patch_summary_jsonl = output_root / f"{case_id}.patch-summary.jsonl"
+        patch_summary_record = run_patch_docx(jar, source_docx, output_docx, patch_summary_jsonl)
         generated_outputs.append(output_docx)
-        manifest_cases.append(build_manifest_case(case, output_docx))
+        manifest_cases.append(build_manifest_case(case, output_docx, patch_summary_record))
 
     manifest = {
         "schema_version": "modern_docx_omml_generated_outputs.v1",

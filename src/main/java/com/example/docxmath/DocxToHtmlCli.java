@@ -1,13 +1,21 @@
 package com.example.docxmath;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.docxmath.word.DocxMathPatchMain;
 import com.example.docxmath.word.ManifestMathSidecarRepository;
 import com.example.docxmath.word.PatchSkipReason;
 import org.apache.poi.openxml4j.util.ZipSecureFile;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public final class DocxToHtmlCli {
+    private static final ObjectMapper JSON = new ObjectMapper();
+
     private DocxToHtmlCli() {
     }
 
@@ -146,7 +154,8 @@ public final class DocxToHtmlCli {
                         + "[--subject generic|physics|chemistry|math|biology|english|literature] "
                         + "[--output-mode internal|publish]\n"
                         + "   or: java -jar docx-html-math.jar --patch-docx <input.docx> <output.docx> "
-                        + "[--mathml-manifest manifest.tsv] [--patch-log-level summary|warnings]\n"
+                        + "[--mathml-manifest manifest.tsv] [--patch-log-level summary|warnings] "
+                        + "[--patch-summary-jsonl summary.jsonl] [--patch-summary-jsonl-stdout]\n"
                         + "   or: java -jar docx-html-math.jar review-server --review-root <dir> "
                         + "[or --root <dir>] "
                         + "[--host 127.0.0.1] [--port 8080]"
@@ -183,6 +192,8 @@ public final class DocxToHtmlCli {
         Path input = Path.of(args[0]).toAbsolutePath().normalize();
         Path output = Path.of(args[1]).toAbsolutePath().normalize();
         Path mathmlManifest = null;
+        Path patchSummaryJsonl = null;
+        boolean patchSummaryJsonlStdout = false;
         DocxMathPatchMain.LogLevel patchLogLevel = DocxMathPatchMain.LogLevel.WARNINGS;
 
         for (int i = 2; i < args.length; i++) {
@@ -207,38 +218,157 @@ public final class DocxToHtmlCli {
                     System.err.println("Unsupported value for --patch-log-level: " + value);
                     usageAndExit(2);
                 }
+            } else if ("--patch-summary-jsonl".equals(arg)) {
+                if (i + 1 >= args.length) {
+                    System.err.println("Missing value after --patch-summary-jsonl");
+                    usageAndExit(2);
+                }
+                patchSummaryJsonl = Path.of(args[++i]).toAbsolutePath().normalize();
+            } else if ("--patch-summary-jsonl-stdout".equals(arg)) {
+                patchSummaryJsonlStdout = true;
             } else {
                 System.err.println("Unknown option for --patch-docx: " + arg);
                 usageAndExit(2);
             }
+        }
+        if ((patchSummaryJsonl != null || patchSummaryJsonlStdout) && patchLogLevel != DocxMathPatchMain.LogLevel.SUMMARY) {
+            System.err.println("--patch-summary-jsonl and --patch-summary-jsonl-stdout require --patch-log-level summary");
+            usageAndExit(2);
         }
 
         ManifestMathSidecarRepository repository = mathmlManifest == null
                 ? ManifestMathSidecarRepository.empty()
                 : ManifestMathSidecarRepository.load(mathmlManifest);
         DocxMathPatchMain.PatchSummary summary = new DocxMathPatchMain(repository, patchLogLevel).patch(input, output);
+        if (patchSummaryJsonl != null) {
+            appendPatchSummaryJsonlRecord(patchSummaryJsonl, input, output, mathmlManifest, summary);
+        }
+        System.out.print(renderPatchSummaryOutput(input, output, mathmlManifest, summary, patchSummaryJsonlStdout));
+    }
 
-        System.out.println("Input:  " + input);
-        System.out.println("Output: " + output);
+    static String buildPatchSummaryJsonRecord(
+            Path input,
+            Path output,
+            Path mathmlManifest,
+            DocxMathPatchMain.PatchSummary summary
+    ) throws Exception {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("patch_mode", "docx_to_docx_native_omml");
+        payload.put("input", input == null ? "" : input.toString());
+        payload.put("output", output == null ? "" : output.toString());
         if (mathmlManifest != null) {
-            System.out.println("MathML manifest: " + mathmlManifest);
+            payload.put("mathml_manifest", mathmlManifest.toString());
         }
-        System.out.println("Patch mode: DOCX -> DOCX (native OMML)");
-        System.out.println("Patch summary: "
-                + "scanned=" + summary.totalOccurrences()
-                + " block=" + summary.patchedBlocks()
-                + " inline=" + summary.patchedInline()
-                + " native=" + summary.nativeOmmlUntouched()
-                + " unresolved=" + summary.unresolved()
-                + " skipped_unsafe_inline=" + summary.skippedUnsafeInlineObjects()
-                + " skipped_multi=" + summary.skippedMultiObjectParagraphs()
-                + " skipped_unknown=" + summary.skippedUnknownOrAmbiguous()
-                + " multi_patched=" + summary.multiObjectPatchedParagraphs()
-                + " multi_skipped_unsafe=" + summary.multiObjectSkippedUnsafeParagraphs()
-                + " multi_skipped_ambiguous=" + summary.multiObjectSkippedAmbiguousParagraphs());
-        System.out.println("Skip breakdown:");
+        payload.put("scanned", summary.totalOccurrences());
+        payload.put("block", summary.patchedBlocks());
+        payload.put("inline", summary.patchedInline());
+        payload.put("native", summary.nativeOmmlUntouched());
+        payload.put("unresolved", summary.unresolved());
+        payload.put("skipped_unsafe_inline", summary.skippedUnsafeInlineObjects());
+        payload.put("skipped_multi", summary.skippedMultiObjectParagraphs());
+        payload.put("skipped_unknown", summary.skippedUnknownOrAmbiguous());
+        payload.put("multi_patched", summary.multiObjectPatchedParagraphs());
+        payload.put("multi_skipped_unsafe", summary.multiObjectSkippedUnsafeParagraphs());
+        payload.put("multi_skipped_ambiguous", summary.multiObjectSkippedAmbiguousParagraphs());
+        payload.put("omml_before", formatOmmlSnapshot(summary.structureBeforePatch()));
+        payload.put("omml_after", formatOmmlSnapshot(summary.structureAfterPatch()));
+        if (!summary.ommlDriftWarningToken().isEmpty()) {
+            payload.put("omml_drift_warning", summary.ommlDriftWarningToken());
+        }
+        if (!summary.ommlDriftClass().isEmpty()) {
+            payload.put("omml_drift_class", summary.ommlDriftClass());
+        }
+        if (!summary.ommlDriftPair().isEmpty()) {
+            payload.put("omml_drift_pair", summary.ommlDriftPair());
+        }
+        if (!summary.ommlDriftBundle().isEmpty()) {
+            payload.put("omml_drift_bundle", summary.ommlDriftBundle());
+        }
+        return JSON.writeValueAsString(payload);
+    }
+
+    private static String formatOmmlSnapshot(DocxMathPatchMain.OmmlStructureSnapshot snapshot) {
+        if (snapshot == null) {
+            return "";
+        }
+        return "eq:" + snapshot.equationCount()
+                + ",inline:" + snapshot.inlineEquationCount()
+                + ",block:" + snapshot.blockEquationCount()
+                + ",shape:" + snapshot.shapeSummary();
+    }
+
+    private static void appendPatchSummaryJsonlRecord(
+            Path summaryPath,
+            Path input,
+            Path output,
+            Path mathmlManifest,
+            DocxMathPatchMain.PatchSummary summary
+    ) throws Exception {
+        Files.createDirectories(summaryPath.toAbsolutePath().normalize().getParent());
+        String record = buildPatchSummaryJsonRecord(input, output, mathmlManifest, summary) + System.lineSeparator();
+        Files.writeString(
+                summaryPath,
+                record,
+                StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.APPEND
+        );
+    }
+
+    static String renderPatchSummaryOutput(
+            Path input,
+            Path output,
+            Path mathmlManifest,
+            DocxMathPatchMain.PatchSummary summary,
+            boolean patchSummaryJsonlStdout
+    ) throws Exception {
+        if (patchSummaryJsonlStdout) {
+            return buildPatchSummaryJsonRecord(input, output, mathmlManifest, summary) + System.lineSeparator();
+        }
+
+        String ommlDriftWarning = summary.ommlDriftWarningToken();
+        String ommlDriftClass = summary.ommlDriftClass();
+        String ommlDriftPair = summary.ommlDriftPair();
+        String ommlDriftBundle = summary.ommlDriftBundle();
+        StringBuilder rendered = new StringBuilder();
+        rendered.append("Input:  ").append(input).append(System.lineSeparator());
+        rendered.append("Output: ").append(output).append(System.lineSeparator());
+        if (mathmlManifest != null) {
+            rendered.append("MathML manifest: ").append(mathmlManifest).append(System.lineSeparator());
+        }
+        rendered.append("Patch mode: DOCX -> DOCX (native OMML)").append(System.lineSeparator());
+        rendered.append("Patch summary: ")
+                .append("scanned=").append(summary.totalOccurrences())
+                .append(" block=").append(summary.patchedBlocks())
+                .append(" inline=").append(summary.patchedInline())
+                .append(" native=").append(summary.nativeOmmlUntouched())
+                .append(" unresolved=").append(summary.unresolved())
+                .append(" skipped_unsafe_inline=").append(summary.skippedUnsafeInlineObjects())
+                .append(" skipped_multi=").append(summary.skippedMultiObjectParagraphs())
+                .append(" skipped_unknown=").append(summary.skippedUnknownOrAmbiguous())
+                .append(" multi_patched=").append(summary.multiObjectPatchedParagraphs())
+                .append(" multi_skipped_unsafe=").append(summary.multiObjectSkippedUnsafeParagraphs())
+                .append(" multi_skipped_ambiguous=").append(summary.multiObjectSkippedAmbiguousParagraphs())
+                .append(" omml_before=").append(formatOmmlSnapshot(summary.structureBeforePatch()))
+                .append(" omml_after=").append(formatOmmlSnapshot(summary.structureAfterPatch()));
+        if (!ommlDriftWarning.isEmpty()) {
+            rendered.append(" omml_drift_warning=").append(ommlDriftWarning);
+        }
+        if (!ommlDriftClass.isEmpty()) {
+            rendered.append(" omml_drift_class=").append(ommlDriftClass);
+        }
+        if (!ommlDriftPair.isEmpty()) {
+            rendered.append(" omml_drift_pair=").append(ommlDriftPair);
+        }
+        if (!ommlDriftBundle.isEmpty()) {
+            rendered.append(" omml_drift_bundle=").append(ommlDriftBundle);
+        }
+        rendered.append(System.lineSeparator());
+        rendered.append("Skip breakdown:").append(System.lineSeparator());
         for (PatchSkipReason reason : PatchSkipReason.values()) {
-            System.out.println("- " + reason.name() + "=" + summary.skipBreakdownCount(reason));
+            rendered.append("- ").append(reason.name()).append("=").append(summary.skipBreakdownCount(reason))
+                    .append(System.lineSeparator());
         }
+        return rendered.toString();
     }
 }

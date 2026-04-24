@@ -298,6 +298,10 @@ class ModernDocxOmmlValidatorTests(unittest.TestCase):
                                 "case_id": "generated-inline",
                                 "source_docx": str(source_docx_path),
                                 "generated_docx": str(output_docx_path),
+                                "patch_summary_record": {
+                                    "patch_mode": "docx_to_docx_native_omml",
+                                    "scanned": 1,
+                                },
                             }
                         ]
                     }
@@ -319,6 +323,7 @@ class ModernDocxOmmlValidatorTests(unittest.TestCase):
                 "equation_count_or_block_inline_split_changed_across_patch_docx",
             )
             self.assertEqual(case["drift_class"], "structural_drift")
+            self.assertEqual(case["patch_summary_record"]["patch_mode"], "docx_to_docx_native_omml")
 
     def test_patch_path_diagnostics_classifies_serializer_only_drift_for_native_omml_normalization(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -362,6 +367,10 @@ class ModernDocxOmmlValidatorTests(unittest.TestCase):
                                 "case_id": "native-serializer-only",
                                 "source_docx": str(source_docx_path),
                                 "generated_docx": str(output_docx_path),
+                                "patch_summary_record": {
+                                    "patch_mode": "docx_to_docx_native_omml",
+                                    "scanned": 1,
+                                },
                             }
                         ]
                     }
@@ -378,6 +387,7 @@ class ModernDocxOmmlValidatorTests(unittest.TestCase):
             self.assertEqual(case["drift_origin_hint"], "no_structural_drift_detected")
             self.assertEqual(case["drift_class"], "serializer_only_drift")
             self.assertEqual(case["drift_class_reason"], "package_xml_normalization_only")
+            self.assertEqual(case["patch_summary_record"]["patch_mode"], "docx_to_docx_native_omml")
             self.assertEqual(case["package_diff_details"]["extra_output_parts"], ["docProps/core.xml"])
             self.assertIn("word/document.xml", case["package_diff_details"]["differing_parts"])
 
@@ -393,10 +403,18 @@ class ModernDocxOmmlValidatorTests(unittest.TestCase):
                 },
             },
             Path("modern_inline_omml_sample.generated.docx"),
+            {
+                "patch_mode": "docx_to_docx_native_omml",
+                "scanned": 1,
+                "omml_before": "eq:1,inline:1,block:0,shape:inline_only",
+                "omml_after": "eq:1,inline:1,block:0,shape:inline_only",
+            },
         )
 
         self.assertEqual(manifest_case["case_id"], "modern_inline_omml_sample_generated_output")
         self.assertEqual(manifest_case["generated_docx"], "modern_inline_omml_sample.generated.docx")
+        self.assertEqual(manifest_case["patch_summary_record"]["patch_mode"], "docx_to_docx_native_omml")
+        self.assertEqual(manifest_case["patch_summary_record"]["scanned"], 1)
         expected = manifest_case["expected"]
         self.assertEqual(expected["equation_count"], 1)
         self.assertEqual(expected["block_equation_count"], 0)
@@ -928,6 +946,12 @@ class ModernDocxOmmlValidatorTests(unittest.TestCase):
                                 "case_id": "case-a",
                                 "drift_origin_hint": "no_structural_drift_detected",
                                 "drift_class": "no_drift",
+                                "patch_summary_record": {
+                                    "patch_mode": "docx_to_docx_native_omml",
+                                    "scanned": 1,
+                                    "omml_before": "eq:1,inline:1,block:0,shape:inline_only",
+                                    "omml_after": "eq:1,inline:1,block:0,shape:inline_only",
+                                },
                             },
                             {
                                 "case_id": "case-b",
@@ -999,6 +1023,10 @@ class ModernDocxOmmlValidatorTests(unittest.TestCase):
         self.assertEqual(report["patch_path_diagnostics"]["case_count"], 4)
         self.assertEqual(report["patch_path_diagnostics"]["drift_candidate_count"], 0)
         self.assertEqual(report["patch_path_diagnostics"]["drift_class_counts"]["no_drift"], 2)
+        self.assertEqual(
+            report["patch_path_diagnostics"]["cases"][0]["patch_summary_record"]["patch_mode"],
+            "docx_to_docx_native_omml",
+        )
 
     def test_generated_output_gate_returns_structural_validation_failure(self) -> None:
         def fake_generate(argv):
@@ -1217,15 +1245,28 @@ class ModernDocxOmmlValidatorTests(unittest.TestCase):
                         ],
                     }
                 ],
+                "patch_path_diagnostics": {
+                    "cases": [
+                        {
+                            "case_id": "case-a",
+                            "drift_origin_hint": "no_structural_drift_detected",
+                            "patch_summary_record": {
+                                "omml_before": "eq:1,inline:1,block:0,shape:inline_only",
+                                "omml_after": "eq:1,inline:1,block:0,shape:inline_only",
+                            },
+                        }
+                    ]
+                },
+                "case_statuses": [{"case_id": "case-a", "gate_status": "passed", "structural_status": "passed"}],
             }
         )
 
         self.assertIn("## Modern DOCX + OMML Generated-Output Gate", markdown)
         self.assertIn("- Overall gate result: `passed`", markdown)
-        self.assertIn("No failed structural diffs.", markdown)
-        self.assertNotIn("### Failed Structural Diffs", markdown)
+        self.assertIn("No failed or drifting cases.", markdown)
+        self.assertNotIn("### Failed Or Drifting Cases", markdown)
 
-    def test_render_gate_summary_markdown_reports_failed_only_structural_diffs(self) -> None:
+    def test_render_gate_summary_markdown_reports_failed_or_drifting_cases(self) -> None:
         markdown = render_summary_markdown(
             {
                 "overall_gate_result": "failed",
@@ -1247,13 +1288,82 @@ class ModernDocxOmmlValidatorTests(unittest.TestCase):
                         ],
                     }
                 ],
+                "patch_path_diagnostics": {
+                    "cases": [
+                        {
+                            "case_id": "case-a",
+                            "drift_origin_hint": "equation_count_or_block_inline_split_changed_across_patch_docx",
+                            "patch_summary_record": {
+                                "omml_before": "eq:2,inline:1,block:1,shape:mixed_inline_block",
+                                "omml_after": "eq:1,inline:1,block:0,shape:inline_only",
+                                "omml_drift_warning": "eq|block|shape",
+                                "omml_drift_class": "expected_patch_drift",
+                                "omml_drift_pair": "before(eq:2,inline:1,block:1,shape:mixed_inline_block)->after(eq:1,inline:1,block:0,shape:inline_only)",
+                                "omml_drift_bundle": "warn:eq|block|shape;class:expected_patch_drift;pair:before(eq:2,inline:1,block:1,shape:mixed_inline_block)->after(eq:1,inline:1,block:0,shape:inline_only)",
+                            },
+                        }
+                    ]
+                },
+                "case_statuses": [{"case_id": "case-a", "gate_status": "failed", "structural_status": "unexpected_failed"}],
             }
         )
 
-        self.assertIn("### Failed Structural Diffs", markdown)
-        self.assertIn("| case-a | equation_count | `2` | `1` |", markdown)
-        self.assertIn("| case-a | placement_summary | `'mixed'` | `'inline'` |", markdown)
+        self.assertIn("### Failed Or Drifting Cases", markdown)
+        self.assertIn("- case_id: `case-a`", markdown)
+        self.assertIn("- gate_status: `failed`", markdown)
+        self.assertIn("- structural_status: `unexpected_failed`", markdown)
+        self.assertIn("- drift_origin_hint: `equation_count_or_block_inline_split_changed_across_patch_docx`", markdown)
+        self.assertIn("- structural_diff: `equation_count` expected=2 actual=1", markdown)
+        self.assertIn("- structural_diff: `placement_summary` expected='mixed' actual='inline'", markdown)
+        self.assertIn("- omml_drift_warning: `eq|block|shape`", markdown)
+        self.assertIn("- omml_drift_class: `expected_patch_drift`", markdown)
+        self.assertIn("- omml_before: `eq:2,inline:1,block:1,shape:mixed_inline_block`", markdown)
+        self.assertIn("- omml_after: `eq:1,inline:1,block:0,shape:inline_only`", markdown)
         self.assertNotIn("appears_inline_math", markdown)
+
+    def test_render_gate_summary_markdown_reports_serializer_only_cases(self) -> None:
+        markdown = render_summary_markdown(
+            {
+                "overall_gate_result": "passed",
+                "structural_summary": {
+                    "case_count": 4,
+                    "passed_count": 4,
+                    "expected_failed_count": 0,
+                    "unexpected_failed_count": 0,
+                    "skipped_count": 0,
+                    "structural_failed_check_count": 0,
+                },
+                "structural_diffs": [],
+                "patch_path_diagnostics": {
+                    "cases": [
+                        {
+                            "case_id": "case-serializer",
+                            "drift_class": "serializer_only_drift",
+                            "drift_origin_hint": "no_structural_drift_detected",
+                            "patch_summary_record": {
+                                "omml_drift_class": "expected_patch_drift",
+                                "omml_before": "eq:1,inline:1,block:0,shape:inline_only",
+                                "omml_after": "eq:1,inline:1,block:0,shape:inline_only",
+                                "omml_drift_pair": "before(eq:1,inline:1,block:0,shape:inline_only)->after(eq:1,inline:1,block:0,shape:inline_only)",
+                            },
+                        }
+                    ]
+                },
+                "case_statuses": [{"case_id": "case-serializer", "gate_status": "passed", "structural_status": "passed"}],
+            }
+        )
+
+        self.assertNotIn("No failed or drifting cases.", markdown)
+        self.assertIn("### Serializer-Only Drift Cases", markdown)
+        self.assertIn("- case_id: `case-serializer`", markdown)
+        self.assertIn("- omml_drift_class: `expected_patch_drift`", markdown)
+        self.assertIn("- drift_origin_hint: `no_structural_drift_detected`", markdown)
+        self.assertIn("- omml_before: `eq:1,inline:1,block:0,shape:inline_only`", markdown)
+        self.assertIn("- omml_after: `eq:1,inline:1,block:0,shape:inline_only`", markdown)
+        self.assertIn(
+            "- omml_drift_pair: `before(eq:1,inline:1,block:0,shape:inline_only)->after(eq:1,inline:1,block:0,shape:inline_only)`",
+            markdown,
+        )
 
     def test_render_gate_summary_cli_writes_success_markdown_to_github_step_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1293,8 +1403,8 @@ class ModernDocxOmmlValidatorTests(unittest.TestCase):
             rendered = summary_path.read_text(encoding="utf-8")
             self.assertEqual(exit_code, 0)
             self.assertIn("## Modern DOCX + OMML Generated-Output Gate", rendered)
-            self.assertIn("No failed structural diffs.", rendered)
-            self.assertNotIn("### Failed Structural Diffs", rendered)
+            self.assertIn("No failed or drifting cases.", rendered)
+            self.assertNotIn("### Failed Or Drifting Cases", rendered)
 
     def test_render_gate_summary_cli_writes_failed_only_entries_to_github_step_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1323,6 +1433,19 @@ class ModernDocxOmmlValidatorTests(unittest.TestCase):
                                 ],
                             }
                         ],
+                        "patch_path_diagnostics": {
+                            "cases": [
+                                {
+                                    "case_id": "case-a",
+                                    "drift_origin_hint": "equation_count_or_block_inline_split_changed_across_patch_docx",
+                                    "patch_summary_record": {
+                                        "omml_drift_warning": "eq|block|shape",
+                                        "omml_drift_class": "expected_patch_drift",
+                                    },
+                                }
+                            ]
+                        },
+                        "case_statuses": [{"case_id": "case-a", "gate_status": "failed", "structural_status": "unexpected_failed"}],
                     }
                 ),
                 encoding="utf-8",
@@ -1335,9 +1458,11 @@ class ModernDocxOmmlValidatorTests(unittest.TestCase):
 
             rendered = summary_path.read_text(encoding="utf-8")
             self.assertEqual(exit_code, 0)
-            self.assertIn("### Failed Structural Diffs", rendered)
-            self.assertIn("| case-a | equation_count | `2` | `1` |", rendered)
-            self.assertIn("| case-a | placement_summary | `'mixed'` | `'inline'` |", rendered)
+            self.assertIn("### Failed Or Drifting Cases", rendered)
+            self.assertIn("- case_id: `case-a`", rendered)
+            self.assertIn("- structural_diff: `equation_count` expected=2 actual=1", rendered)
+            self.assertIn("- structural_diff: `placement_summary` expected='mixed' actual='inline'", rendered)
+            self.assertIn("- omml_drift_warning: `eq|block|shape`", rendered)
             self.assertNotIn("appears_inline_math", rendered)
 
     def test_render_gate_summary_cli_requires_github_step_summary_env(self) -> None:
@@ -1412,7 +1537,7 @@ class ModernDocxOmmlValidatorTests(unittest.TestCase):
                 "- Structural summary: `cases=0 passed=0 expected_failed=0 unexpected_failed=0 skipped=0 structural_failed_checks=0`",
                 rendered,
             )
-            self.assertIn("No failed structural diffs.", rendered)
+            self.assertIn("No failed or drifting cases.", rendered)
 
     def test_generated_output_gate_returns_openability_failure_before_structural_validation(self) -> None:
         calls = []

@@ -2,19 +2,25 @@ package com.example.docxmath.word;
 
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 
 public final class DocxMathPatchMain {
+    private static final String OMML_NS = "http://schemas.openxmlformats.org/officeDocument/2006/math";
+
     public enum LogLevel {
         SUMMARY,
         WARNINGS
@@ -71,6 +77,10 @@ public final class DocxMathPatchMain {
         try (InputStream in = Files.newInputStream(inputDocx);
              XWPFDocument document = new XWPFDocument(in)) {
             PatchSummary summary = patch(document);
+            if (summary.patchedBlocks() == 0 && summary.patchedInline() == 0) {
+                Files.copy(inputDocx, outputDocx, StandardCopyOption.REPLACE_EXISTING);
+                return summary;
+            }
             try (OutputStream out = Files.newOutputStream(outputDocx)) {
                 document.write(out);
             }
@@ -91,6 +101,7 @@ public final class DocxMathPatchMain {
         int multiObjectSkippedAmbiguousParagraphs = 0;
         int skippedUnknownOrAmbiguous = 0;
         EnumMap<PatchSkipReason, Integer> skipBreakdown = zeroedSkipBreakdown();
+        OmmlStructureSnapshot structureBeforePatch = inspectOmmlStructure(document);
 
         List<MathOccurrence> occurrences = walker.collect(document);
         totalOccurrences = occurrences.size();
@@ -138,6 +149,7 @@ public final class DocxMathPatchMain {
             skippedUnknownOrAmbiguous += outcome.skippedUnknownOrAmbiguous();
             incrementSkipBreakdown(skipBreakdown, outcome.classification());
         }
+        OmmlStructureSnapshot structureAfterPatch = inspectOmmlStructure(document);
 
         return new PatchSummary(
                 totalOccurrences,
@@ -151,7 +163,9 @@ public final class DocxMathPatchMain {
                 multiObjectPatchedParagraphs,
                 multiObjectSkippedUnsafeParagraphs,
                 multiObjectSkippedAmbiguousParagraphs,
-                buildBreakdownEntries(skipBreakdown)
+                buildBreakdownEntries(skipBreakdown),
+                structureBeforePatch,
+                structureAfterPatch
         );
     }
 
@@ -330,7 +344,9 @@ public final class DocxMathPatchMain {
             int multiObjectPatchedParagraphs,
             int multiObjectSkippedUnsafeParagraphs,
             int multiObjectSkippedAmbiguousParagraphs,
-            List<SkipBreakdownEntry> skipBreakdown
+            List<SkipBreakdownEntry> skipBreakdown,
+            OmmlStructureSnapshot structureBeforePatch,
+            OmmlStructureSnapshot structureAfterPatch
     ) {
         public int skipBreakdownCount(PatchSkipReason reason) {
             return skipBreakdown.stream()
@@ -339,6 +355,71 @@ public final class DocxMathPatchMain {
                     .findFirst()
                     .orElse(0);
         }
+
+        public String ommlDriftWarningToken() {
+            if (structureBeforePatch == null || structureAfterPatch == null) {
+                return "";
+            }
+            StringJoiner joiner = new StringJoiner("|");
+            if (structureBeforePatch.equationCount() != structureAfterPatch.equationCount()) {
+                joiner.add("eq");
+            }
+            if (structureBeforePatch.inlineEquationCount() != structureAfterPatch.inlineEquationCount()) {
+                joiner.add("inline");
+            }
+            if (structureBeforePatch.blockEquationCount() != structureAfterPatch.blockEquationCount()) {
+                joiner.add("block");
+            }
+            if (!structureBeforePatch.shapeSummary().equals(structureAfterPatch.shapeSummary())) {
+                joiner.add("shape");
+            }
+            return joiner.toString();
+        }
+
+        public String ommlDriftClass() {
+            if (ommlDriftWarningToken().isEmpty()) {
+                return "";
+            }
+            if (patchedBlocks > 0 || patchedInline > 0 || multiObjectPatchedParagraphs > 0) {
+                return "expected_patch_drift";
+            }
+            return "unexpected_native_drift";
+        }
+
+        public String ommlDriftPair() {
+            if (ommlDriftWarningToken().isEmpty()) {
+                return "";
+            }
+            return "before(" + formatSnapshot(structureBeforePatch) + ")->after(" + formatSnapshot(structureAfterPatch) + ")";
+        }
+
+        public String ommlDriftBundle() {
+            String warning = ommlDriftWarningToken();
+            if (warning.isEmpty()) {
+                return "";
+            }
+            return "warn:" + warning
+                    + ";class:" + ommlDriftClass()
+                    + ";pair:" + ommlDriftPair();
+        }
+
+        private static String formatSnapshot(OmmlStructureSnapshot snapshot) {
+            if (snapshot == null) {
+                return "";
+            }
+            return "eq:" + snapshot.equationCount()
+                    + ",inline:" + snapshot.inlineEquationCount()
+                    + ",block:" + snapshot.blockEquationCount()
+                    + ",shape:" + snapshot.shapeSummary();
+        }
+    }
+
+    public record OmmlStructureSnapshot(
+            int equationCount,
+            int inlineEquationCount,
+            int blockEquationCount,
+            String shapeSummary
+    ) {
     }
 
     public record SkipBreakdownEntry(PatchSkipReason reason, int count) {
@@ -447,5 +528,63 @@ public final class DocxMathPatchMain {
             entries.add(new SkipBreakdownEntry(reason, breakdown.getOrDefault(reason, 0)));
         }
         return List.copyOf(entries);
+    }
+
+    private static OmmlStructureSnapshot inspectOmmlStructure(XWPFDocument document) {
+        Node root = document.getDocument().getDomNode();
+        int[] counts = inspectOmmlNode(root, false);
+        int equationCount = counts[0];
+        int blockEquationCount = counts[1];
+        int inlineEquationCount = counts[2];
+        return new OmmlStructureSnapshot(
+                equationCount,
+                inlineEquationCount,
+                blockEquationCount,
+                ommlShapeSummary(inlineEquationCount, blockEquationCount)
+        );
+    }
+
+    private static int[] inspectOmmlNode(Node node, boolean inMathPara) {
+        int[] counts = new int[]{0, 0, 0};
+        if (node == null) {
+            return counts;
+        }
+        boolean currentInMathPara = inMathPara || isOmmlNode(node, "oMathPara");
+        if (isOmmlNode(node, "oMathPara")) {
+            counts[1]++;
+        }
+        if (isOmmlNode(node, "oMath")) {
+            counts[0]++;
+            if (!currentInMathPara) {
+                counts[2]++;
+            }
+        }
+        NodeList children = node.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            int[] childCounts = inspectOmmlNode(children.item(i), currentInMathPara);
+            counts[0] += childCounts[0];
+            counts[1] += childCounts[1];
+            counts[2] += childCounts[2];
+        }
+        return counts;
+    }
+
+    private static boolean isOmmlNode(Node node, String localName) {
+        return node != null
+                && OMML_NS.equals(node.getNamespaceURI())
+                && localName.equals(node.getLocalName());
+    }
+
+    private static String ommlShapeSummary(int inlineEquationCount, int blockEquationCount) {
+        if (inlineEquationCount > 0 && blockEquationCount > 0) {
+            return "mixed_inline_block";
+        }
+        if (inlineEquationCount > 0) {
+            return "inline_only";
+        }
+        if (blockEquationCount > 0) {
+            return "block_only";
+        }
+        return "no_omml";
     }
 }
