@@ -101,6 +101,29 @@
       ]
     },
     {
+      "case_id": "modern_patchable_modern_object_path_sample",
+      "status": "active",
+      "source_docx": "in/Hoa_Ha_Noi_L1.docx",
+      "classification": "supported",
+      "expected": {
+        "document_xml_exists": true,
+        "document_xml_parseable": true,
+        "equation_count": 3,
+        "block_equation_count": 0,
+        "inline_equation_count": 3,
+        "appears_inline_math": true,
+        "appears_block_math": false,
+        "basic_omml_structure_present": true,
+        "placement_summary": "inline OMML only: inline_oMath=3",
+        "word_reopens_safely": true,
+        "valid_omath_omathpara_structure": true
+      },
+      "notes": [
+        "real modern DOCX with native OMML and object-path content in the same package",
+        "expands confidence for modern object-path/no-op native-present behavior under real corpus input"
+      ]
+    },
+    {
       "case_id": "modern_negative_malformed_or_unsupported_package",
       "status": "active",
       "source_docx": "samples/sample-malformed-document-xml.docx",
