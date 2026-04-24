@@ -125,10 +125,10 @@ def _render_omml_attention_signal(patch_summary: Dict[str, Any]) -> str:
 
 
 def _has_omml_attention_signal(patch_summary: Dict[str, Any]) -> bool:
-    return any(
-        str(patch_summary.get(key, "")).strip()
-        for key in ("omml_preservation", "omml_drift_class", "omml_drift_warning")
-    )
+    preservation = str(patch_summary.get("omml_preservation", "")).strip()
+    drift_class = str(patch_summary.get("omml_drift_class", "")).strip()
+    drift_warning = str(patch_summary.get("omml_drift_warning", "")).strip()
+    return preservation.startswith("drift_") or bool(drift_class) or bool(drift_warning)
 
 
 def render_summary_markdown(report: Dict[str, Any]) -> str:

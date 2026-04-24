@@ -81,6 +81,7 @@ class RenderModernDocxOmmlGateSummaryTest(unittest.TestCase):
                         "drift_origin_hint": "equation_count_or_block_inline_split_changed_across_patch_docx",
                         "drift_class": "structural_drift",
                         "patch_summary_record": {
+                            "omml_preservation": "preserved",
                             "omml_before": "eq:1,inline:1,block:0,shape:inline_only",
                             "omml_after": "eq:1,inline:1,block:0,shape:inline_only",
                         },
