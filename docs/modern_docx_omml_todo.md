@@ -1,130 +1,143 @@
-# Modern DOCX + OMML TODO
+# Modern DOCX + OMML Roadmap
 
-This note turns the current support boundary into an execution checklist for the modern `.docx` + OMML mainline.
+This document defines the active technical roadmap for the modern `.docx` + OMML path.
 
-Reference:
+References:
 
 - [README.md](../README.md)
 - [Support Scope Policy](./support_scope_policy.md)
+- [DOCX Export Regression Target v1](./docx_export_regression_target_v1.md)
 
-## Input Scope And Acceptance
+## Phase Statement
 
-- Keep modern `.docx` as the supported input type.
-- Prefer native OMML whenever the document already contains it.
-- Support only equation content that the current pipeline converts stably to OMML.
-- Preserve equation count and equation placement after round-trip.
-- Reopened documents must stay safe to edit in Word.
-- Block equations:
-  - keep native OMML intact when already present
-  - ensure block-equation placement survives round-trip
-- Inline equations:
-  - keep inline OMML stable in text flow
-  - do not introduce legacy MathType/OLE recovery as an inline default
-- Multi-equation paragraphs in supported modern scope:
-  - preserve order
-  - preserve count
-  - preserve safe paragraph structure
-  - fail clearly if a paragraph is outside the supported shape
+The current phase is:
 
-## Regression Corpus
+- modern `.docx` only
+- OMML only for native Word equation handling
+- docs, planning, and regression/test scaffolding first
+- minimal product logic changes unless required for modern-path clarity
 
-- Maintain a small modern `.docx` corpus with native OMML coverage.
-- Keep samples that exercise:
-  - block equations
-  - inline equations
-  - mixed text plus equation paragraphs
-  - multi-equation paragraphs that are already supported
-- Keep legacy DSMT4 / old MathType OLE samples only as frozen historical reference, not as active regression targets.
-- Add new samples only when they represent the modern OMML mainline or a clearly supported edge case.
+## Active Scope
+
+- supported input is modern `.docx`
+- supported equations are native OMML or equation content that already converts stably to OMML
+- supported round-trip target is output `.docx` that stays on valid WordprocessingML + OMML structure
+- supported diagnostics distinguish valid modern inputs from malformed packages and out-of-scope legacy inputs
+
+## Frozen Historical Background
+
+The following remain historical background only:
+
+- DSMT4 investigation notes
+- old MathType OLE recovery work
+- old `.doc` equation workflows
+- legacy-heavy export targets that were useful for prior audits but are not part of the active roadmap
+
+They may be cited for background, but they are not active backlog items and should not be reopened by default.
+
+## Workstreams
+
+### 1. Scope and documentation
+
+- keep README and support docs explicit about modern `.docx` + OMML only scope
+- keep legacy references marked as frozen historical background
+- keep CLI/help examples aligned with the modern path
+
+### 2. Regression-pack scaffolding
+
+- define one named regression pack for supported modern `.docx` files only
+- keep the pack small, deterministic, and suitable for smoke use
+- store machine-readable expectations per sample
+- keep unsupported and malformed samples separate from legacy-format samples
+
+### 3. Output acceptance scaffolding
+
+- define acceptance checks for exported `.docx`
+- define the minimum metadata needed to verify count, placement, and OMML structure
+- keep validation language Word-oriented rather than legacy-recovery-oriented
+
+### 4. Minimal product work only when needed
+
+- only change converter/export logic when a modern-path ambiguity blocks acceptance or regression work
+- avoid reopening parser, patch engine, or sidecar behavior unless directly required by modern-path clarity
 
 ## Regression Pack Requirements
 
-- Define one named modern-path regression pack for supported `.docx` inputs only.
-- The pack should contain at least:
-  - one OMML-native block-equation sample
-  - one OMML-native inline-equation sample
-  - one supported mixed block + inline sample
-  - one supported multi-equation paragraph sample
-  - one negative modern-scope sample for malformed or clearly unsupported package handling
-- For each sample, keep:
-  - source `.docx`
-  - expected equation count
-  - expected block vs inline placement summary
-  - expected reopenability status
-  - expected supported vs out-of-scope classification
-- Keep the pack small enough for smoke use, but stable enough to catch placement regressions.
-- Do not add legacy DSMT4 or old `.doc` files to this pack.
+The active regression pack must cover supported modern `.docx` files only.
 
-## Golden Files And Invariants
+Required sample categories:
 
-- Golden files should capture:
-  - equation count
-  - equation order
-  - equation placement
-  - reopenability in Word
-- Output DOCX acceptance:
-  - Word reopens safely
-  - equation count is preserved
-  - block placement is preserved
-  - inline placement is preserved
-  - `m:oMath` / `m:oMathPara` structure remains valid for supported outputs
-- OMML validation:
-  - output must remain valid OMML for supported cases
-  - native OMML should not be rewritten unnecessarily
-  - generated OMML should preserve the existing document structure where possible
-- Invariants:
-  - supported files stay supported on rerun
-  - unsupported files fail clearly
-  - diagnostics distinguish structure problems from legacy format problems
+1. one OMML-native block-equation sample
+2. one OMML-native inline-equation sample
+3. one mixed block + inline sample that remains within the supported path
+4. one supported multi-equation paragraph sample
+5. one negative modern-scope sample for malformed or clearly unsupported `.docx` package handling
 
-## Logging And Diagnostics
+Each pack entry must record:
 
-- Report supported vs out-of-scope inputs explicitly.
-- Explain why a file is out of scope instead of silently trying legacy recovery.
-- Keep diagnostics short and actionable:
-  - native OMML present
-  - supported modern equation content
-  - unsupported legacy format
-  - malformed or broken package
-- Avoid logging that suggests legacy DSMT4 is still an active support target.
+- `case_id`
+- source `.docx` path
+- expected supported vs out-of-scope classification
+- expected equation count
+- expected block equation count
+- expected inline equation count
+- expected ordering or placement summary
+- expected Word reopenability status
+- expected OMML structure status
+- notes describing why the sample belongs in the pack
 
-## CLI And UX Expectations
+Pack rules:
 
-- Keep the main command line focused on modern `.docx` flows.
-- Make the supported path obvious in help text and README examples.
-- Emit a clear error for `.doc` and broken pseudo-`.docx` inputs.
-- Keep legacy recovery flows out of the default UX.
+- do not add DSMT4 or old MathType OLE files
+- do not add old `.doc` files
+- do not use historical legacy cases as the default smoke gate
+- keep the pack small enough to run frequently
 
-## Smoke Workflow
+## Output DOCX Acceptance Criteria
 
-- Use a small OMML-first smoke set as the mainline regression gate.
-- Run smoke tests against the modern DOCX + OMML path only.
-- Verify:
-  - input opens cleanly
-  - equations survive round-trip
-  - output reopens in Word
-  - output keeps valid `m:oMath` / `m:oMathPara` structure
-  - no legacy recovery path is required
+For supported modern-path outputs, acceptance means all of the following:
 
-## Backlog Priorities
+1. Word reopens the exported `.docx` safely
+2. equation count is preserved
+3. block equation placement is preserved
+4. inline equation placement is preserved
+5. `m:oMath` and `m:oMathPara` structure is valid for the equations owned by the pipeline
 
-1. Preserve modern DOCX + OMML behavior.
-2. Expand coverage only for supported equation shapes that already convert stably.
-3. Improve diagnostics for unsupported modern inputs.
-4. Keep legacy DSMT4 material frozen as historical evidence.
-5. Avoid any new roadmap item for old MathType OLE unless the support boundary changes explicitly.
+Interpretation notes:
 
-## Non-Goals
+- "count preserved" means no equation is dropped, duplicated, or converted into a non-equation placeholder within the supported path
+- "placement preserved" means block equations remain block-level and inline equations remain inline in text flow
+- "valid structure" means `m:oMath` and `m:oMathPara` are used in the correct contexts and do not leave malformed WordprocessingML around equation boundaries
 
-- Do not reintroduce legacy DSMT4 as a product target.
-- Do not expand the mainline to old `.doc` equation workflows.
-- Do not treat historical DSMT4 reports as current roadmap items.
-- Do not change patch engine behavior, Java matching, usable-sidecar filtering, or parser/converter defaults in this checklist.
+## Test Scaffolding Requirements
 
-## Done Definition
+Initial scaffolding should focus on metadata-driven validation before deeper implementation work.
 
-- Modern `.docx` with native OMML stays stable.
-- Supported equation content round-trips safely and reopens in Word.
-- Block, inline, and supported multi-equation paragraphs behave consistently.
-- Unsupported legacy files fail clearly and are identified as out of scope.
-- Regression and smoke runs stay aligned with the modern DOCX + OMML mainline.
+Needed first:
+
+- one machine-readable regression inventory for the modern pack
+- a validator shape that can compare expected count and placement against produced artifacts
+- a structural check for `m:oMath` and `m:oMathPara` usage in output `.docx`
+- a clear place to record Word reopenability results
+
+Nice-to-have after the scaffold exists:
+
+- fixture-level extraction of equation summaries from `word/document.xml`
+- per-case golden summaries for count and placement
+- a smoke runner that emits one concise pass/fail report for the modern pack
+
+## Backlog Order
+
+1. finalize the modern regression inventory and expected metadata
+2. add structural validation for `m:oMath` and `m:oMathPara`
+3. add count and placement verification for supported samples
+4. wire a modern-only smoke gate
+5. make only the smallest code changes needed to satisfy the modern acceptance checks
+
+## Definition Of Done For This Phase
+
+- README and support docs clearly state the modern `.docx` + OMML only scope
+- one technical roadmap exists for the modern path
+- one regression-pack definition exists for supported modern `.docx` files
+- output `.docx` acceptance criteria are explicit and testable
+- DSMT4 and other legacy work are clearly marked as frozen historical background

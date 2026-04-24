@@ -75,3 +75,33 @@ Coverage includes:
 1. OMML-clean baseline
 2. real sample with images and answer summary
 3. harder MathType/OLE/preview-heavy sample
+
+## Modern DOCX + OMML Regression Pack
+
+The active planning target for the new phase is a modern-only regression pack:
+
+- inventory scaffold: `modern_docx_omml_inventory.json`
+- smoke command: `python3 scripts/workflow/run_modern_docx_omml_smoke.py`
+- scope: supported modern `.docx` inputs only
+- purpose: define smoke-ready expectations for count, placement, Word reopenability, and OMML structure
+
+The smoke command runs `regression_set/modern_docx_omml_inventory.json` through the current validator and prints:
+
+```text
+Summary: passed=<n> expected_failed=<n> unexpected_failed=<n> skipped=<n>
+```
+
+It exits nonzero only when `unexpected_failed` is greater than zero.
+
+Required coverage:
+
+1. OMML-native block equation
+2. OMML-native inline equation
+3. mixed block + inline supported case
+4. supported multi-equation paragraph
+5. negative modern-scope malformed or unsupported package case
+
+Historical note:
+
+- `docx_export_inventory.json` remains in the repo as historical prototype context
+- DSMT4 / old MathType OLE cases are not part of the active modern regression pack

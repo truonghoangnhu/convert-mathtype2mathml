@@ -12,6 +12,20 @@ Legacy DSMT4 / old MathType OLE material remains in this repository only as hist
 See also: [docs/support_scope_policy.md](./docs/support_scope_policy.md)
 Technical checklist: [docs/modern_docx_omml_todo.md](./docs/modern_docx_omml_todo.md)
 
+## Modern DOCX + OMML Only Phase
+
+Active roadmap scope for this phase:
+
+- support modern `.docx` inputs only
+- keep native Word equations on the OMML path
+- do planning, regression definition, and test scaffolding before broader product logic changes
+- keep converter behavior changes minimal unless they are required to make the modern path clearer or safer
+
+Frozen historical background:
+
+- DSMT4, old MathType OLE, and old `.doc` investigations remain in the repo as historical reference
+- those materials are not the active roadmap, not the default regression pack, and not a reason to reopen legacy recovery work
+
 ## Why this branch exists
 
 The mainline path is a modern DOCX + OMML workflow:
@@ -37,6 +51,13 @@ The repository still contains legacy investigation scripts and reports because t
 - inline equations remain on the OMML-backed path without introducing legacy MathType/OLE regression
 - multi-equation paragraphs stay readable and reopen safely in Word when they are already supported by the current pipeline
 - supported output `.docx` keeps valid `m:oMath` / `m:oMathPara` structure for the equations it owns
+
+Operational output acceptance for supported modern `.docx`:
+
+- Word reopens the exported `.docx` safely
+- equation count is preserved
+- block versus inline placement is preserved
+- `m:oMath` / `m:oMathPara` structure stays valid for supported outputs
 
 ## Out of scope
 
@@ -124,9 +145,9 @@ Optional: skip MathJax and emit plain HTML + MathML only:
 java -jar target/docx-html-math-1.0.0-jar-with-dependencies.jar input.docx output.html --native-mathml-only
 ```
 
-## Legacy sidecar workflow (historical reference only)
+## Legacy sidecar workflow (frozen historical background only)
 
-This section remains for historical and migration reference. It is not the official support boundary for the repository.
+This section remains for historical and migration reference. It is not the official support boundary or active roadmap for the repository.
 
 ### 1) Prepare transpect prerequisites
 

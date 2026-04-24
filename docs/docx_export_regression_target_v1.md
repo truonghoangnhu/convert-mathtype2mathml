@@ -1,36 +1,67 @@
 # DOCX Export Regression Target v1
 
-This is the small Phase G export regression set used to validate the teacher DOCX prototype.
+This document defines the active regression-pack requirements for the modern `.docx` + OMML path.
 
-## Coverage
+## Active Target
 
-1. OMML-clean baseline
-2. real sample with images and answer summary
-3. harder MathType/OLE/preview-heavy sample
+The active regression target is a small modern-only pack for supported `.docx` inputs.
 
-## Inventory
+Coverage categories:
 
-The machine-readable inventory lives at:
+1. OMML-native block equation
+2. OMML-native inline equation
+3. mixed block + inline supported case
+4. supported multi-equation paragraph
+5. negative modern-scope case for malformed or unsupported package handling
+
+## Machine-Readable Inventory
+
+The planning scaffold for this pack lives at:
+
+- `regression_set/modern_docx_omml_inventory.json`
+
+Historical export inventory remains in the repo for older prototype context:
 
 - `regression_set/docx_export_inventory.json`
 
-## Expected Artifacts
+That historical inventory is not the active roadmap for this phase.
 
-Each case writes:
+## Required Per-Case Metadata
 
-- exported `.docx`
-- `docx_export_report.json`
-- `docx_export_parity_report.json`
-- `docx_export_parity_report.md`
-- export log
-- parity log
+Each modern-pack case should define:
 
-## Why These Three Cases
+- source `.docx` path
+- supported vs out-of-scope classification
+- expected total equation count
+- expected block equation count
+- expected inline equation count
+- expected placement summary
+- expected Word reopenability status
+- expected `m:oMath` / `m:oMathPara` structure status
+- notes describing the purpose of the case
 
-- the OMML-clean sample proves the prototype works on a simple bundle
-- the real image-heavy sample exercises practical layout and parity checks
-- the hard OLE sample catches the failure modes that are most likely to regress
+## Output Acceptance Criteria
 
-## Note
+For supported cases, exported `.docx` output passes only if:
 
-Openability is still tracked in the export report. In this workspace the LibreOffice probe is environment-sensitive, so the regression target keeps that signal separate from parity comparison.
+1. Word reopens the file safely
+2. equation count is preserved
+3. block placement is preserved
+4. inline placement is preserved
+5. `m:oMath` / `m:oMathPara` structure is valid
+
+## Pack Constraints
+
+- keep the pack small enough for smoke use
+- prefer modern native-OMML samples first
+- do not add DSMT4, old MathType OLE, or old `.doc` files
+- treat malformed or unsupported `.docx` cases as modern-scope negatives, not as legacy-support prompts
+
+## Immediate Next Use
+
+This target is intended to drive:
+
+- inventory scaffolding
+- future smoke-runner wiring
+- structural validation for output OMML
+- count and placement regression checks for supported modern files
