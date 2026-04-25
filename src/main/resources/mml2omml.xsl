@@ -1887,7 +1887,12 @@
                            <accPr>
                               <chr>
                                  <xsl:attribute name="m:val">
-                                    <xsl:value-of select="child::*[2]"/>
+                                    <xsl:choose>
+                                       <xsl:when test="normalize-space(string(child::*[2]))='→'">⃗</xsl:when>
+                                       <xsl:otherwise>
+                                          <xsl:value-of select="child::*[2]"/>
+                                       </xsl:otherwise>
+                                    </xsl:choose>
                                  </xsl:attribute>
                               </chr>
                            </accPr>
