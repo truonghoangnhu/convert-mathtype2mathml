@@ -127,6 +127,46 @@ final class DocxMathPatchWorkflowTest {
     }
 
     @Test
+    void preservesNumberedListParagraphByUsingInlinePatchForShortListLabel() throws Exception {
+        MathObjectRef object = mathObjectRef(1, wmfMathml("x", "+", "1"));
+        PatchRunResult result = runPatch(
+                inlineObjectDocumentXml(
+                        numberedParagraphPrefixXml("7", "0"),
+                        List.of(textRunXml("A. "), objectRunXml(object))
+                ),
+                List.of(object),
+                List.of(object)
+        );
+
+        assertEquals(0, result.summary.patchedBlocks());
+        assertEquals(1, result.summary.patchedInline());
+        assertTrue(result.xml.contains("<w:numPr>"));
+        assertTrue(result.xml.contains("A. "));
+        assertTrue(result.xml.contains("oMath"));
+        assertFalse(result.xml.contains("<w:object"));
+    }
+
+    @Test
+    void preservesIndentedListLikeParagraphByUsingInlinePatchForShortLabel() throws Exception {
+        MathObjectRef object = mathObjectRef(1, wmfMathml("x", "+", "1"));
+        PatchRunResult result = runPatch(
+                inlineObjectDocumentXml(
+                        indentedParagraphPrefixXml("720"),
+                        List.of(textRunXml("a) "), objectRunXml(object))
+                ),
+                List.of(object),
+                List.of(object)
+        );
+
+        assertEquals(0, result.summary.patchedBlocks());
+        assertEquals(1, result.summary.patchedInline());
+        assertTrue(result.xml.contains("<w:ind w:left=\"720\""));
+        assertTrue(result.xml.contains("a) "));
+        assertTrue(result.xml.contains("oMath"));
+        assertFalse(result.xml.contains("<w:object"));
+    }
+
+    @Test
     void patchesTier3aParagraphWithTwoSeparatedInlineObjects() throws Exception {
         MathObjectRef first = mathObjectRef(1, wmfMathml("a", "+", "1"));
         MathObjectRef second = mathObjectRef(2, wmfMathml("b", "-", "2"));
@@ -734,6 +774,25 @@ final class DocxMathPatchWorkflowTest {
                   </w:object>
                 </w:r>
                 """.formatted(object.previewRelId(), object.oleRelId());
+    }
+
+    private static String numberedParagraphPrefixXml(String numId, String ilvl) {
+        return """
+                <w:pPr>
+                  <w:numPr>
+                    <w:ilvl w:val="%s"/>
+                    <w:numId w:val="%s"/>
+                  </w:numPr>
+                </w:pPr>
+                """.formatted(escapeXml(ilvl), escapeXml(numId));
+    }
+
+    private static String indentedParagraphPrefixXml(String left) {
+        return """
+                <w:pPr>
+                  <w:ind w:left="%s"/>
+                </w:pPr>
+                """.formatted(escapeXml(left));
     }
 
     private static String unsafeMixedRunXml(MathObjectRef object) {

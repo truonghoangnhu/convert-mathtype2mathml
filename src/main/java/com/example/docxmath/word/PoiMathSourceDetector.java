@@ -14,8 +14,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 public final class PoiMathSourceDetector implements MathSourceDetector {
+    private static final Pattern LIST_LABEL_PATTERN = Pattern.compile(
+            "^(?:(?:[A-Da-d][\\.)])|(?:\\([0-9]{1,2}\\))|(?:[0-9]{1,2}[\\.)])|(?:[\\u2022\\u25CF\\u25E6]))$"
+    );
+
     @Override
     public List<MathOccurrence> detect(XWPFDocument document, XWPFParagraph paragraph) {
         List<MathOccurrence> results = new ArrayList<>();
@@ -97,10 +102,26 @@ public final class PoiMathSourceDetector implements MathSourceDetector {
         if (compactText.isEmpty()) {
             return true;
         }
+        if (hasListLikeParagraphProperties(paragraph) || isListLikeShortLabel(compactText)) {
+            return false;
+        }
         if (hasVisibleTextOnBothSides(paragraph, objectRunIndex)) {
             return false;
         }
         return compactText.length() <= 7;
+    }
+
+    private static boolean hasListLikeParagraphProperties(XWPFParagraph paragraph) {
+        Node paragraphNode = paragraph.getCTP().getDomNode();
+        Element pPr = findFirstDescendant(paragraphNode, "pPr");
+        if (pPr == null) {
+            return false;
+        }
+        return findFirstDescendant(pPr, "numPr") != null || findFirstDescendant(pPr, "ind") != null;
+    }
+
+    private static boolean isListLikeShortLabel(String compactText) {
+        return LIST_LABEL_PATTERN.matcher(compactText).matches();
     }
 
     private static boolean hasVisibleTextOnBothSides(XWPFParagraph paragraph, int objectRunIndex) {
