@@ -2,6 +2,8 @@ package com.example.docxmath.word;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -17,6 +19,7 @@ import org.xml.sax.InputSource;
 
 public final class BasicMathmlNormalizer implements MathmlNormalizer {
     private static final String MATHML_NS = "http://www.w3.org/1998/Math/MathML";
+    private static final char KNOWN_PRIVATE_USE_GLYPH_ARTIFACT = '\uEF0A';
 
     @Override
     public String normalize(String rawMathml) {
@@ -36,6 +39,7 @@ public final class BasicMathmlNormalizer implements MathmlNormalizer {
             if (root != null && "math".equals(root.getLocalName()) && root.getNamespaceURI() == null) {
                 root.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns", MATHML_NS);
             }
+            sanitizeKnownGlyphArtifacts(document);
             TransformerFactory transformerFactory = TransformerFactory.newInstance();
             transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
             Transformer transformer = transformerFactory.newTransformer();
@@ -45,7 +49,40 @@ public final class BasicMathmlNormalizer implements MathmlNormalizer {
             transformer.transform(new DOMSource(document), new StreamResult(out));
             return out.toString().trim();
         } catch (Exception ex) {
-            return trimmed.replaceFirst("^<\\?xml[^>]*>\\s*", "");
+            String strippedXmlDeclaration = trimmed.replaceFirst("^<\\?xml[^>]*>\\s*", "");
+            return stripKnownGlyphArtifacts(strippedXmlDeclaration);
         }
+    }
+
+    private static void sanitizeKnownGlyphArtifacts(Document document) {
+        if (document == null) {
+            return;
+        }
+        sanitizeNodeText(document.getDocumentElement());
+    }
+
+    private static void sanitizeNodeText(Node node) {
+        if (node == null) {
+            return;
+        }
+        if (node.getNodeType() == Node.TEXT_NODE) {
+            String value = node.getNodeValue();
+            String sanitized = stripKnownGlyphArtifacts(value);
+            if (!sanitized.equals(value)) {
+                node.setNodeValue(sanitized);
+            }
+            return;
+        }
+        NodeList children = node.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            sanitizeNodeText(children.item(i));
+        }
+    }
+
+    private static String stripKnownGlyphArtifacts(String text) {
+        if (text == null || text.indexOf(KNOWN_PRIVATE_USE_GLYPH_ARTIFACT) < 0) {
+            return text;
+        }
+        return text.replace(String.valueOf(KNOWN_PRIVATE_USE_GLYPH_ARTIFACT), "");
     }
 }

@@ -167,6 +167,40 @@ final class DocxMathPatchWorkflowTest {
     }
 
     @Test
+    void stripsKnownPrivateUseGlyphArtifactsFromPatchedOmml() throws Exception {
+        MathObjectRef object = mathObjectRef(
+                1,
+                """
+                <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline">
+                  <mrow>
+                    <mn>2</mn>
+                    <mtext></mtext>
+                    <mi>x</mi>
+                    <mo>−</mo>
+                    <mn>1</mn>
+                  </mrow>
+                </math>
+                """
+        );
+        PatchRunResult result = runPatch(
+                inlineObjectDocumentXml(
+                        "",
+                        List.of(textRunXml("f(x)="), objectRunXml(object), textRunXml(", với x>0."))
+                ),
+                List.of(object),
+                List.of(object)
+        );
+
+        assertEquals(0, result.summary.patchedBlocks());
+        assertEquals(1, result.summary.patchedInline());
+        assertTrue(result.xml.contains("f(x)="));
+        assertTrue(result.xml.contains(", với x>0."));
+        assertTrue(result.xml.contains("−") || result.xml.contains("-"));
+        assertFalse(result.xml.contains(""));
+        assertFalse(result.xml.contains("<w:object"));
+    }
+
+    @Test
     void patchesTier3aParagraphWithTwoSeparatedInlineObjects() throws Exception {
         MathObjectRef first = mathObjectRef(1, wmfMathml("a", "+", "1"));
         MathObjectRef second = mathObjectRef(2, wmfMathml("b", "-", "2"));
