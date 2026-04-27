@@ -99,6 +99,13 @@ public final class DocxToHtmlConverter {
     private static final Pattern INLINE_MATH_DEGREE_C_SUFFIX_PATTERN = Pattern.compile(
             "(?is)(<span\\b(?=[^>]*class=\"[^\"]*math-inline[^\"]*\")[^>]*><math\\b[^>]*>)(?<before>.*?)<msup\\b[^>]*>\\s*<mn\\b[^>]*>\\s*(?<value>[^<\\s]+)\\s*</mn>\\s*<(?:mo|mtext)\\b[^>]*>\\s*[∘°]\\s*</(?:mo|mtext)>\\s*</msup>(?<after>.*?)</math></span>\\s*C\\b"
     );
+    private static final Pattern EMPTY_BASE_MINUS_MSUP_MATH_INLINE_PATTERN = Pattern.compile(
+            "(?is)<span\\b(?=[^>]*class=\"[^\"]*math-inline[^\"]*mathml[^\"]*\")[^>]*>\\s*<math\\b[^>]*>\\s*<msup\\b[^>]*>\\s*"
+                    + "(?:<mrow\\b[^>]*/>|<mrow\\b[^>]*>\\s*</mrow>)\\s*"
+                    + "(?:<mrow\\b[^>]*>\\s*<mo\\b[^>]*>\\s*[−-]\\s*</mo>\\s*</mrow>|<mo\\b[^>]*>\\s*[−-]\\s*</mo>)\\s*"
+                    + "</msup>\\s*</math>\\s*</span>"
+    );
+    private static final Pattern DIACRITIC_MARK_PATTERN = Pattern.compile("\\p{M}+");
     private static final Pattern SINGLE_INLINE_MATH_PATTERN = Pattern.compile("^<span class=\"math-inline([^\\\"]*)\">(.*)</span>$", Pattern.DOTALL);
     private static final Pattern SINGLE_BLOCK_MATH_PATTERN = Pattern.compile("^<div class=\"math-block([^\\\"]*)\">(.*)</div>$", Pattern.DOTALL);
     private static final Pattern LEADING_IMAGES_PATTERN = Pattern.compile("^(?:\\s*)(?<images>(?:<img\\b[^>]*?/?>\\s*)+)(?<rest>.+)$", Pattern.DOTALL);
@@ -174,6 +181,9 @@ public final class DocxToHtmlConverter {
     );
     private static final Pattern STANDALONE_INLINE_IMAGE_PARAGRAPH_PATTERN = Pattern.compile(
             "(?is)<p>\\s*(?<img><img\\b(?=[^>]*class=\"[^\"]*inline-image[^\"]*\")[^>]*?/?>)\\s*</p>"
+    );
+    private static final Pattern STANDALONE_QUESTION_IMAGE_PARAGRAPH_PATTERN = Pattern.compile(
+            "(?is)<p>\\s*(?<img><img\\b(?=[^>]*class=\"[^\"]*(?:diagram-asset|embedded-object|physics-diagram|physics-chart)[^\"]*\")[^>]*?/?>)\\s*</p>"
     );
     private static final Pattern MATH_BLOCK_CAPTURE_PATTERN = Pattern.compile(
             "(?is)<div class=\"math-block(?<classes>[^\"]*)\">(?<content>.*?)</div>"
@@ -648,6 +658,7 @@ public final class DocxToHtmlConverter {
                 out = stripWordFieldCodeLeakage(out);
             }
             out = normalizeVisibleHtmlText(out);
+            out = normalizeContextualBetaMinusFromEmptyBaseMsuP(out);
             if (containsCoreHtmlScriptNormalizationSignals(out)) {
                 out = normalizeCoreHtmlScriptRuns(out);
             }
@@ -664,6 +675,57 @@ public final class DocxToHtmlConverter {
         } finally {
             stageHtmlCleanupNanos.addAndGet(System.nanoTime() - start);
         }
+    }
+
+    private String normalizeContextualBetaMinusFromEmptyBaseMsuP(String html) {
+        if (html == null || html.isBlank()) {
+            return html;
+        }
+        Matcher matcher = EMPTY_BASE_MINUS_MSUP_MATH_INLINE_PATTERN.matcher(html);
+        StringBuffer out = null;
+        int hitCount = 0;
+        while (matcher.find()) {
+            int contextStart = Math.max(0, matcher.start() - 260);
+            int contextEnd = Math.min(html.length(), matcher.end() + 260);
+            String contextWindow = html.substring(contextStart, contextEnd);
+            if (!containsRadiationNotationContext(contextWindow)) {
+                continue;
+            }
+            if (out == null) {
+                out = new StringBuffer(html.length() + 32);
+            }
+            hitCount++;
+            matcher.appendReplacement(out, Matcher.quoteReplacement(
+                    "<span class=\"math-inline mathml\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msup><mi>β</mi><mo>−</mo></msup></math></span>"
+            ));
+        }
+        if (out == null || hitCount == 0) {
+            return html;
+        }
+        matcher.appendTail(out);
+        normalizedTextFixCounter.addAndGet(hitCount);
+        return out.toString();
+    }
+
+    private static boolean containsRadiationNotationContext(String htmlWindow) {
+        if (htmlWindow == null || htmlWindow.isBlank()) {
+            return false;
+        }
+        String plain = HTML_TAG_PATTERN.matcher(htmlWindow).replaceAll(" ").toLowerCase(Locale.ROOT);
+        String ascii = DIACRITIC_MARK_PATTERN.matcher(Normalizer.normalize(plain, Normalizer.Form.NFD))
+                .replaceAll("")
+                .toLowerCase(Locale.ROOT);
+        return plain.contains("tia")
+                || plain.contains("phóng xạ")
+                || plain.contains("đồng vị")
+                || plain.contains("hạt nhân")
+                || plain.contains("cacbon")
+                || plain.contains("c-14")
+                || plain.contains("phân rã")
+                || ascii.contains("phong xa")
+                || ascii.contains("dong vi")
+                || ascii.contains("hat nhan")
+                || ascii.contains("phan ra");
     }
 
     private static String normalizeInlineSpacing(String html) {
@@ -716,8 +778,57 @@ public final class DocxToHtmlConverter {
             return rawText;
         }
         String out = Normalizer.normalize(rawText, Normalizer.Form.NFC);
+        ReplacementOutcome legacySymbolOutcome = normalizeLegacySymbolGlyphs(out);
+        if (countFixes && legacySymbolOutcome.hitCount() > 0) {
+            normalizedTextFixCounter.addAndGet(legacySymbolOutcome.hitCount());
+        }
+        out = legacySymbolOutcome.replaced();
         out = applyDeterministicTextRules(out, countFixes);
         return out;
+    }
+
+    private static ReplacementOutcome normalizeLegacySymbolGlyphs(String input) {
+        if (input == null || input.isEmpty()) {
+            return new ReplacementOutcome(input, 0);
+        }
+        StringBuilder out = null;
+        int hitCount = 0;
+        int len = input.length();
+        for (int i = 0; i < len; i++) {
+            char ch = input.charAt(i);
+            String mapped = switch (ch) {
+                case '\uf061' -> "α";
+                case '\uf062' -> "β";
+                case '\uf067' -> "γ";
+                case '\uf070' -> "π";
+                case '\uf077' -> "ω";
+                case '\uf057' -> "Ω";
+                case '\uf044' -> "Δ";
+                case '\uf0ae' -> "→";
+                case '\uf0b0' -> "°";
+                case '\uf0b4' -> "×";
+                case '\uf02d' -> "−";
+                case '\uf0bb' -> "≈";
+                case '\uf0b7' -> "•";
+                default -> null;
+            };
+            if (mapped == null) {
+                if (out != null) {
+                    out.append(ch);
+                }
+                continue;
+            }
+            if (out == null) {
+                out = new StringBuilder(len + 16);
+                out.append(input, 0, i);
+            }
+            out.append(mapped);
+            hitCount++;
+        }
+        if (out == null) {
+            return new ReplacementOutcome(input, 0);
+        }
+        return new ReplacementOutcome(out.toString(), hitCount);
     }
 
     private String applyDeterministicTextRules(String input, boolean countFixes) {
@@ -2009,6 +2120,7 @@ public final class DocxToHtmlConverter {
         int beforeMalformedMathBlockFlowCount = countMalformedMathBlockFlowIssues(bodyHtml);
 
         String out = normalizeMalformedMathBlockFlow(bodyHtml);
+        out = promoteStandaloneQuestionImageParagraphs(out);
         out = suppressBlankStandaloneInlineImageParagraphs(out, assetDir);
         out = suppressNonessentialStandaloneContextImageParagraphs(out);
         out = stripEmptyParagraphChains(out, EMPTY_PARAGRAPH_CHAIN_BEFORE_DOCX_TABLE_PATTERN, matcher -> "");
@@ -2030,6 +2142,34 @@ public final class DocxToHtmlConverter {
         tableCellEmptyParagraphRemovedCounter.addAndGet(Math.max(0, beforeTableCellEmptyParagraphCount - afterTableCellEmptyParagraphCount));
         mathBlockFlowCleanupCounter.addAndGet(Math.max(0, beforeMalformedMathBlockFlowCount - afterMalformedMathBlockFlowCount));
         return out;
+    }
+
+    private String promoteStandaloneQuestionImageParagraphs(String bodyHtml) {
+        if (bodyHtml == null || bodyHtml.isBlank()) {
+            return bodyHtml;
+        }
+        Matcher matcher = STANDALONE_QUESTION_IMAGE_PARAGRAPH_PATTERN.matcher(bodyHtml);
+        StringBuffer out = null;
+        int promotedCount = 0;
+        while (matcher.find()) {
+            String imageTag = Objects.toString(matcher.group("img"), "");
+            Map<String, String> attrs = parseTagAttributes(imageTag);
+            if (!attrs.containsKey("data-ole-kind") && !attrs.containsKey("data-fallback-type")) {
+                continue;
+            }
+            if (out == null) {
+                out = new StringBuffer(bodyHtml.length() + 96);
+            }
+            String replacement = buildEssayFigureBlock(imageTag, FigureRole.ESSENTIAL);
+            matcher.appendReplacement(out, Matcher.quoteReplacement(replacement));
+            promotedCount++;
+        }
+        if (out == null || promotedCount == 0) {
+            return bodyHtml;
+        }
+        matcher.appendTail(out);
+        normalizedTextFixCounter.addAndGet(promotedCount);
+        return out.toString();
     }
 
     private String suppressBlankStandaloneInlineImageParagraphs(String bodyHtml, Path assetDir) {
@@ -3347,6 +3487,52 @@ public final class DocxToHtmlConverter {
                 || lower.endsWith(".svg");
     }
 
+    private static String sniffWebImageExtension(Path imagePath) throws IOException {
+        byte[] header = new byte[16];
+        int read;
+        try (InputStream in = Files.newInputStream(imagePath)) {
+            read = in.read(header);
+        }
+        if (read >= 8
+                && (header[0] & 0xff) == 0x89
+                && header[1] == 'P'
+                && header[2] == 'N'
+                && header[3] == 'G'
+                && header[4] == 0x0d
+                && header[5] == 0x0a
+                && header[6] == 0x1a
+                && header[7] == 0x0a) {
+            return ".png";
+        }
+        if (read >= 3
+                && (header[0] & 0xff) == 0xff
+                && (header[1] & 0xff) == 0xd8
+                && (header[2] & 0xff) == 0xff) {
+            return ".jpg";
+        }
+        if (read >= 6
+                && header[0] == 'G'
+                && header[1] == 'I'
+                && header[2] == 'F'
+                && header[3] == '8'
+                && (header[4] == '7' || header[4] == '9')
+                && header[5] == 'a') {
+            return ".gif";
+        }
+        if (read >= 12
+                && header[0] == 'R'
+                && header[1] == 'I'
+                && header[2] == 'F'
+                && header[3] == 'F'
+                && header[8] == 'W'
+                && header[9] == 'E'
+                && header[10] == 'B'
+                && header[11] == 'P') {
+            return ".webp";
+        }
+        return "";
+    }
+
     private String guessRelatedExtension(XWPFDocument doc, String relId) {
         if (relId == null || relId.isBlank()) {
             return "";
@@ -3487,14 +3673,32 @@ public final class DocxToHtmlConverter {
             Files.copy(in, out, StandardCopyOption.REPLACE_EXISTING);
         }
         String relativePath = assetDir.getFileName() + "/" + fileName;
+        if (!isWebRenderableImage(fileName) && !isMetafileExtension(normalizedExtension)) {
+            String sniffedWebExtension = sniffWebImageExtension(out);
+            if (!sniffedWebExtension.isBlank()) {
+                Path promoted = assetDir.resolve(fileBase + sniffedWebExtension);
+                Files.move(out, promoted, StandardCopyOption.REPLACE_EXISTING);
+                relativePath = assetDir.getFileName() + "/" + promoted.getFileName();
+                SavedBinary saved = new SavedBinary(relativePath, normalizedExtension, false);
+                savedAssetByRelationship.put(relId, saved);
+                return saved;
+            }
+        }
         if (rasterizeMetafiles && isMetafileExtension(normalizedExtension)) {
             Path svgOutput = assetDir.resolve(fileBase + ".svg");
             boolean shouldRenderSvg = oleKind != OleKind.EQUATION;
             if (shouldRenderSvg && renderMetafileToSvg(out, svgOutput)) {
                 Files.deleteIfExists(out);
                 relativePath = assetDir.getFileName() + "/" + svgOutput.getFileName();
-                if (oleKind == OleKind.CHEMICAL_DIAGRAM && trimSvgByBoundingBoxes(svgOutput)) {
+                if ((oleKind == OleKind.CHEMICAL_DIAGRAM
+                        || oleKind == OleKind.DIAGRAM
+                        || oleKind == OleKind.ILLUSTRATION)
+                        && trimSvgByBoundingBoxes(svgOutput)) {
+                    // Preserve existing marker for chemical diagram assets while also trimming
+                    // oversized canvas whitespace for diagram/illustration SVG exports.
+                    if (oleKind == OleKind.CHEMICAL_DIAGRAM) {
                     trimmedChemicalDiagramAssets.add(relativePath);
+                    }
                 }
                 SavedBinary saved = new SavedBinary(relativePath, normalizedExtension, false);
                 savedAssetByRelationship.put(relId, saved);
