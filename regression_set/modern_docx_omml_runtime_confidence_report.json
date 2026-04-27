@@ -1,0 +1,116 @@
+{
+  "schema_version": "modern_docx_omml_runtime_confidence.v1",
+  "generated_at_utc": "2026-04-24T17:24:14+00:00",
+  "scope": {
+    "modern_docx_only": true,
+    "no_behavior_redesign": true,
+    "inventory": "regression_set/modern_docx_omml_inventory.json",
+    "runtime_cases": [
+      "modern_inline_omml_sample",
+      "modern_block_omml_sample",
+      "modern_mixed_block_inline_sample",
+      "modern_supported_multi_equation_paragraph"
+    ]
+  },
+  "patch_docx_runtime": {
+    "cases_measured": [
+      {
+        "case_id": "modern_inline_omml_sample",
+        "source_docx": "samples/sample-inline-omml.docx",
+        "runtime_ms": 731.441,
+        "patch_summary": {
+          "scanned": 1,
+          "native": 1,
+          "unresolved": 0,
+          "skipped_multi": 0
+        },
+        "optimization_signal": "native_present_no_op_dominant",
+        "output_docx": "out/modern-docx-omml-runtime-confidence/modern_inline_omml_sample.runtime.generated.docx",
+        "patch_summary_jsonl": "out/modern-docx-omml-runtime-confidence/modern_inline_omml_sample.runtime.patch-summary.jsonl"
+      },
+      {
+        "case_id": "modern_block_omml_sample",
+        "source_docx": "samples/sample-block-omml.docx",
+        "runtime_ms": 568.928,
+        "patch_summary": {
+          "scanned": 1,
+          "native": 1,
+          "unresolved": 0,
+          "skipped_multi": 0
+        },
+        "optimization_signal": "native_present_no_op_dominant",
+        "output_docx": "out/modern-docx-omml-runtime-confidence/modern_block_omml_sample.runtime.generated.docx",
+        "patch_summary_jsonl": "out/modern-docx-omml-runtime-confidence/modern_block_omml_sample.runtime.patch-summary.jsonl"
+      },
+      {
+        "case_id": "modern_mixed_block_inline_sample",
+        "source_docx": "samples/sample-omml.docx",
+        "runtime_ms": 590.578,
+        "patch_summary": {
+          "scanned": 2,
+          "native": 2,
+          "unresolved": 0,
+          "skipped_multi": 0
+        },
+        "optimization_signal": "native_present_no_op_dominant",
+        "output_docx": "out/modern-docx-omml-runtime-confidence/modern_mixed_block_inline_sample.runtime.generated.docx",
+        "patch_summary_jsonl": "out/modern-docx-omml-runtime-confidence/modern_mixed_block_inline_sample.runtime.patch-summary.jsonl"
+      },
+      {
+        "case_id": "modern_supported_multi_equation_paragraph",
+        "source_docx": "samples/sample-multi-inline-omml.docx",
+        "runtime_ms": 557.0,
+        "patch_summary": {
+          "scanned": 1,
+          "native": 1,
+          "unresolved": 0,
+          "skipped_multi": 0
+        },
+        "optimization_signal": "native_present_no_op_dominant",
+        "output_docx": "out/modern-docx-omml-runtime-confidence/modern_supported_multi_equation_paragraph.runtime.generated.docx",
+        "patch_summary_jsonl": "out/modern-docx-omml-runtime-confidence/modern_supported_multi_equation_paragraph.runtime.patch-summary.jsonl"
+      }
+    ],
+    "runtime_ranking_fast_to_slow": [
+      {
+        "case_id": "modern_supported_multi_equation_paragraph",
+        "runtime_ms": 557.0
+      },
+      {
+        "case_id": "modern_block_omml_sample",
+        "runtime_ms": 568.928
+      },
+      {
+        "case_id": "modern_mixed_block_inline_sample",
+        "runtime_ms": 590.578
+      },
+      {
+        "case_id": "modern_inline_omml_sample",
+        "runtime_ms": 731.441
+      }
+    ],
+    "summary": {
+      "count": 4,
+      "min_ms": 557.0,
+      "max_ms": 731.441,
+      "mean_ms": 611.987,
+      "median_ms": 579.753,
+      "spread_ratio_max_to_min": 1.313
+    },
+    "optimization_signal_summary": {
+      "native_present_no_op_dominant_cases": 4,
+      "total_cases": 4
+    }
+  },
+  "generated_output_gate_runtime": {
+    "command": "python3 scripts/workflow/run_modern_docx_omml_generated_output_gate.py",
+    "runtime_ms": 2269.526,
+    "exit_code": 0,
+    "summary_line": "Summary: cases=4 passed=4 expected_failed=0 unexpected_failed=0 skipped=0 structural_failed_checks=0"
+  },
+  "notable_asymmetries": [],
+  "runtime_confidence": {
+    "adequate_for_current_practical_modern_baseline": true,
+    "judgment": "runtime surface is operationally stable for the current practical modern baseline"
+  }
+}

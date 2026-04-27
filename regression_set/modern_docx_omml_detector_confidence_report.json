@@ -1,0 +1,137 @@
+{
+  "schema_version": "modern_docx_omml_detector_confidence.v1",
+  "generated_at_utc": "2026-04-24T17:03:09+00:00",
+  "scope": {
+    "mode": "detector_classification_only",
+    "modern_docx_only": true,
+    "patch_behavior_changed": false,
+    "corpus_sources": [
+      "supported source_docx from regression_set/modern_docx_omml_inventory.json (repo-tracked only)",
+      "repo-tracked DOCX under samples/",
+      "repo-tracked DOCX under regression_set/"
+    ]
+  },
+  "files_inspected_count": 5,
+  "files_inspected": [
+    {
+      "file": "samples/sample-block-omml.docx",
+      "shape_family": "block_only",
+      "native_omml_present": true,
+      "inline_candidate": false,
+      "block_candidate": true,
+      "mixed_object_omml": false,
+      "skip_classification": "",
+      "unresolved_classification": "",
+      "omath_count": 1,
+      "inline_omath_count": 0,
+      "omathpara_count": 1,
+      "w_object_count": 0,
+      "object_like_tag_count": 0,
+      "document_xml_exists": true,
+      "document_xml_parseable": true
+    },
+    {
+      "file": "samples/sample-inline-omml.docx",
+      "shape_family": "inline_only",
+      "native_omml_present": true,
+      "inline_candidate": true,
+      "block_candidate": false,
+      "mixed_object_omml": false,
+      "skip_classification": "",
+      "unresolved_classification": "",
+      "omath_count": 1,
+      "inline_omath_count": 1,
+      "omathpara_count": 0,
+      "w_object_count": 0,
+      "object_like_tag_count": 0,
+      "document_xml_exists": true,
+      "document_xml_parseable": true
+    },
+    {
+      "file": "samples/sample-malformed-document-xml.docx",
+      "shape_family": "malformed_or_unparseable",
+      "native_omml_present": false,
+      "inline_candidate": false,
+      "block_candidate": false,
+      "mixed_object_omml": false,
+      "skip_classification": "skip_document_xml_unparseable",
+      "unresolved_classification": "",
+      "omath_count": 0,
+      "inline_omath_count": 0,
+      "omathpara_count": 0,
+      "w_object_count": 0,
+      "object_like_tag_count": 0,
+      "document_xml_exists": true,
+      "document_xml_parseable": false
+    },
+    {
+      "file": "samples/sample-multi-inline-omml.docx",
+      "shape_family": "inline_only",
+      "native_omml_present": true,
+      "inline_candidate": true,
+      "block_candidate": false,
+      "mixed_object_omml": false,
+      "skip_classification": "",
+      "unresolved_classification": "",
+      "omath_count": 2,
+      "inline_omath_count": 2,
+      "omathpara_count": 0,
+      "w_object_count": 0,
+      "object_like_tag_count": 0,
+      "document_xml_exists": true,
+      "document_xml_parseable": true
+    },
+    {
+      "file": "samples/sample-omml.docx",
+      "shape_family": "mixed_inline_block",
+      "native_omml_present": true,
+      "inline_candidate": true,
+      "block_candidate": true,
+      "mixed_object_omml": false,
+      "skip_classification": "",
+      "unresolved_classification": "",
+      "omath_count": 2,
+      "inline_omath_count": 1,
+      "omathpara_count": 1,
+      "w_object_count": 0,
+      "object_like_tag_count": 0,
+      "document_xml_exists": true,
+      "document_xml_parseable": true
+    }
+  ],
+  "coverage": {
+    "native_omml_present": {
+      "files": 4,
+      "total": 5
+    },
+    "inline_candidate": {
+      "files": 3,
+      "total": 5
+    },
+    "block_candidate": {
+      "files": 2,
+      "total": 5
+    },
+    "mixed_object_omml": {
+      "files": 0,
+      "total": 5
+    },
+    "skip_classifications": {
+      "skip_document_xml_unparseable": 1
+    },
+    "unresolved_classifications": {}
+  },
+  "detected_case_families": {
+    "block_only": 1,
+    "inline_only": 2,
+    "malformed_or_unparseable": 1,
+    "mixed_inline_block": 1
+  },
+  "thin_spots_or_asymmetries": [
+    "no mixed embedded-object + OMML case observed in repo-tracked corpus slice"
+  ],
+  "confidence_assessment": {
+    "adequate_for_current_practical_modern_baseline": true,
+    "reason": "baseline coverage includes native OMML, inline candidates, block candidates, and no unresolved classifications"
+  }
+}

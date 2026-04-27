@@ -1,0 +1,177 @@
+{
+  "schema_version": "modern_docx_omml_regression.v1",
+  "description": "Planning scaffold for the active modern DOCX + OMML regression pack. This inventory is for supported modern .docx files and modern-scope negative package cases only.",
+  "acceptance_criteria": [
+    "word_reopens_safely",
+    "equation_count_preserved",
+    "block_inline_placement_preserved",
+    "valid_omath_omathpara_structure"
+  ],
+  "cases": [
+    {
+      "case_id": "modern_block_omml_sample",
+      "status": "active",
+      "source_docx": "samples/sample-block-omml.docx",
+      "classification": "supported",
+      "expected": {
+        "document_xml_exists": true,
+        "document_xml_parseable": true,
+        "equation_count": 1,
+        "block_equation_count": 1,
+        "inline_equation_count": 0,
+        "appears_inline_math": false,
+        "appears_block_math": true,
+        "basic_omml_structure_present": true,
+        "placement_summary": "one block oMathPara and no inline oMath",
+        "word_reopens_safely": true,
+        "valid_omath_omathpara_structure": true
+      },
+      "notes": [
+        "OMML-native block equation sample",
+        "small OMML-native DOCX fixture with one block oMathPara and no inline oMath"
+      ]
+    },
+    {
+      "case_id": "modern_inline_omml_sample",
+      "status": "active",
+      "source_docx": "samples/sample-inline-omml.docx",
+      "classification": "supported",
+      "expected": {
+        "document_xml_exists": true,
+        "document_xml_parseable": true,
+        "equation_count": 1,
+        "block_equation_count": 0,
+        "inline_equation_count": 1,
+        "appears_inline_math": true,
+        "appears_block_math": false,
+        "basic_omml_structure_present": true,
+        "placement_summary": "one inline oMath and no oMathPara",
+        "word_reopens_safely": true,
+        "valid_omath_omathpara_structure": true
+      },
+      "notes": [
+        "OMML-native inline equation sample",
+        "small OMML-native DOCX fixture with one inline oMath and no oMathPara"
+      ]
+    },
+    {
+      "case_id": "modern_mixed_block_inline_sample",
+      "status": "active",
+      "source_docx": "samples/sample-omml.docx",
+      "classification": "supported",
+      "expected": {
+        "document_xml_exists": true,
+        "document_xml_parseable": true,
+        "equation_count": 2,
+        "block_equation_count": 1,
+        "inline_equation_count": 1,
+        "appears_inline_math": true,
+        "appears_block_math": true,
+        "basic_omml_structure_present": true,
+        "placement_summary": "one inline oMath and one block oMathPara",
+        "word_reopens_safely": true,
+        "valid_omath_omathpara_structure": true
+      },
+      "notes": [
+        "supported mixed block + inline sample",
+        "small OMML-native DOCX fixture with one inline oMath and one block oMathPara"
+      ]
+    },
+    {
+      "case_id": "modern_supported_multi_equation_paragraph",
+      "status": "active",
+      "source_docx": "samples/sample-multi-inline-omml.docx",
+      "classification": "supported",
+      "expected": {
+        "document_xml_exists": true,
+        "document_xml_parseable": true,
+        "equation_count": 2,
+        "block_equation_count": 0,
+        "inline_equation_count": 2,
+        "appears_inline_math": true,
+        "appears_block_math": false,
+        "basic_omml_structure_present": true,
+        "placement_summary": "one paragraph with two inline oMath elements and no oMathPara",
+        "word_reopens_safely": true,
+        "valid_omath_omathpara_structure": true
+      },
+      "notes": [
+        "supported multi-equation paragraph sample",
+        "small OMML-native DOCX fixture with two inline equations in one paragraph"
+      ]
+    },
+    {
+      "case_id": "modern_patchable_modern_object_path_sample",
+      "status": "local_only",
+      "source_docx": "in/Hoa_Ha_Noi_L1.docx",
+      "classification": "supported",
+      "expected": {
+        "document_xml_exists": true,
+        "document_xml_parseable": true,
+        "equation_count": 3,
+        "block_equation_count": 0,
+        "inline_equation_count": 3,
+        "appears_inline_math": true,
+        "appears_block_math": false,
+        "basic_omml_structure_present": true,
+        "placement_summary": "inline OMML only: inline_oMath=3",
+        "word_reopens_safely": true,
+        "valid_omath_omathpara_structure": true
+      },
+      "notes": [
+        "real modern DOCX with native OMML and object-path content in the same package",
+        "expands confidence for modern object-path/no-op native-present behavior under real corpus input",
+        "local corpus confidence case; excluded from default CI-required smoke/generated-output gate paths"
+      ]
+    },
+    {
+      "case_id": "modern_mixed_block_object_path_sample",
+      "status": "local_only",
+      "source_docx": "in/Hoa50/Đề 26. MHTHPT 2024 - TRẦN THANH HIÊN - QUẢNG NGÃI. đã sửa.docx",
+      "classification": "supported",
+      "expected": {
+        "document_xml_exists": true,
+        "document_xml_parseable": true,
+        "equation_count": 16,
+        "block_equation_count": 2,
+        "inline_equation_count": 14,
+        "appears_inline_math": true,
+        "appears_block_math": true,
+        "basic_omml_structure_present": true,
+        "placement_summary": "mixed inline/block OMML: inline_oMath=14 oMathPara=2",
+        "word_reopens_safely": true,
+        "valid_omath_omathpara_structure": true
+      },
+      "notes": [
+        "real modern DOCX with mixed inline+block native OMML and object-path content",
+        "expands practical acceptance confidence on a larger real mixed-structure corpus input",
+        "local corpus confidence case; excluded from default CI-required smoke/generated-output gate paths"
+      ]
+    },
+    {
+      "case_id": "modern_negative_malformed_or_unsupported_package",
+      "status": "active",
+      "source_docx": "samples/sample-malformed-document-xml.docx",
+      "classification": "out_of_scope",
+      "expected_status": "failed",
+      "expected": {
+        "document_xml_exists": true,
+        "document_xml_parseable": false,
+        "equation_count": 0,
+        "block_equation_count": 0,
+        "inline_equation_count": 0,
+        "appears_inline_math": false,
+        "appears_block_math": false,
+        "basic_omml_structure_present": false,
+        "placement_summary": "malformed word/document.xml is rejected before placement classification",
+        "failure_summary": "word/document.xml exists but is not parseable XML",
+        "word_reopens_safely": false,
+        "valid_omath_omathpara_structure": false
+      },
+      "notes": [
+        "negative modern-scope DOCX package case",
+        "locks controlled validator failure for malformed word/document.xml"
+      ]
+    }
+  ]
+}

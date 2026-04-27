@@ -1,0 +1,79 @@
+{
+  "schema_version": "modern_docx_omml_list_style_preservation_mini_target.v1",
+  "cases": [
+    {
+      "case_id": "toan_phi_list_style_short_labels",
+      "source_docx": "in/Toan_Phi.docx",
+      "patched_docx": "out/docx-patch-smoke/Toan_Phi-omml-smoke-listfix-check.docx",
+      "old_rule_block_risk_candidate_count": 75,
+      "patched_candidate_count": 75,
+      "retained_label_count": 75,
+      "dropped_label_count": 0,
+      "representative_examples": [
+        {
+          "paragraph_index": 6,
+          "source_compact_text": "A.",
+          "output_compact_text": "A.",
+          "retained": true
+        },
+        {
+          "paragraph_index": 7,
+          "source_compact_text": "B.",
+          "output_compact_text": "B.",
+          "retained": true
+        },
+        {
+          "paragraph_index": 8,
+          "source_compact_text": "C.",
+          "output_compact_text": "C.",
+          "retained": true
+        },
+        {
+          "paragraph_index": 9,
+          "source_compact_text": "D.",
+          "output_compact_text": "D.",
+          "retained": true
+        }
+      ],
+      "expected_improvement_criterion": "For patched list-like short-label object paragraphs, prefix/list label token remains present in output text."
+    },
+    {
+      "case_id": "toan_deso_11_tb_list_style_short_labels",
+      "source_docx": "in/Toan_deso_11_TB.docx",
+      "patched_docx": "out/docx-patch-smoke/Toan_deso_11_TB-omml-smoke-listfix-check.docx",
+      "old_rule_block_risk_candidate_count": 5,
+      "patched_candidate_count": 10,
+      "retained_label_count": 10,
+      "dropped_label_count": 0,
+      "representative_examples": [
+        {
+          "paragraph_index": 43,
+          "source_compact_text": "c)",
+          "output_compact_text": "c)",
+          "retained": true
+        },
+        {
+          "paragraph_index": 89,
+          "source_compact_text": "Tacó.",
+          "output_compact_text": "Tacó.",
+          "retained": true
+        },
+        {
+          "paragraph_index": 103,
+          "source_compact_text": "Cỡmẫu:.",
+          "output_compact_text": "Cỡmẫu:.",
+          "retained": true
+        },
+        {
+          "paragraph_index": 106,
+          "source_compact_text": ".",
+          "output_compact_text": ".",
+          "retained": true
+        }
+      ],
+      "expected_improvement_criterion": "For patched list-like short-label object paragraphs, prefix/list label token remains present in output text."
+    }
+  ],
+  "root_cause_classification": "paragraph replacement/reclassification during block patching for short-text single-object paragraphs (list-like paragraphs should stay inline).",
+  "fix_scope": "narrow detector guard: avoid block classification for list-like paragraph properties (numPr/ind) and list-label short text tokens."
+}

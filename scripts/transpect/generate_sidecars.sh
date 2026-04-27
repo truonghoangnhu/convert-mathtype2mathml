@@ -62,6 +62,34 @@ mkdir -p \
 rm -f "$OUT_DIR/manifest.tsv" "$OUT_DIR/timings.tsv"
 echo "[INFO] Persistent cache dir: $CACHE_DIR"
 
+URI_SAFE_ROOT=$(python3 - <<'PY'
+import tempfile
+print(tempfile.mkdtemp(prefix="docxmath_uri_"))
+PY
+)
+cleanup_uri_safe_root() {
+  rm -rf "$URI_SAFE_ROOT" >/dev/null 2>&1 || true
+}
+trap cleanup_uri_safe_root EXIT
+
+uri_safe_path() {
+  python3 - <<'PY' "$1" "$URI_SAFE_ROOT"
+import hashlib
+import os
+import sys
+from pathlib import Path
+
+source = Path(sys.argv[1]).resolve()
+safe_root = Path(sys.argv[2])
+safe_root.mkdir(parents=True, exist_ok=True)
+suffix = source.suffix if source.is_file() else ""
+safe = safe_root / (hashlib.sha256(str(source).encode("utf-8")).hexdigest() + suffix)
+if not safe.exists():
+    os.symlink(source, safe, target_is_directory=source.is_dir())
+print(safe)
+PY
+}
+
 JRUBY_JAR=$(find "$MATHTYPE_DIR/lib" -maxdepth 1 -type f -name 'jruby-complete-*.jar' | sort | tail -n 1)
 if [ -z "$JRUBY_JAR" ]; then
   echo "Could not find jruby-complete-*.jar in $MATHTYPE_DIR/lib" >&2
@@ -193,20 +221,24 @@ run_batch() {
 
   local source_uri
   local target_uri
+  local source_dir_for_uri
+  local target_dir_for_uri
   local before_count
-  source_uri=$(python3 - <<'PY' "$source_dir"
+  source_dir_for_uri=$(uri_safe_path "$source_dir")
+  target_dir_for_uri=$(uri_safe_path "$target_dir")
+  source_uri=$(python3 - <<'PY' "$source_dir_for_uri"
 from pathlib import Path
 import sys
-uri = Path(sys.argv[1]).resolve().as_uri()
+uri = Path(sys.argv[1]).absolute().as_uri()
 if not uri.endswith('/'):
     uri += '/'
 print(uri)
 PY
 )
-  target_uri=$(python3 - <<'PY' "$target_dir"
+  target_uri=$(python3 - <<'PY' "$target_dir_for_uri"
 from pathlib import Path
 import sys
-uri = Path(sys.argv[1]).resolve().as_uri()
+uri = Path(sys.argv[1]).absolute().as_uri()
 if not uri.endswith('/'):
     uri += '/'
 print(uri)
@@ -221,7 +253,7 @@ PY
   if [ -n "$TRANSPECT_CONFIG" ]; then
     calabash_cmd+=( -c "$TRANSPECT_CONFIG" )
   fi
-  calabash_cmd+=( "$BATCH_XPL" "source-dir=$source_dir" "source-dir-uri=$source_uri" "target-dir-uri=$target_uri" "include-filter=$include_filter" )
+  calabash_cmd+=( "$BATCH_XPL" "source-dir=$source_dir_for_uri" "source-dir-uri=$source_uri" "target-dir-uri=$target_uri" "include-filter=$include_filter" )
 
   "${calabash_cmd[@]}" > "$OUT_DIR/tmp/${phase_name}.xml" 2> "$OUT_DIR/tmp/${phase_name}.log"
   local output_count
@@ -244,10 +276,12 @@ run_single_file() {
   fi
 
   local file_uri
-  file_uri=$(python3 - <<'PY' "$source_file"
+  local source_file_for_uri
+  source_file_for_uri=$(uri_safe_path "$source_file")
+  file_uri=$(python3 - <<'PY' "$source_file_for_uri"
 from pathlib import Path
 import sys
-print(Path(sys.argv[1]).resolve().as_uri())
+print(Path(sys.argv[1]).absolute().as_uri())
 PY
 )
 
