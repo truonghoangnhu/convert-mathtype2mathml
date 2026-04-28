@@ -412,6 +412,8 @@ public final class DocxToHtmlConverter {
     private final Set<String> trimmedChemicalDiagramAssets = new HashSet<>();
     private final Map<String, GenericInlineTrimResult> genericInlineTrimByAsset = new HashMap<>();
     private final Path metafileRasterCacheDir = initMetafileRasterCacheDir();
+    private final Set<String> warnedMalformedRelationshipKeys = new HashSet<>();
+    private String currentSourceDocxContext = "";
 
     public DocxToHtmlConverter(boolean includeMathJax) {
         this(includeMathJax, MathmlSidecarRegistry.empty(), Subject.GENERIC, OutputMode.PUBLISH);
@@ -455,85 +457,93 @@ public final class DocxToHtmlConverter {
         Path assetDir = parent.resolve(baseName + "_files");
         Files.createDirectories(assetDir);
 
-        long openStart = System.nanoTime();
-        try (InputStream is = Files.newInputStream(inputDocx);
-             XWPFDocument doc = new XWPFDocument(is)) {
-            stageDocxLoadNanos.addAndGet(System.nanoTime() - openStart);
+        String previousDocxContext = currentSourceDocxContext;
+        currentSourceDocxContext = inputDocx.toAbsolutePath().normalize().toString();
+        warnedMalformedRelationshipKeys.clear();
+        try {
+            long openStart = System.nanoTime();
+            try (InputStream is = Files.newInputStream(inputDocx);
+                 XWPFDocument doc = new XWPFDocument(is)) {
+                stageDocxLoadNanos.addAndGet(System.nanoTime() - openStart);
 
-            long bodyRenderStart = System.nanoTime();
-            StringBuilder body = new StringBuilder(16_384);
-            for (IBodyElement element : doc.getBodyElements()) {
-                body.append(renderBodyElement(element, doc, assetDir));
+                long bodyRenderStart = System.nanoTime();
+                StringBuilder body = new StringBuilder(16_384);
+                for (IBodyElement element : doc.getBodyElements()) {
+                    body.append(renderBodyElement(element, doc, assetDir));
+                }
+                stageBodyRenderNanos.addAndGet(System.nanoTime() - bodyRenderStart);
+
+                long essayPolicyStart = System.nanoTime();
+                String bodyHtml = applyEssayFigurePlacementPolicy(body.toString());
+                stageEssayPolicyNanos.addAndGet(System.nanoTime() - essayPolicyStart);
+
+                long structuralCleanupStart = System.nanoTime();
+                bodyHtml = applyCoreStructuralHtmlCleanup(bodyHtml, assetDir);
+                stageHtmlCleanupNanos.addAndGet(System.nanoTime() - structuralCleanupStart);
+
+                long buildHtmlStart = System.nanoTime();
+                String html = buildHtmlDocument(inputDocx.getFileName().toString(), bodyHtml);
+                stageHtmlBuildNanos.addAndGet(System.nanoTime() - buildHtmlStart);
+
+                if (outputMode == OutputMode.PUBLISH) {
+                    long sanitizeStart = System.nanoTime();
+                    html = sanitizePublishHtmlOutput(html);
+                    stagePublishSanitizeNanos.addAndGet(System.nanoTime() - sanitizeStart);
+                }
+
+                long writeStart = System.nanoTime();
+                Files.writeString(normalizedOutput, html, StandardCharsets.UTF_8);
+                stageHtmlWriteNanos.addAndGet(System.nanoTime() - writeStart);
             }
-            stageBodyRenderNanos.addAndGet(System.nanoTime() - bodyRenderStart);
 
-            long essayPolicyStart = System.nanoTime();
-            String bodyHtml = applyEssayFigurePlacementPolicy(body.toString());
-            stageEssayPolicyNanos.addAndGet(System.nanoTime() - essayPolicyStart);
-
-            long structuralCleanupStart = System.nanoTime();
-            bodyHtml = applyCoreStructuralHtmlCleanup(bodyHtml, assetDir);
-            stageHtmlCleanupNanos.addAndGet(System.nanoTime() - structuralCleanupStart);
-
-            long buildHtmlStart = System.nanoTime();
-            String html = buildHtmlDocument(inputDocx.getFileName().toString(), bodyHtml);
-            stageHtmlBuildNanos.addAndGet(System.nanoTime() - buildHtmlStart);
-
-            if (outputMode == OutputMode.PUBLISH) {
-                long sanitizeStart = System.nanoTime();
-                html = sanitizePublishHtmlOutput(html);
-                stagePublishSanitizeNanos.addAndGet(System.nanoTime() - sanitizeStart);
-            }
-
-            long writeStart = System.nanoTime();
-            Files.writeString(normalizedOutput, html, StandardCharsets.UTF_8);
-            stageHtmlWriteNanos.addAndGet(System.nanoTime() - writeStart);
+            return new ConversionSummary(
+                    ommlCounter.get(),
+                    sidecarMathmlCounter.get(),
+                    olePreviewCounter.get(),
+                    olePlaceholderCounter.get(),
+                    dsmt4TotalCounter.get(),
+                    dsmt4SidecarResolvedCounter.get(),
+                    dsmt4UnresolvedCounter.get(),
+                    dsmt4ManifestMissingCounter.get(),
+                    dsmt4ManifestMismatchCounter.get(),
+                    dsmt4FallbackPlaceholderCounter.get(),
+                    oleEquationPreviewCounter.get(),
+                    oleDiagramPreviewCounter.get(),
+                    oleIllustrationPreviewCounter.get(),
+                    emfWmfPreviewCounter.get(),
+                    unresolvedVisioPreviewCounter.get(),
+                    normalizedTextFixCounter.get(),
+                    chemistryInlineFixCounter.get(),
+                    chemistryArrowSymbolFixCounter.get(),
+                    chemistryUnitFixCounter.get(),
+                    physicsUnitFixCounter.get(),
+                    physicsTextFixCounter.get(),
+                    mixedMathTextCleanupCounter.get(),
+                    mathGlyphCleanupCounter.get(),
+                    emptyParagraphRemovedCounter.get(),
+                    tableAdjacentEmptyParagraphCleanupCounter.get(),
+                    tableCellEmptyParagraphRemovedCounter.get(),
+                    mathBlockFlowCleanupCounter.get(),
+                    suppressedBlankStandaloneImageCounter.get(),
+                    suppressedNonessentialStandaloneImageCounter.get(),
+                    restoredContextImageCounter.get(),
+                    rasterizedMetafileCounter.get(),
+                    rasterizedMetafileCacheHitCounter.get(),
+                    nanosToMillis(stageDocxLoadNanos.get()),
+                    nanosToMillis(stageBodyRenderNanos.get()),
+                    nanosToMillis(stageEssayPolicyNanos.get()),
+                    nanosToMillis(stageHtmlBuildNanos.get()),
+                    nanosToMillis(stagePublishSanitizeNanos.get()),
+                    nanosToMillis(stageHtmlWriteNanos.get()),
+                    nanosToMillis(stageOmmlHandlingNanos.get()),
+                    nanosToMillis(stageMathTypeHandlingNanos.get()),
+                    nanosToMillis(stageImageRenderingNanos.get()),
+                    nanosToMillis(stageHtmlCleanupNanos.get())
+            );
+        } finally {
+            currentSourceDocxContext = previousDocxContext;
+            warnedMalformedRelationshipKeys.clear();
         }
-
-        return new ConversionSummary(
-                ommlCounter.get(),
-                sidecarMathmlCounter.get(),
-                olePreviewCounter.get(),
-                olePlaceholderCounter.get(),
-                dsmt4TotalCounter.get(),
-                dsmt4SidecarResolvedCounter.get(),
-                dsmt4UnresolvedCounter.get(),
-                dsmt4ManifestMissingCounter.get(),
-                dsmt4ManifestMismatchCounter.get(),
-                dsmt4FallbackPlaceholderCounter.get(),
-                oleEquationPreviewCounter.get(),
-                oleDiagramPreviewCounter.get(),
-                oleIllustrationPreviewCounter.get(),
-                emfWmfPreviewCounter.get(),
-                unresolvedVisioPreviewCounter.get(),
-                normalizedTextFixCounter.get(),
-                chemistryInlineFixCounter.get(),
-                chemistryArrowSymbolFixCounter.get(),
-                chemistryUnitFixCounter.get(),
-                physicsUnitFixCounter.get(),
-                physicsTextFixCounter.get(),
-                mixedMathTextCleanupCounter.get(),
-                mathGlyphCleanupCounter.get(),
-                emptyParagraphRemovedCounter.get(),
-                tableAdjacentEmptyParagraphCleanupCounter.get(),
-                tableCellEmptyParagraphRemovedCounter.get(),
-                mathBlockFlowCleanupCounter.get(),
-                suppressedBlankStandaloneImageCounter.get(),
-                suppressedNonessentialStandaloneImageCounter.get(),
-                restoredContextImageCounter.get(),
-                rasterizedMetafileCounter.get(),
-                rasterizedMetafileCacheHitCounter.get(),
-                nanosToMillis(stageDocxLoadNanos.get()),
-                nanosToMillis(stageBodyRenderNanos.get()),
-                nanosToMillis(stageEssayPolicyNanos.get()),
-                nanosToMillis(stageHtmlBuildNanos.get()),
-                nanosToMillis(stagePublishSanitizeNanos.get()),
-                nanosToMillis(stageHtmlWriteNanos.get()),
-                nanosToMillis(stageOmmlHandlingNanos.get()),
-                nanosToMillis(stageMathTypeHandlingNanos.get()),
-                nanosToMillis(stageImageRenderingNanos.get()),
-                nanosToMillis(stageHtmlCleanupNanos.get())
-        );
     }
 
     private String renderBodyElement(IBodyElement element, XWPFDocument doc, Path assetDir) throws Exception {
@@ -3720,11 +3730,82 @@ public final class DocxToHtmlConverter {
     }
 
     private PackagePart resolveRelatedPart(XWPFDocument doc, String relId) throws OpenXML4JException {
+        if (relId == null || relId.isBlank()) {
+            return null;
+        }
         PackageRelationship relationship = doc.getPackagePart().getRelationship(relId);
         if (relationship == null) {
             return null;
         }
-        return doc.getPackagePart().getRelatedPart(relationship);
+        try {
+            return doc.getPackagePart().getRelatedPart(relationship);
+        } catch (OpenXML4JException ex) {
+            warnMalformedRelationshipResolution(relId, relationship, ex);
+            return null;
+        } catch (RuntimeException ex) {
+            if (!isLikelyMalformedRelationshipPart(ex)) {
+                throw ex;
+            }
+            warnMalformedRelationshipResolution(relId, relationship, ex);
+            return null;
+        }
+    }
+
+    private static boolean isLikelyMalformedRelationshipPart(RuntimeException ex) {
+        String message = Objects.toString(ex.getMessage(), "").toLowerCase(Locale.ROOT);
+        return message.contains("part name")
+                || message.contains("forward slash")
+                || message.contains("m1.4")
+                || message.contains(" null")
+                || message.contains("no part found for relationship id=");
+    }
+
+    private void warnMalformedRelationshipResolution(String relId, PackageRelationship relationship, Exception ex) {
+        String target = "<unknown>";
+        if (relationship != null) {
+            try {
+                String rawTarget = Objects.toString(relationship.getTargetURI(), "").trim();
+                if (!rawTarget.isBlank()) {
+                    target = rawTarget;
+                }
+            } catch (RuntimeException ignored) {
+                target = "<unavailable>";
+            }
+        }
+        String reason = classifyMalformedRelationshipReason(target, ex);
+        String key = relId + "|" + target + "|" + reason;
+        if (!warnedMalformedRelationshipKeys.add(key)) {
+            return;
+        }
+        String source = currentSourceDocxContext == null || currentSourceDocxContext.isBlank()
+                ? "<unknown-docx>"
+                : currentSourceDocxContext;
+        System.err.println(
+                "[docx-html-convert] Warning: skipping malformed relationship while converting '"
+                        + source
+                        + "' (relId="
+                        + relId
+                        + ", target="
+                        + target
+                        + "): "
+                        + reason
+                        + ". Conversion continues after skipping the offending object."
+        );
+    }
+
+    private static String classifyMalformedRelationshipReason(String target, Exception ex) {
+        String normalizedTarget = Objects.toString(target, "").trim();
+        String message = Objects.toString(ex.getMessage(), "").toLowerCase(Locale.ROOT);
+        if ("NULL".equalsIgnoreCase(normalizedTarget) || message.contains(" null")) {
+            return "invalid/null relationship target part name";
+        }
+        if (message.contains("no part found for relationship id=")) {
+            return "relationship target part is missing or invalid";
+        }
+        if (message.contains("part name") || message.contains("forward slash") || message.contains("m1.4")) {
+            return "malformed package part name in relationship target";
+        }
+        return "relationship/package metadata is invalid (" + ex.getClass().getSimpleName() + ")";
     }
 
     private String guessExtension(PackagePart part) {
