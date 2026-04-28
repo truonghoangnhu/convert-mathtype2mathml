@@ -412,6 +412,7 @@ public final class DocxToHtmlConverter {
     private final Set<String> trimmedChemicalDiagramAssets = new HashSet<>();
     private final Map<String, GenericInlineTrimResult> genericInlineTrimByAsset = new HashMap<>();
     private final Path metafileRasterCacheDir = initMetafileRasterCacheDir();
+    private final Path metafileSvgCacheDir = initMetafileSvgCacheDir();
     private final Set<String> warnedMalformedRelationshipKeys = new HashSet<>();
     private String currentSourceDocxContext = "";
 
@@ -3697,7 +3698,7 @@ public final class DocxToHtmlConverter {
         if (rasterizeMetafiles && isMetafileExtension(normalizedExtension)) {
             Path svgOutput = assetDir.resolve(fileBase + ".svg");
             boolean shouldRenderSvg = oleKind != OleKind.EQUATION;
-            if (shouldRenderSvg && renderMetafileToSvg(out, svgOutput)) {
+            if (shouldRenderSvg && renderMetafileToSvgWithCache(out, normalizedExtension, svgOutput)) {
                 Files.deleteIfExists(out);
                 relativePath = assetDir.getFileName() + "/" + svgOutput.getFileName();
                 if ((oleKind == OleKind.CHEMICAL_DIAGRAM
@@ -4309,6 +4310,25 @@ public final class DocxToHtmlConverter {
         }
     }
 
+    private static Path initMetafileSvgCacheDir() {
+        String configured = Objects.toString(System.getenv("DOCX_MATH_METAFILE_SVG_CACHE_DIR"), "").trim();
+        String home = Objects.toString(System.getenv("HOME"), "").trim();
+        Path cacheDir;
+        if (!configured.isEmpty()) {
+            cacheDir = Path.of(configured).toAbsolutePath().normalize();
+        } else if (!home.isEmpty()) {
+            cacheDir = Path.of(home, ".cache", "docx-html-math", "metafile-svg").toAbsolutePath().normalize();
+        } else {
+            cacheDir = Path.of(".cache", "docx-html-math", "metafile-svg").toAbsolutePath().normalize();
+        }
+        try {
+            Files.createDirectories(cacheDir);
+            return cacheDir;
+        } catch (IOException ignored) {
+            return null;
+        }
+    }
+
     private static String sha256(Path file) {
         MessageDigest digest;
         try {
@@ -4407,6 +4427,36 @@ public final class DocxToHtmlConverter {
         }
         try {
             Files.copy(targetPng, cacheEntry, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException ignored) {
+            // no-op: conversion already succeeded
+        }
+        return true;
+    }
+
+    private boolean renderMetafileToSvgWithCache(Path sourceMetafile, String sourceExtension, Path targetSvg) {
+        if (metafileSvgCacheDir == null) {
+            return renderMetafileToSvg(sourceMetafile, targetSvg);
+        }
+        String digest;
+        try {
+            digest = sha256(sourceMetafile);
+        } catch (Exception ignored) {
+            return renderMetafileToSvg(sourceMetafile, targetSvg);
+        }
+        Path cacheEntry = metafileSvgCacheDir.resolve(digest + sourceExtension + ".svg");
+        try {
+            if (Files.exists(cacheEntry) && Files.size(cacheEntry) > 0 && isRenderableSvg(cacheEntry)) {
+                Files.copy(cacheEntry, targetSvg, StandardCopyOption.REPLACE_EXISTING);
+                return true;
+            }
+        } catch (IOException ignored) {
+            // fall through to conversion path
+        }
+        if (!renderMetafileToSvg(sourceMetafile, targetSvg)) {
+            return false;
+        }
+        try {
+            Files.copy(targetSvg, cacheEntry, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException ignored) {
             // no-op: conversion already succeeded
         }
