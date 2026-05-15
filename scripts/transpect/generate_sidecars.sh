@@ -323,7 +323,7 @@ ns = {
 
 rid_ns = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}'
 
-def normalize_part(path: str | None) -> str | None:
+def normalize_part(path):
     if not path:
         return None
     p = path.replace('\\', '/').strip()
@@ -344,7 +344,7 @@ def file_hash(path: Path) -> str:
             digest.update(chunk)
     return digest.hexdigest()
 
-def classify_prog_id(prog_id: str | None) -> str:
+def classify_prog_id(prog_id):
     normalized = (prog_id or '').strip().lower()
     if any(tok in normalized for tok in ('equation', 'mathtype', 'dsmt', 'mtef')):
         return 'equation'
@@ -383,7 +383,7 @@ rid_to_target = {
 
 doc_root = ET.parse(document_file).getroot()
 
-def resolve_rid(rid: str | None) -> str | None:
+def resolve_rid(rid):
     return normalize_part(rid_to_target.get(rid)) if rid else None
 
 referenced_wmf = set()

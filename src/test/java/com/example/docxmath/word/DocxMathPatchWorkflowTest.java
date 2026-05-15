@@ -465,7 +465,7 @@ final class DocxMathPatchWorkflowTest {
     }
 
     @Test
-    void skipsMultiObjectParagraphWithUnsafeRunStructure() throws Exception {
+    void patchesMultiObjectParagraphWithDrawingInsideObjectRun() throws Exception {
         MathObjectRef first = mathObjectRef(1, wmfMathml("a", "+", "1"));
         MathObjectRef second = mathObjectRef(2, wmfMathml("b", "-", "2"));
         PatchRunResult result = runPatch(
@@ -477,13 +477,12 @@ final class DocxMathPatchWorkflowTest {
                 List.of(first, second)
         );
 
-        assertEquals(0, result.summary.patchedInline());
-        assertEquals(1, result.summary.skippedMultiObjectParagraphs());
-        assertEquals(1, result.summary.multiObjectSkippedUnsafeParagraphs());
-        assertEquals(1, result.summary.skipBreakdownCount(PatchSkipReason.DRAWING_IN_RUN));
-        assertEquals(0, result.summary.skipBreakdownCount(PatchSkipReason.LAST_RENDERED_PAGE_BREAK_IN_RUN));
-        assertEquals(PatchSkipReason.values().length, result.summary.skipBreakdown().size());
-        assertTrue(result.xml.contains("<w:object"));
+        assertEquals(2, result.summary.patchedInline());
+        assertEquals(1, result.summary.multiObjectPatchedParagraphs());
+        assertEquals(0, result.summary.skippedMultiObjectParagraphs());
+        assertFalse(result.xml.contains("<w:object"));
+        assertTrue(result.xml.contains("<w:drawing/>"));
+        assertContainsInOrder(result.xml, List.of("A ", "a+1", " B ", "b-2"));
     }
 
     @Test
@@ -568,7 +567,7 @@ final class DocxMathPatchWorkflowTest {
     }
 
     @Test
-    void skipsLastRenderedPageBreakCaseWhenRunStillMixesObjectAndText() throws Exception {
+    void patchesLastRenderedPageBreakCaseWhenRunMixesObjectAndText() throws Exception {
         MathObjectRef first = mathObjectRef(1, wmfMathml("a", "+", "1"));
         MathObjectRef second = mathObjectRef(2, wmfMathml("b", "-", "2"));
         PatchRunResult result = runPatch(
@@ -580,15 +579,15 @@ final class DocxMathPatchWorkflowTest {
                 List.of(first, second)
         );
 
-        assertEquals(0, result.summary.patchedInline());
-        assertEquals(1, result.summary.skippedMultiObjectParagraphs());
-        assertEquals(1, result.summary.skipBreakdownCount(PatchSkipReason.MIXED_OBJECT_AND_TEXT_IN_RUN));
-        assertEquals(0, result.summary.skipBreakdownCount(PatchSkipReason.LAST_RENDERED_PAGE_BREAK_IN_RUN));
-        assertEquals(0, result.summary.skipBreakdownCount(PatchSkipReason.DRAWING_IN_RUN));
+        assertEquals(2, result.summary.patchedInline());
+        assertEquals(1, result.summary.multiObjectPatchedParagraphs());
+        assertEquals(0, result.summary.skippedMultiObjectParagraphs());
+        assertTrue(result.xml.contains("<w:lastRenderedPageBreak/>"));
+        assertContainsInOrder(result.xml, List.of("A ", "a+1", " inline ", "b-2"));
     }
 
     @Test
-    void skipsDrawingCaseWhenRunStillMixesDrawingAndText() throws Exception {
+    void patchesDrawingCaseWhenRunStillMixesDrawingAndText() throws Exception {
         MathObjectRef first = mathObjectRef(1, wmfMathml("a", "+", "1"));
         MathObjectRef second = mathObjectRef(2, wmfMathml("b", "-", "2"));
         PatchRunResult result = runPatch(
@@ -600,9 +599,55 @@ final class DocxMathPatchWorkflowTest {
                 List.of(first, second)
         );
 
-        assertEquals(0, result.summary.patchedInline());
-        assertEquals(1, result.summary.skippedMultiObjectParagraphs());
-        assertEquals(1, result.summary.skipBreakdownCount(PatchSkipReason.DRAWING_IN_RUN));
+        assertEquals(2, result.summary.patchedInline());
+        assertEquals(1, result.summary.multiObjectPatchedParagraphs());
+        assertEquals(0, result.summary.skippedMultiObjectParagraphs());
+        assertContainsInOrder(result.xml, List.of("A ", " helper ", "a+1", "b-2"));
+    }
+
+    @Test
+    void patchesParagraphWithEightInlineObjectsAndPreservesSurroundingText() throws Exception {
+        MathObjectRef first = mathObjectRef(1, wmfMathml("x", "+", "1"));
+        MathObjectRef second = mathObjectRef(2, wmfMathml("x", "+", "2"));
+        MathObjectRef third = mathObjectRef(3, wmfMathml("x", "+", "3"));
+        MathObjectRef fourth = mathObjectRef(4, wmfMathml("x", "+", "4"));
+        MathObjectRef fifth = mathObjectRef(5, wmfMathml("x", "+", "5"));
+        MathObjectRef sixth = mathObjectRef(6, wmfMathml("x", "+", "6"));
+        MathObjectRef seventh = mathObjectRef(7, wmfMathml("x", "+", "7"));
+        MathObjectRef eighth = mathObjectRef(8, wmfMathml("x", "+", "8"));
+        List<MathObjectRef> objects = List.of(first, second, third, fourth, fifth, sixth, seventh, eighth);
+        PatchRunResult result = runPatch(
+                inlineObjectDocumentXml(
+                        "",
+                        List.of(
+                                textRunXml("Câu 2. ... trên hệ tọa độ "),
+                                objectRunXml(first),
+                                textRunXml(" ... Trong đó "),
+                                objectRunXml(second),
+                                textRunXml(" "),
+                                objectRunXml(third),
+                                textRunXml(" ... Gọi "),
+                                objectRunXml(fourth),
+                                textRunXml(", "),
+                                objectRunXml(fifth),
+                                textRunXml(", "),
+                                objectRunXml(sixth),
+                                textRunXml(" ... Ta có "),
+                                objectRunXml(seventh),
+                                textRunXml(". Giá trị của tổng "),
+                                objectRunXml(eighth),
+                                textRunXml(" ...")
+                        )
+                ),
+                objects,
+                objects
+        );
+
+        assertEquals(8, result.summary.patchedInline());
+        assertEquals(1, result.summary.multiObjectPatchedParagraphs());
+        assertEquals(0, result.summary.skippedMultiObjectParagraphs());
+        assertFalse(result.xml.contains("<w:object"));
+        assertContainsInOrder(result.xml, List.of("Câu 2. ... trên hệ tọa độ ", "x+1", "Trong đó ", "x+2", "x+3", "Gọi ", "x+4", "x+5", "x+6", "Ta có ", "x+7", "Giá trị của tổng ", "x+8"));
     }
 
     @Test

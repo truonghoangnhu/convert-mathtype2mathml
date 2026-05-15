@@ -14,6 +14,9 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 import org.xml.sax.InputSource;
 
@@ -46,17 +49,24 @@ public final class XmlBeansOmmlInjector implements OmmlInjector {
             paragraphNode = paragraph.getCTP().getDomNode();
             Document ownerDocument = paragraphNode.getOwnerDocument();
             snapshotXml = serializeNode(paragraphNode);
-            for (ParagraphSegment segment : patchPlan.objectSegments()) {
-                Node targetRun = segment.paragraphChild();
-                if (targetRun == null || targetRun.getParentNode() != paragraphNode) {
+
+            List<ParagraphSegment> objectSegments = new ArrayList<>(patchPlan.objectSegments());
+            objectSegments.sort(Comparator.comparing(ParagraphSegment::paragraphChild, XmlBeansOmmlInjector::compareDocumentOrderDesc));
+
+            for (ParagraphSegment segment : objectSegments) {
+                Node targetObject = resolveTargetObjectNode(segment.paragraphChild());
+                if (targetObject == null) {
+                    restoreParagraph(paragraphNode, snapshotXml);
+                    return false;
+                }
+                Node targetParent = targetObject.getParentNode();
+                if (targetParent == null) {
                     restoreParagraph(paragraphNode, snapshotXml);
                     return false;
                 }
                 Node importedMath = ownerDocument.importNode(parseOmmlRoot(segment.ommlXml()), true);
                 Node inlineMath = buildInlineMath(ownerDocument, importedMath);
-                Node nextSibling = targetRun.getNextSibling();
-                paragraphNode.insertBefore(inlineMath, nextSibling);
-                paragraphNode.removeChild(targetRun);
+                targetParent.replaceChild(inlineMath, targetObject);
             }
             return true;
         } catch (Exception ex) {
@@ -92,25 +102,85 @@ public final class XmlBeansOmmlInjector implements OmmlInjector {
 
     private boolean injectInline(MathOccurrence occurrence, String ommlXml) throws Exception {
         XWPFParagraph paragraph = occurrence.paragraph();
-        if (occurrence.runIndex() < 0 || occurrence.runIndex() >= paragraph.getRuns().size()) {
-            return false;
-        }
-
         Node paragraphNode = paragraph.getCTP().getDomNode();
         Document ownerDocument = paragraphNode.getOwnerDocument();
         String snapshotXml = serializeNode(paragraphNode);
-        Node targetRun = paragraph.getRuns().get(occurrence.runIndex()).getCTR().getDomNode();
+
+        Node targetObject = resolveTargetObjectNode(occurrence.sourceNode());
+        if (targetObject == null) {
+            if (occurrence.runIndex() < 0 || occurrence.runIndex() >= paragraph.getRuns().size()) {
+                return false;
+            }
+            targetObject = findFirstDescendantByLocalName(
+                    paragraph.getRuns().get(occurrence.runIndex()).getCTR().getDomNode(),
+                    "object"
+            );
+            if (targetObject == null) {
+                return false;
+            }
+        }
+
+        Node targetParent = targetObject.getParentNode();
+        if (targetParent == null) {
+            return false;
+        }
+
         Node importedMath = ownerDocument.importNode(parseOmmlRoot(ommlXml), true);
         Node inlineMath = buildInlineMath(ownerDocument, importedMath);
-        Node nextSibling = targetRun.getNextSibling();
         try {
-            paragraphNode.insertBefore(inlineMath, nextSibling);
-            paragraphNode.removeChild(targetRun);
+            targetParent.replaceChild(inlineMath, targetObject);
             return true;
         } catch (Exception ex) {
             restoreParagraph(paragraphNode, snapshotXml);
             return false;
         }
+    }
+
+    private static Node resolveTargetObjectNode(Node candidate) {
+        if (candidate == null) {
+            return null;
+        }
+        if ("object".equals(candidate.getLocalName())) {
+            return candidate;
+        }
+        return findFirstDescendantByLocalName(candidate, "object");
+    }
+
+    private static int compareDocumentOrderDesc(Node left, Node right) {
+        if (left == null && right == null) {
+            return 0;
+        }
+        if (left == null) {
+            return 1;
+        }
+        if (right == null) {
+            return -1;
+        }
+        short position = left.compareDocumentPosition(right);
+        if ((position & Node.DOCUMENT_POSITION_PRECEDING) != 0) {
+            return -1;
+        }
+        if ((position & Node.DOCUMENT_POSITION_FOLLOWING) != 0) {
+            return 1;
+        }
+        return 0;
+    }
+
+    private static Node findFirstDescendantByLocalName(Node node, String localName) {
+        if (node == null) {
+            return null;
+        }
+        if (localName.equals(node.getLocalName())) {
+            return node;
+        }
+        NodeList children = node.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node found = findFirstDescendantByLocalName(children.item(i), localName);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
     }
 
     private static Node parseOmmlRoot(String ommlXml) throws Exception {
