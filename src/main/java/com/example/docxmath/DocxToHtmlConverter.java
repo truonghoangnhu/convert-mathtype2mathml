@@ -41,6 +41,7 @@ import java.io.OutputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import javax.imageio.ImageIO;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -285,6 +286,7 @@ public final class DocxToHtmlConverter {
     private static final Pattern CHEMICAL_ENTHALPY_TOKEN_PATTERN = Pattern.compile("Δ([fr])H°\\s*([0-9]{2,4})");
     private static final Pattern CHEMICAL_ELECTRON_CHARGE_PATTERN = Pattern.compile("(?iu)(?<!\\p{L})(\\d*)\\s*e\\s*([+−-])(?!\\p{L})");
     private static final Pattern CHEMICAL_ELECTRON_LOOSE_PLUS_PATTERN = Pattern.compile("(?iu)(?<!\\p{L})(\\d*)\\s*e\\s*\\+\\s*(?=[A-Z(\\[])");
+    private static final Pattern CHEMICAL_LATEX_XRIGHTARROW_PATTERN = Pattern.compile("(?iu)\\$\\s*\\\\xrightarrow\\s*\\{([^{}]{0,160})\\}\\s*\\$");
     private static final Pattern CHEMICAL_BI_ARROW_PATTERN = Pattern.compile("(?<=\\S)\\s*(?:<=>|<->|&lt;=&gt;|&lt;-&gt;|⇌|⇄|↔)\\s*(?=\\S)");
     private static final Pattern CHEMICAL_FORWARD_ARROW_PATTERN = Pattern.compile("(?<=\\S)\\s*(?:->|=>|-&gt;|=&gt;|â†’|âž”|⟶)\\s*(?=\\S)");
     private static final Pattern SVG_BOUNDING_BOX_RECT_PATTERN = Pattern.compile(
@@ -293,6 +295,7 @@ public final class DocxToHtmlConverter {
     );
     private static final Pattern SVG_ROOT_TAG_PATTERN = Pattern.compile("<svg\\b[^>]*>", Pattern.CASE_INSENSITIVE);
     private static final Pattern SVG_ATTR_PATTERN = Pattern.compile("([a-zA-Z_:][-a-zA-Z0-9_:.]*)\\s*=\\s*\"([^\"]*)\"");
+    private static final Pattern NUMBERING_LEVEL_REFERENCE_PATTERN = Pattern.compile("%\\d+");
     private static final Set<String> INLINE_TRIMMABLE_RASTER_EXTENSIONS = Set.of(".png", ".jpg", ".jpeg", ".gif");
     private static final Pattern CHEM_INLINE_WRAPPER_PATTERN = Pattern.compile("^<span class=\"chem-inline\" data-chem-fixed=\"1\">(.*)</span>$", Pattern.DOTALL);
     private static final Pattern HTML_SUB_TAG_UNICODE_PATTERN = Pattern.compile("(?s)<sub>([₀₁₂₃₄₅₆₇₈₉]+)</sub>");
@@ -411,6 +414,7 @@ public final class DocxToHtmlConverter {
     private final AtomicInteger officeRenderFailureCounter = new AtomicInteger(0);
     private final Set<String> trimmedChemicalDiagramAssets = new HashSet<>();
     private final Map<String, GenericInlineTrimResult> genericInlineTrimByAsset = new HashMap<>();
+    private final Map<String, Integer> numberingCounters = new HashMap<>();
     private final Path metafileRasterCacheDir = initMetafileRasterCacheDir();
     private final Path metafileSvgCacheDir = initMetafileSvgCacheDir();
     private final Set<String> warnedMalformedRelationshipKeys = new HashSet<>();
@@ -461,6 +465,7 @@ public final class DocxToHtmlConverter {
         String previousDocxContext = currentSourceDocxContext;
         currentSourceDocxContext = inputDocx.toAbsolutePath().normalize().toString();
         warnedMalformedRelationshipKeys.clear();
+        numberingCounters.clear();
         try {
             long openStart = System.nanoTime();
             try (InputStream is = Files.newInputStream(inputDocx);
@@ -566,8 +571,116 @@ public final class DocxToHtmlConverter {
     private String renderParagraph(XWPFParagraph paragraph, XWPFDocument doc, Path assetDir) throws Exception {
         Document xml = parseXml(paragraph.getCTP().xmlText());
         String content = renderNodes(xml.getDocumentElement().getChildNodes(), doc, assetDir, false);
+        String numberingPrefix = renderNumberingPrefix(paragraph);
+        if (!numberingPrefix.isEmpty() && !contentAlreadyStartsWithNumberingPrefix(content, numberingPrefix)) {
+            content = HtmlUtil.escape(numberingPrefix) + " " + content;
+        }
         boolean insideTableCell = paragraph.getBody() instanceof XWPFTableCell;
         return composeParagraphHtml(content, insideTableCell);
+    }
+
+    private String renderNumberingPrefix(XWPFParagraph paragraph) {
+        BigInteger numId = paragraph.getNumID();
+        if (numId == null) {
+            return "";
+        }
+        String levelText = Objects.toString(paragraph.getNumLevelText(), "").trim();
+        if (levelText.isEmpty()) {
+            return "";
+        }
+        String numFmt = Objects.toString(paragraph.getNumFmt(), "").trim();
+        if ("bullet".equalsIgnoreCase(numFmt)) {
+            return "";
+        }
+
+        int level = paragraph.getNumIlvl() == null ? 0 : paragraph.getNumIlvl().intValue();
+        String counterKey = numId + ":" + level;
+        int nextValue = numberingCounters.compute(counterKey, (ignored, previous) -> {
+            if (previous == null) {
+                return numberingStartValue(paragraph, numId, level);
+            }
+            return previous + 1;
+        });
+        String formatted = formatNumberingValue(nextValue, numFmt);
+        String prefix = levelText.replace("%" + (level + 1), formatted);
+        prefix = NUMBERING_LEVEL_REFERENCE_PATTERN.matcher(prefix).replaceAll(formatted);
+        return prefix.replace('\u00A0', ' ').replaceAll("\\s+", " ").trim();
+    }
+
+    private int numberingStartValue(XWPFParagraph paragraph, BigInteger numId, int level) {
+        BigInteger override = paragraph.getNumStartOverride();
+        if (override != null) {
+            return Math.max(1, override.intValue());
+        }
+        try {
+            var numbering = paragraph.getDocument().getNumbering();
+            if (numbering == null) {
+                return 1;
+            }
+            BigInteger abstractNumId = numbering.getAbstractNumID(numId);
+            if (abstractNumId == null) {
+                return 1;
+            }
+            var abstractNum = numbering.getAbstractNum(abstractNumId);
+            if (abstractNum == null || abstractNum.getCTAbstractNum() == null) {
+                return 1;
+            }
+            for (var lvl : abstractNum.getCTAbstractNum().getLvlList()) {
+                if (lvl.getIlvl() != null && lvl.getIlvl().intValue() == level && lvl.isSetStart()) {
+                    return Math.max(1, lvl.getStart().getVal().intValue());
+                }
+            }
+        } catch (RuntimeException ignored) {
+            return 1;
+        }
+        return 1;
+    }
+
+    private static String formatNumberingValue(int value, String numFmt) {
+        int safeValue = Math.max(1, value);
+        String normalizedFmt = Objects.toString(numFmt, "").toLowerCase(Locale.ROOT);
+        return switch (normalizedFmt) {
+            case "lowerletter" -> formatAlphabeticNumber(safeValue, false);
+            case "upperletter" -> formatAlphabeticNumber(safeValue, true);
+            case "lowerroman" -> formatRomanNumber(safeValue).toLowerCase(Locale.ROOT);
+            case "upperroman" -> formatRomanNumber(safeValue);
+            default -> Integer.toString(safeValue);
+        };
+    }
+
+    private static String formatAlphabeticNumber(int value, boolean uppercase) {
+        int current = Math.max(1, value);
+        StringBuilder out = new StringBuilder();
+        while (current > 0) {
+            current--;
+            out.append((char) ((uppercase ? 'A' : 'a') + (current % 26)));
+            current /= 26;
+        }
+        return out.reverse().toString();
+    }
+
+    private static String formatRomanNumber(int value) {
+        int current = Math.max(1, Math.min(value, 3999));
+        int[] values = {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1};
+        String[] symbols = {"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"};
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < values.length; i++) {
+            while (current >= values[i]) {
+                out.append(symbols[i]);
+                current -= values[i];
+            }
+        }
+        return out.toString();
+    }
+
+    private static boolean contentAlreadyStartsWithNumberingPrefix(String content, String numberingPrefix) {
+        String plain = stripHtmlToPlainText(content);
+        if (plain.isEmpty()) {
+            return false;
+        }
+        String normalizedPlain = plain.replaceAll("\\s+", " ").trim();
+        String normalizedPrefix = Objects.toString(numberingPrefix, "").replaceAll("\\s+", " ").trim();
+        return !normalizedPrefix.isEmpty() && normalizedPlain.startsWith(normalizedPrefix);
     }
 
     private String renderTable(XWPFTable table, XWPFDocument doc, Path assetDir) throws Exception {
@@ -817,10 +930,15 @@ public final class DocxToHtmlConverter {
                 case '\uf044' -> "Δ";
                 case '\uf0ae' -> "→";
                 case '\uf0b0' -> "°";
+                case '\uf0b1' -> "±";
+                case '\uf0a3' -> "≤";
+                case '\uf0b3' -> "≥";
                 case '\uf0b4' -> "×";
                 case '\uf02d' -> "−";
                 case '\uf0bb' -> "≈";
                 case '\uf0b7' -> "•";
+                case '\uf0b9' -> "≠";
+                case '\uf0ce' -> "∈";
                 default -> null;
             };
             if (mapped == null) {
@@ -1184,6 +1302,19 @@ public final class DocxToHtmlConverter {
     private String normalizeChemistryArrowSymbols(String input) {
         String out = replaceChemicalPattern(
                 input,
+                CHEMICAL_LATEX_XRIGHTARROW_PATTERN,
+                matcher -> {
+                    String condition = normalizeChemistryLatexArrowCondition(Objects.toString(matcher.group(1), ""));
+                    String arrow = wrapChemInlineWithFlags("→", false, true);
+                    if (condition.isEmpty()) {
+                        return arrow;
+                    }
+                    return arrow + " (" + HtmlUtil.escape(condition) + ")";
+                },
+                chemistryArrowSymbolFixCounter
+        );
+        out = replaceChemicalPattern(
+                out,
                 CHEMICAL_BI_ARROW_PATTERN,
                 matcher -> wrapChemInlineWithFlags("⇌", false, true),
                 chemistryArrowSymbolFixCounter
@@ -1194,6 +1325,21 @@ public final class DocxToHtmlConverter {
                 matcher -> wrapChemInlineWithFlags("→", false, true),
                 chemistryArrowSymbolFixCounter
         );
+    }
+
+    private static String normalizeChemistryLatexArrowCondition(String rawCondition) {
+        if (rawCondition == null || rawCondition.isBlank()) {
+            return "";
+        }
+        String normalized = rawCondition;
+        normalized = normalized.replaceAll("(?iu)\\\\circ\\b", "°");
+        normalized = normalized.replaceAll("(?iu)\\^\\s*°", "°");
+        normalized = normalized.replaceAll("(?iu)\\\\rightarrow|\\\\to", "→");
+        normalized = normalized.replaceAll("(?iu)\\\\,", ",");
+        normalized = normalized.replaceAll("(?iu)\\\\[a-z]+\\s*", " ");
+        normalized = normalized.replace("{", "").replace("}", "");
+        normalized = normalized.replaceAll("\\s+", " ").trim();
+        return normalized;
     }
 
     private String normalizeChemicalInlineTokens(String input) {

@@ -70,6 +70,7 @@ final class PhysicsCleanupRegressionTest {
         assertEquals("cosφ = 0,8, Ω, ∠ABC, π, ω, ≈", normalizeVisible("cos = 0,8, , ABC, , , "));
         assertEquals("λm", normalizeVisible("m"));
         assertEquals("μF", normalizeVisible("F"));
+        assertEquals("UAK≤-1,1V; ±; f≠0; A∈B", normalizeVisible("UAK-1,1V; ; f0; AB"));
         assertEquals("27 °C", normalizeInlineHtml("27<sup>0</sup>C"));
         assertTrue(
                 normalizeInlineHtml("<span class=\"math-inline mathml\"><math><msup><mn>27</mn><mo>°</mo></msup></math></span> C")

@@ -190,7 +190,7 @@ run_script = Path(sys.argv[8]).resolve()
 sidecar_script = Path(sys.argv[9]).resolve()
 java_args = sys.argv[10:]
 
-def fp(path: Path | None) -> str:
+def fp(path) -> str:
     if path is None:
         return "none"
     try:
@@ -199,7 +199,7 @@ def fp(path: Path | None) -> str:
     except FileNotFoundError:
         return "missing"
 
-def sha256(path: Path | None) -> str:
+def sha256(path) -> str:
     if path is None:
         return "none"
     try:
