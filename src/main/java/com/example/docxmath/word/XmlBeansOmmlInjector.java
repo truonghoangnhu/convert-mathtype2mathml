@@ -22,6 +22,16 @@ import org.xml.sax.InputSource;
 
 public final class XmlBeansOmmlInjector implements OmmlInjector {
     private static final String MATH_NS = "http://schemas.openxmlformats.org/officeDocument/2006/math";
+    private static final String WORD_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+    // Source run properties that Word applies to an equation run. Bold/italic/position are
+    // left out: math style comes from the MathML, and w:position only aligned the OLE picture.
+    // Listed in CT_RPr schema order, which the merge below keeps.
+    private static final List<String> CARRIED_RUN_PROPERTIES = List.of("color", "sz", "szCs", "highlight", "u");
+    private static final List<String> RUN_PROPERTY_ORDER = List.of(
+            "rStyle", "rFonts", "b", "bCs", "i", "iCs", "caps", "smallCaps", "strike", "dstrike", "outline",
+            "shadow", "emboss", "imprint", "noProof", "snapToGrid", "vanish", "webHidden", "color", "spacing",
+            "w", "kern", "position", "sz", "szCs", "highlight", "u", "effect", "bdr", "shd", "fitText",
+            "vertAlign", "rtl", "cs", "em", "lang", "eastAsianLayout", "specVanish", "oMath");
 
     @Override
     public boolean inject(MathOccurrence occurrence, String ommlXml) {
@@ -60,13 +70,13 @@ public final class XmlBeansOmmlInjector implements OmmlInjector {
                     return false;
                 }
                 Node targetParent = targetObject.getParentNode();
-                if (targetParent == null) {
+                if (targetParent == null || !"r".equals(targetParent.getLocalName()) || targetParent.getParentNode() != paragraphNode) {
                     restoreParagraph(paragraphNode, snapshotXml);
                     return false;
                 }
                 Node importedMath = ownerDocument.importNode(parseOmmlRoot(segment.ommlXml()), true);
                 Node inlineMath = buildInlineMath(ownerDocument, importedMath);
-                targetParent.replaceChild(inlineMath, targetObject);
+                replaceObjectRun(paragraphNode, targetParent, targetObject, inlineMath);
             }
             return true;
         } catch (Exception ex) {
@@ -87,6 +97,10 @@ public final class XmlBeansOmmlInjector implements OmmlInjector {
         Document ownerDocument = paragraphNode.getOwnerDocument();
         Node importedMath = ownerDocument.importNode(parseOmmlRoot(ommlXml), true);
         Node mathPara = buildMathPara(ownerDocument, importedMath);
+        Node objectNode = findFirstDescendantByLocalName(paragraphNode, "object");
+        if (objectNode != null) {
+            carryRunFormatting(objectNode.getParentNode(), mathPara);
+        }
 
         for (int i = paragraphNode.getChildNodes().getLength() - 1; i >= 0; i--) {
             Node child = paragraphNode.getChildNodes().item(i);
@@ -121,19 +135,129 @@ public final class XmlBeansOmmlInjector implements OmmlInjector {
         }
 
         Node targetParent = targetObject.getParentNode();
-        if (targetParent == null) {
+        if (targetParent == null || !"r".equals(targetParent.getLocalName()) || targetParent.getParentNode() != paragraphNode) {
             return false;
         }
 
         Node importedMath = ownerDocument.importNode(parseOmmlRoot(ommlXml), true);
         Node inlineMath = buildInlineMath(ownerDocument, importedMath);
         try {
-            targetParent.replaceChild(inlineMath, targetObject);
+            replaceObjectRun(paragraphNode, targetParent, targetObject, inlineMath);
             return true;
         } catch (Exception ex) {
             restoreParagraph(paragraphNode, snapshotXml);
             return false;
         }
+    }
+
+    // Inline oMath belongs to w:p, not w:r. Split a mixed object run at the
+    // object so drawings, page-break markers, text and run properties survive.
+    private static void replaceObjectRun(Node paragraph, Node run, Node object, Node math) {
+        carryRunFormatting(run, math);
+        Node before = run.cloneNode(false);
+        Node after = run.cloneNode(false);
+        List<Node> children = new ArrayList<>();
+        for (Node child = run.getFirstChild(); child != null; child = child.getNextSibling()) children.add(child);
+        boolean passedObject = false;
+        boolean hasBefore = false;
+        boolean hasAfter = false;
+        for (Node child : children) {
+            if ("rPr".equals(child.getLocalName())) {
+                before.appendChild(child.cloneNode(true));
+                after.appendChild(child.cloneNode(true));
+            } else if (child == object) {
+                passedObject = true;
+            } else if (passedObject) {
+                after.appendChild(child);
+                hasAfter = true;
+            } else {
+                before.appendChild(child);
+                hasBefore = true;
+            }
+        }
+        if (hasBefore) paragraph.insertBefore(before, run);
+        paragraph.insertBefore(math, run);
+        if (hasAfter) paragraph.insertBefore(after, run);
+        paragraph.removeChild(run);
+    }
+
+    // Equation runs do not inherit the size/colour of neighbouring runs, so the formatting of the
+    // run that held the OLE object is copied onto every m:r, keeping anything the transform set.
+    private static void carryRunFormatting(Node sourceRun, Node math) {
+        if (sourceRun == null || math == null) {
+            return;
+        }
+        List<Node> carried = new ArrayList<>();
+        for (Node child = sourceRun.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (!"rPr".equals(child.getLocalName()) || !WORD_NS.equals(child.getNamespaceURI())) {
+                continue;
+            }
+            for (Node prop = child.getFirstChild(); prop != null; prop = prop.getNextSibling()) {
+                if (WORD_NS.equals(prop.getNamespaceURI()) && CARRIED_RUN_PROPERTIES.contains(prop.getLocalName())) {
+                    carried.add(prop);
+                }
+            }
+        }
+        if (carried.isEmpty()) {
+            return;
+        }
+        List<Node> mathRuns = new ArrayList<>();
+        collectMathRuns(math, mathRuns);
+        for (Node mathRun : mathRuns) {
+            Node runProperties = ensureWordRunProperties(mathRun);
+            for (Node prop : carried) {
+                if (!hasChildNamed(runProperties, prop.getLocalName())) {
+                    insertInSchemaOrder(runProperties, prop.cloneNode(true));
+                }
+            }
+        }
+    }
+
+    private static void collectMathRuns(Node node, List<Node> out) {
+        for (Node child = node.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if ("r".equals(child.getLocalName()) && MATH_NS.equals(child.getNamespaceURI())) {
+                out.add(child);
+            } else {
+                collectMathRuns(child, out);
+            }
+        }
+    }
+
+    // CT_R order is m:rPr, then w:rPr, then content.
+    private static Node ensureWordRunProperties(Node mathRun) {
+        Node insertBefore = null;
+        for (Node child = mathRun.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if ("rPr".equals(child.getLocalName()) && WORD_NS.equals(child.getNamespaceURI())) {
+                return child;
+            }
+            if (insertBefore == null && !("rPr".equals(child.getLocalName()) && MATH_NS.equals(child.getNamespaceURI()))
+                    && child.getNodeType() == Node.ELEMENT_NODE) {
+                insertBefore = child;
+            }
+        }
+        Node created = mathRun.getOwnerDocument().createElementNS(WORD_NS, "w:rPr");
+        mathRun.insertBefore(created, insertBefore);
+        return created;
+    }
+
+    private static boolean hasChildNamed(Node parent, String localName) {
+        for (Node child = parent.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (localName.equals(child.getLocalName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void insertInSchemaOrder(Node runProperties, Node property) {
+        int rank = RUN_PROPERTY_ORDER.indexOf(property.getLocalName());
+        for (Node child = runProperties.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child.getNodeType() == Node.ELEMENT_NODE && RUN_PROPERTY_ORDER.indexOf(child.getLocalName()) > rank) {
+                runProperties.insertBefore(property, child);
+                return;
+            }
+        }
+        runProperties.appendChild(property);
     }
 
     private static Node resolveTargetObjectNode(Node candidate) {

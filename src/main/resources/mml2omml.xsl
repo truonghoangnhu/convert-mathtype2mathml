@@ -3722,4 +3722,144 @@
   </xsl:template>
 
   <xsl:template name="mathrRpHook"/>
+
+  <!-- Local addition (the Microsoft stylesheet has no mspace rule, so explicit
+       spaces such as TeX "\ " or "10,0 A" were dropped and neighbours fused).
+       Widths below 0.12em are MathType's automatic thin spacing; Word's own math
+       layout already supplies it. Wider spaces become Unicode space characters in a
+       normal-text run, which Word keeps (ordinary U+0020 is not kept in math). -->
+  <xsl:template mode="mml" match="mml:mspace">
+    <xsl:variable name="w" select="normalize-space(@width)"/>
+    <xsl:variable name="unit" select="replace($w, '^-?[0-9.]+', '')"/>
+    <xsl:variable name="num" select="number(replace($w, '[^-0-9.]', ''))"/>
+    <xsl:variable name="em" as="xs:double"
+                  select="if ($unit = 'em') then $num
+                          else if ($unit = 'pt') then $num div 10
+                          else if ($unit = 'ex') then $num div 2
+                          else xs:double('NaN')"
+                  xmlns:xs="http://www.w3.org/2001/XMLSchema"/>
+    <xsl:variable name="spaces" as="xs:string"
+                  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                  select="if (string($em) = 'NaN' or $em &lt; 0.12) then ''
+                          else if ($em &lt; 0.25) then '&#x2006;'
+                          else if ($em &lt; 0.6) then '&#x2004;'
+                          else if ($em &lt; 1.5) then '&#x2003;'
+                          else '&#x2003;&#x2003;'"/>
+    <xsl:if test="$spaces != ''">
+      <r>
+        <rPr>
+          <nor/>
+        </rPr>
+        <w:rPr>
+          <w:rFonts w:ascii="Cambria Math" w:eastAsia="Cambria Math" w:hAnsi="Cambria Math" w:cs="Cambria Math"/>
+        </w:rPr>
+        <t>
+          <xsl:attribute name="xml:space">preserve</xsl:attribute>
+          <xsl:value-of select="$spaces"/>
+        </t>
+      </r>
+    </xsl:if>
+  </xsl:template>
+
+  <!-- Local addition. MathType's labelled reaction arrows (TeX \xrightarrow) arrive as an arrow
+       mo over/under its labels. The stylesheet's generic rule keeps the one-character arrow and
+       sets the labels around it, so the arrow no longer reaches across the text. Word's own
+       stretching arrow is m:groupChr; its arrow spans the label it groups and the other label
+       hangs below through m:limLow (checked by rendering in Word). In the two-label forms the
+       groupChr sits inside an invisible m:d: LibreOffice Writer otherwise imports
+       {label} csub {arrow} csub {label} and renders neither arrow nor labels (stray U+00BF
+       glyphs); inside m:d it shows the labels and a script-size arrow (it cannot stretch it).
+       Empty labels fall through to the generic rule. -->
+  <xsl:template mode="mml" priority="5"
+                match="mml:munderover[*[1][self::mml:mo][normalize-space(.) = ('&#x2192;', '&#x2190;', '&#x21CC;', '&#x27F6;', '&#x27F5;')]]
+                                     [normalize-space(string-join(*[position() &gt; 1]/string(.), '')) != '']
+                     | mml:mover[*[1][self::mml:mo][normalize-space(.) = ('&#x2192;', '&#x2190;', '&#x21CC;', '&#x27F6;', '&#x27F5;')]]
+                                [normalize-space(string(*[2])) != '']
+                     | mml:munder[*[1][self::mml:mo][normalize-space(.) = ('&#x2192;', '&#x2190;', '&#x21CC;', '&#x27F6;', '&#x27F5;')]]
+                                 [normalize-space(string(*[2])) != '']">
+    <xsl:variable name="arrow" select="normalize-space(*[1])"/>
+    <xsl:variable name="under" select="if (self::mml:munder or self::mml:munderover) then *[2] else ()"/>
+    <xsl:variable name="over" select="if (self::mml:munderover) then *[3] else if (self::mml:mover) then *[2] else ()"/>
+    <xsl:variable name="hasUnder" select="normalize-space(string($under)) != ''"/>
+    <xsl:variable name="hasOver" select="normalize-space(string($over)) != ''"/>
+    <xsl:choose>
+      <!-- The arrow stretches to the label it groups, so group the wider one. -->
+      <xsl:when test="$hasOver and $hasUnder and string-length(normalize-space(string($under))) &gt; string-length(normalize-space(string($over)))">
+        <limUpp>
+          <e>
+            <d>
+              <dPr>
+                <begChr m:val=""/>
+                <endChr m:val=""/>
+              </dPr>
+              <e>
+<groupChr>
+              <groupChrPr>
+                <chr m:val="{$arrow}"/>
+                <pos m:val="top"/>
+                <vertJc m:val="top"/>
+              </groupChrPr>
+              <e>
+                <xsl:apply-templates mode="mml" select="$under"/>
+              </e>
+            </groupChr>
+              </e>
+            </d>
+          </e>
+          <lim>
+            <xsl:apply-templates mode="mml" select="$over"/>
+          </lim>
+        </limUpp>
+      </xsl:when>
+      <xsl:when test="$hasOver and $hasUnder">
+        <limLow>
+          <e>
+            <d>
+              <dPr>
+                <begChr m:val=""/>
+                <endChr m:val=""/>
+              </dPr>
+              <e>
+<groupChr>
+              <groupChrPr>
+                <chr m:val="{$arrow}"/>
+                <vertJc m:val="bot"/>
+              </groupChrPr>
+              <e>
+                <xsl:apply-templates mode="mml" select="$over"/>
+              </e>
+            </groupChr>
+              </e>
+            </d>
+          </e>
+          <lim>
+            <xsl:apply-templates mode="mml" select="$under"/>
+          </lim>
+        </limLow>
+      </xsl:when>
+      <xsl:when test="$hasOver">
+        <groupChr>
+          <groupChrPr>
+            <chr m:val="{$arrow}"/>
+            <vertJc m:val="bot"/>
+          </groupChrPr>
+          <e>
+            <xsl:apply-templates mode="mml" select="$over"/>
+          </e>
+        </groupChr>
+      </xsl:when>
+      <xsl:otherwise>
+        <groupChr>
+          <groupChrPr>
+            <chr m:val="{$arrow}"/>
+            <pos m:val="top"/>
+            <vertJc m:val="top"/>
+          </groupChrPr>
+          <e>
+            <xsl:apply-templates mode="mml" select="$under"/>
+          </e>
+        </groupChr>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
 </xsl:stylesheet>

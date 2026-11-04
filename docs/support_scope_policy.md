@@ -1,56 +1,76 @@
 # Support Scope Policy
 
-This document is the canonical support-boundary note for the repository.
+This is the canonical support boundary. It supersedes older statements that
+DSMT4 investigations are frozen or outside the product roadmap.
 
-## Supported input scope
+## Supported inputs and verified decoding scope
 
-- modern `.docx` documents
-- native OMML equations already stored in WordprocessingML
-- equation content that the current pipeline converts stably to OMML
-- repository workflows that stay on the modern DOCX + OMML path
+- Modern `.docx` with native OMML equations.
+- `.docx` containing legacy MathType OLE, including `Equation.DSMT4`, as
+  **migration input** to MathML/OMML.
+- DSMT4 support is conditional on the actual extracted MTEF payload and a
+  verified decoder path. ProgID identifies the object, not its MTEF version,
+  structure, formula contents, or conversion capability.
+- A payload class is verified only for the structures covered by recorded
+  real-source tests. A successful example does not establish support for all
+  objects with that ProgID, MTEF version, or byte fingerprint.
+
+## Canonical migration path
+
+`OLE → extracted MTEF → normalized MathML → native OMML for Word`
+
+Use the normalized MathML artifact to import an editable formula into
+LibreOffice Math. Writer acceptance must verify the imported formula in its
+actual document and after reopening. A preview image is reference evidence,
+not an editable conversion. Existing native OMML remains on its current path.
+The existing external transpect runtime decodes OLE/MTEF; this policy does not
+claim a new general DSMT4 decoder or bundle that runtime into Maven.
+
+## Failure and preservation contract
+
+- `unsupported`: no verified usable decoder output, missing sidecar, empty or
+  metadata-only MathML. Preserve original OLE, preview and placement.
+- `failed`: conversion or transformation error. Preserve the original and
+  report the reason; never substitute an empty formula.
+- `needs_review`: candidate conversion exists but content, editing, placement
+  or Word/Writer reopening has not been verified, or a placement safety check
+  prevents patching. Retain the source document for comparison and recovery.
+- Nonempty XML, a `<math/>`, nested empty containers, annotations, whitespace,
+  or a preview alone cannot establish successful formula conversion.
+- Current patch counters remain technical counters: `unresolved` and skip
+  reasons are not evidence of content correctness. Diagnostic logs label
+  unusable sidecars `unsupported` and transform exceptions `failed`.
+
+## Acceptance
+
+Counts are the first reconciliation check. Acceptance also requires correct
+formula contents (including arrow direction, scripts, labels and conditions),
+editable mathematical structure, original position and correct display after
+saving and reopening in Word and Writer. Package/XML validation alone does
+not prove application reopening or visual correctness.
+
+Start with the chemistry arrow formula, then reconcile every one of the
+265 MathType occurrences across the five original exams. See
+[the acceptance procedure](./dsmt4_migration_acceptance.md).
+
+## FULL_END_ONLY investigation
+
+Continue investigating extracted payload boundaries, parser interpretation,
+MTEF records and independent source evidence. Existing `FULL_END_ONLY` and
+`UNSUPPORTED_SUBTYPE` labels are observed diagnostic classifications, not proof
+that decoding is possible or intrinsically impossible. No production recovery
+rule is justified yet. Do not generate a formula from a fingerprint or infer
+content from counts. Keep these objects unchanged and report `unsupported`
+until a faithful decoding path is demonstrated.
+
+The prior [taxonomy](./dsmt4_taxonomy_baseline.md),
+[MTEF semantics note](./dsmt4_mtef_spec_reference_note.md) and
+[corpus audit](./dsmt4_full_in_corpus_audit_2026-04-23.md) remain evidence
+snapshots. Their historical roadmap/freeze language is superseded here;
+their recorded observations remain available for investigation.
 
 ## Out of scope
 
-- legacy DSMT4 / old MathType OLE as an official product target
-- old `.doc` equation workflows
-- malformed pseudo-`.docx` packages that do not behave like normal DOCX ZIP containers
-- reopening legacy degenerate equation investigations as default roadmap work
-
-## Current project focus
-
-- keep modern `.docx` support stable
-- prioritize native OMML
-- preserve one mainline equation path centered on OMML
-- support only equation formats that the current pipeline already converts stably to OMML
-
-## Migration guidance for legacy files
-
-- reopen and resave legacy files as modern `.docx` before processing them here
-- replace old MathType / OLE content with native OMML where practical
-- treat legacy `.doc`, DSMT4, and old MathType OLE content as migration work outside the official support boundary
-- use the archived DSMT4 notes only as historical reference when triaging old corpora
-
-## Non-goals
-
-- do not expand official support back to legacy DSMT4
-- do not add new legacy recovery work just because historical scripts still exist in the repo
-- do not treat historical audit output as the current roadmap
-- do not open production-fix work for legacy DSMT4 from this policy alone
-
-## Historical baseline
-
-The repository keeps prior DSMT4 investigation material as frozen historical baseline, not as active roadmap:
-
-- [dsmt4_taxonomy_baseline.md](./dsmt4_taxonomy_baseline.md)
-- [dsmt4_mtef_spec_reference_note.md](./dsmt4_mtef_spec_reference_note.md)
-- [dsmt4_taxonomy_lines_report.md](./dsmt4_taxonomy_lines_report.md)
-- [dsmt4_full_in_corpus_audit_2026-04-23.md](./dsmt4_full_in_corpus_audit_2026-04-23.md)
-- [dsmt4_metadata_only_no_renderable_body_other_deep_audit.md](./dsmt4_metadata_only_no_renderable_body_other_deep_audit.md)
-- [empty_generated_sidecar_with_renderable_body_investigation_10_toan_hcm_2026.md](./empty_generated_sidecar_with_renderable_body_investigation_10_toan_hcm_2026.md)
-- [dsmt4_30_li_2025_source_local_split.md](./dsmt4_30_li_2025_source_local_split.md)
-- [dsmt4_underscore_big_group_audit_2026-04-23.md](./dsmt4_underscore_big_group_audit_2026-04-23.md)
-
-## Mainline message
-
-- modern DOCX + OMML is the mainline
-- legacy DSMT4 is no longer a product target
+Direct binary `.doc` ingestion and malformed pseudo-DOCX packages. Resave
+`.doc` to a valid `.docx` before migration, retaining the original for comparison.
+Unverified broad legacy-format recovery is not a support promise.

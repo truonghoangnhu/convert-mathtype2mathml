@@ -14,13 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.regex.Pattern;
 
 public final class PoiMathSourceDetector implements MathSourceDetector {
-    private static final Pattern LIST_LABEL_PATTERN = Pattern.compile(
-            "^(?:(?:[A-Da-d][\\.)])|(?:\\([0-9]{1,2}\\))|(?:[0-9]{1,2}[\\.)])|(?:[\\u2022\\u25CF\\u25E6]))$"
-    );
-
     @Override
     public List<MathOccurrence> detect(XWPFDocument document, XWPFParagraph paragraph) {
         List<MathOccurrence> results = new ArrayList<>();
@@ -94,55 +89,22 @@ public final class PoiMathSourceDetector implements MathSourceDetector {
         if (paragraphHasNativeOmml) {
             return false;
         }
-        String text = Objects.toString(paragraph.getText(), "");
-        String compactText = text.replaceAll("\\s+", "").trim();
-        if (paragraphObjectCount != 1) {
-            return false;
-        }
-        if (compactText.isEmpty()) {
-            return true;
-        }
-        if (hasListLikeParagraphProperties(paragraph) || isListLikeShortLabel(compactText)) {
-            return false;
-        }
-        if (hasVisibleTextOnBothSides(paragraph, objectRunIndex)) {
-            return false;
-        }
-        return compactText.length() <= 7;
-    }
-
-    private static boolean hasListLikeParagraphProperties(XWPFParagraph paragraph) {
+        if (paragraphObjectCount != 1) return false;
+        // A short answer marker or unit is still document content. A block
+        // replacement owns the whole paragraph, so only object-only runs qualify.
         Node paragraphNode = paragraph.getCTP().getDomNode();
-        Element pPr = findFirstDescendant(paragraphNode, "pPr");
-        if (pPr == null) {
-            return false;
-        }
-        return findFirstDescendant(pPr, "numPr") != null || findFirstDescendant(pPr, "ind") != null;
-    }
-
-    private static boolean isListLikeShortLabel(String compactText) {
-        return LIST_LABEL_PATTERN.matcher(compactText).matches();
-    }
-
-    private static boolean hasVisibleTextOnBothSides(XWPFParagraph paragraph, int objectRunIndex) {
-        StringBuilder before = new StringBuilder();
-        StringBuilder after = new StringBuilder();
-        List<XWPFRun> runs = paragraph.getRuns();
-        for (int i = 0; i < runs.size(); i++) {
-            if (i == objectRunIndex) {
-                continue;
-            }
-            String text = Objects.toString(runs.get(i).text(), "");
-            if (text.isBlank()) {
-                continue;
-            }
-            if (i < objectRunIndex) {
-                before.append(text);
-            } else {
-                after.append(text);
+        for (Node child = paragraphNode.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child.getNodeType() != Node.ELEMENT_NODE) continue;
+            String name = child.getLocalName();
+            if ("pPr".equals(name) || "bookmarkStart".equals(name) || "bookmarkEnd".equals(name)) continue;
+            if (!"r".equals(name)) return false;
+            for (Node runChild = child.getFirstChild(); runChild != null; runChild = runChild.getNextSibling()) {
+                if (runChild.getNodeType() != Node.ELEMENT_NODE) continue;
+                String runName = runChild.getLocalName();
+                if (!"rPr".equals(runName) && !"object".equals(runName)) return false;
             }
         }
-        return !before.toString().trim().isEmpty() && !after.toString().trim().isEmpty();
+        return true;
     }
 
     private static int countObjects(XWPFParagraph paragraph) {
