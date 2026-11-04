@@ -77,6 +77,196 @@ final class DocxMathPatchWorkflowTest {
     }
 
     @Test
+    void preservesOriginalPackageWhenSidecarHasNoUsableFormula() throws Exception {
+        for (String mathml : List.of(
+                "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"/>",
+                "<math><mrow><mspace width=\"1em\"/></mrow></math>",
+                "<math><semantics><mrow/><annotation encoding=\"text/plain\">x</annotation></semantics></math>",
+                "<math xmlns=\"urn:wrong\"><mi>x</mi></math>",
+                "<math><mi>broken</math>")) {
+            Path temp = Files.createTempDirectory("dsmt4-no-content");
+            Path input = temp.resolve("input.docx");
+            Path output = temp.resolve("output.docx");
+            MathObjectRef object = mathObjectRef(1, mathml);
+            writeMinimalDocx(input, oleObjectDocumentXml(object), List.of(object));
+            var summary = new DocxMathPatchMain(
+                    ManifestMathSidecarRepository.load(writeManifest(temp, List.of(object))))
+                    .patch(input, output);
+            assertEquals(0, summary.patchedBlocks(), mathml);
+            assertEquals(0, summary.patchedInline(), mathml);
+            assertEquals(1, summary.unresolved(), mathml);
+            assertArrayEquals(Files.readAllBytes(input), Files.readAllBytes(output), mathml);
+        }
+    }
+
+    @Test
+    void preservesOleWhenOmmlConversionThrows() throws Exception {
+        Path temp = Files.createTempDirectory("dsmt4-conversion-failed");
+        Path input = temp.resolve("input.docx");
+        Path output = temp.resolve("output.docx");
+        MathObjectRef object = mathObjectRef(1, wmfMathml("x", "+", "1"));
+        writeMinimalDocx(input, oleObjectDocumentXml(object), List.of(object));
+        var patcher = new DocxMathPatchMain(
+                ManifestMathSidecarRepository.load(writeManifest(temp, List.of(object))),
+                new BasicMathmlNormalizer(),
+                mathml -> { throw new IllegalStateException("decoder output cannot be transformed"); },
+                new XmlBeansOmmlInjector(), new DocxWalker(new PoiMathSourceDetector()),
+                new InlineSafetyEvaluator(), new MultiObjectSafetyEvaluator(), DocxMathPatchMain.LogLevel.WARNINGS);
+        var summary = patcher.patch(input, output);
+        assertEquals(0, summary.patchedBlocks());
+        assertEquals(1, summary.unresolved());
+        assertEquals(1, summary.skipBreakdownCount(PatchSkipReason.OMML_CONVERSION_FAILED));
+        assertArrayEquals(Files.readAllBytes(input), Files.readAllBytes(output));
+    }
+
+    @Test
+    void normalizesNamespaceFreeMathmlIntoEditableOmmlRuns() throws Exception {
+        MathObjectRef object = mathObjectRef(1, "<math><mi>x</mi></math>");
+        PatchRunResult result = runPatch(oleObjectDocumentXml(object), List.of(object), List.of(object));
+        assertEquals(1, result.summary.patchedBlocks());
+        var factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        var document = factory.newDocumentBuilder().parse(new org.xml.sax.InputSource(new java.io.StringReader(result.xml)));
+        var runs = document.getElementsByTagNameNS("http://schemas.openxmlformats.org/officeDocument/2006/math", "t");
+        assertEquals(1, runs.getLength());
+        assertEquals("x", runs.item(0).getTextContent());
+    }
+
+    @Test
+    void retainsOriginalWhenTransformReturnsEmptyOrBareTextOmml() throws Exception {
+        for (String omml : List.of(
+                "<m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"/>",
+                "<m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\">x</m:oMath>")) {
+            Path temp = Files.createTempDirectory("dsmt4-empty-omml");
+            Path input = temp.resolve("input.docx");
+            Path output = temp.resolve("output.docx");
+            MathObjectRef object = mathObjectRef(1, wmfMathml("x", "+", "1"));
+            writeMinimalDocx(input, oleObjectDocumentXml(object), List.of(object));
+            var patcher = new DocxMathPatchMain(
+                    ManifestMathSidecarRepository.load(writeManifest(temp, List.of(object))),
+                    new BasicMathmlNormalizer(), mathml -> omml,
+                    new XmlBeansOmmlInjector(), new DocxWalker(new PoiMathSourceDetector()),
+                    new InlineSafetyEvaluator(), new MultiObjectSafetyEvaluator(), DocxMathPatchMain.LogLevel.WARNINGS);
+            var summary = patcher.patch(input, output);
+            assertEquals(0, summary.patchedBlocks());
+            assertEquals(1, summary.unresolved());
+            assertArrayEquals(Files.readAllBytes(input), Files.readAllBytes(output));
+        }
+    }
+
+    @Test
+    void retainsLabeledArrowContentFromRealChemistryMtefSidecars() throws Exception {
+        var first = mathObjectRef(1, Files.readString(Path.of("fixtures/dsmt4/chemistry-arrows/arrow-1.mathml")));
+        var second = mathObjectRef(2, Files.readString(Path.of("fixtures/dsmt4/chemistry-arrows/arrow-2.mathml")));
+        var result = runPatch(inlineObjectDocumentXml("", List.of(
+                textRunXml("CH₃CH(NH₂)COOH "), objectRunXml(first),
+                textRunXml(" X "), objectRunXml(second), textRunXml(" Y."))),
+                List.of(first, second), List.of(first, second));
+        assertEquals(2, result.summary.patchedInline());
+        assertOmmlIsParagraphChild(result.xml, 2);
+        var factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        var doc = factory.newDocumentBuilder().parse(new org.xml.sax.InputSource(new java.io.StringReader(result.xml)));
+        var xpath = javax.xml.xpath.XPathFactory.newInstance().newXPath();
+        // Literal expected labels come from the source preview, including its commas.
+        String base = "//*[local-name()='oMath']";
+        // The arrow is Word's stretching group character over the upper label, with the lower
+        // label hanging beneath; a bare "→" run with labels around it renders as a short arrow.
+        String arrow1 = "(" + base + ")[1]/*[local-name()='limLow']/*[local-name()='e']/*[local-name()='d']/*[local-name()='e']/*[local-name()='groupChr']";
+        assertEquals("→", xpath.evaluate(arrow1 + "/*[local-name()='groupChrPr']/*[local-name()='chr']/@*[local-name()='val']", doc));
+        // The two TeX "\\ " gaps in the source (mspace 0.16em) must survive as spaces: "CH3OH, HCl khan".
+        assertEquals("CH3OH,\u2006HCl\u2006khan", xpath.evaluate(arrow1 + "/*[local-name()='e']", doc));
+        assertEquals(",−H2O,", xpath.evaluate("(" + base + ")[1]/*[local-name()='limLow']/*[local-name()='lim']", doc));
+        // The lower label is the wider one here, so the arrow is grouped over it and the upper label sits above.
+        String arrow2 = "(" + base + ")[2]/*[local-name()='limUpp']/*[local-name()='e']/*[local-name()='d']/*[local-name()='e']/*[local-name()='groupChr']";
+        assertEquals("→", xpath.evaluate(arrow2 + "/*[local-name()='groupChrPr']/*[local-name()='chr']/@*[local-name()='val']", doc));
+        assertEquals(",−NH4Cl,", xpath.evaluate(arrow2 + "/*[local-name()='e']", doc));
+        assertEquals("NH3", xpath.evaluate("(" + base + ")[2]/*[local-name()='limUpp']/*[local-name()='lim']", doc));
+    }
+
+    private static final String SOURCE_RUN_PROPERTIES =
+            "<w:rPr><w:b/><w:color w:val=\"0000CC\"/><w:position w:val=\"-4\"/><w:sz w:val=\"28\"/>"
+                    + "<w:szCs w:val=\"28\"/><w:highlight w:val=\"yellow\"/><w:u w:val=\"single\"/></w:rPr>";
+
+    @Test
+    void carriesSourceRunSizeAndColourOntoEveryInlineEquationRun() throws Exception {
+        var object = mathObjectRef(1, wmfMathml("x", "+", "1"));
+        var result = runPatch(inlineObjectDocumentXml("", List.of(
+                textRunXml("Cho "), formattedObjectRunXml(object, SOURCE_RUN_PROPERTIES), textRunXml(" xong"))),
+                List.of(object), List.of(object));
+        assertEquals(1, result.summary.patchedInline());
+        assertMathRunsCarry(result.xml, 1, "28", "0000CC");
+    }
+
+    @Test
+    void carriesSourceRunFormattingOntoBlockEquationRuns() throws Exception {
+        var object = mathObjectRef(1, wmfMathml("x", "+", "1"));
+        var result = runPatch(inlineObjectDocumentXml("", List.of(formattedObjectRunXml(object, SOURCE_RUN_PROPERTIES))),
+                List.of(object), List.of(object));
+        assertEquals(1, result.summary.patchedBlocks());
+        assertMathRunsCarry(result.xml, 1, "28", "0000CC");
+    }
+
+    @Test
+    void carriesEachObjectsOwnFormattingInMultiObjectParagraph() throws Exception {
+        var first = mathObjectRef(1, wmfMathml("a", "+", "1"));
+        var second = mathObjectRef(2, wmfMathml("b", "+", "2"));
+        var result = runPatch(inlineObjectDocumentXml("", List.of(
+                formattedObjectRunXml(first, "<w:rPr><w:sz w:val=\"20\"/></w:rPr>"), textRunXml(" và "),
+                formattedObjectRunXml(second, "<w:rPr><w:sz w:val=\"30\"/></w:rPr>"))),
+                List.of(first, second), List.of(first, second));
+        assertEquals(2, result.summary.patchedInline());
+        var equations = parseNamespaceAware(result.xml).getElementsByTagNameNS(OMML_NS, "oMath");
+        assertEquals(2, equations.getLength());
+        assertEquals("20", singleSize(equations.item(0)));
+        assertEquals("30", singleSize(equations.item(1)));
+    }
+
+    private static final String OMML_NS = "http://schemas.openxmlformats.org/officeDocument/2006/math";
+    private static final String WORD_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+
+    private static org.w3c.dom.Document parseNamespaceAware(String xml) throws Exception {
+        var factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        return factory.newDocumentBuilder().parse(new org.xml.sax.InputSource(new java.io.StringReader(xml)));
+    }
+
+    private static String singleSize(org.w3c.dom.Node equation) {
+        var sizes = new java.util.TreeSet<String>();
+        var runs = ((org.w3c.dom.Element) equation).getElementsByTagNameNS(OMML_NS, "r");
+        for (int i = 0; i < runs.getLength(); i++) {
+            var sz = ((org.w3c.dom.Element) runs.item(i)).getElementsByTagNameNS(WORD_NS, "sz");
+            assertEquals(1, sz.getLength(), "every m:r needs the source size");
+            sizes.add(((org.w3c.dom.Element) sz.item(0)).getAttributeNS(WORD_NS, "val"));
+        }
+        assertEquals(1, sizes.size());
+        return sizes.first();
+    }
+
+    private static void assertMathRunsCarry(String xml, int equations, String size, String colour) throws Exception {
+        var doc = parseNamespaceAware(xml);
+        assertEquals(equations, doc.getElementsByTagNameNS(OMML_NS, "oMath").getLength());
+        var runs = doc.getElementsByTagNameNS(OMML_NS, "r");
+        assertTrue(runs.getLength() > 0);
+        for (int i = 0; i < runs.getLength(); i++) {
+            var props = (org.w3c.dom.Element) ((org.w3c.dom.Element) runs.item(i)).getElementsByTagNameNS(WORD_NS, "rPr").item(0);
+            assertTrue(props != null, "m:r lost w:rPr");
+            var names = new java.util.ArrayList<String>();
+            for (var c = props.getFirstChild(); c != null; c = c.getNextSibling()) {
+                if (c.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) names.add(c.getLocalName());
+            }
+            // Schema order, no bold/position leaking from the OLE picture run.
+            assertEquals(List.of("rFonts", "color", "sz", "szCs", "highlight", "u"), names);
+            assertEquals(size, ((org.w3c.dom.Element) props.getElementsByTagNameNS(WORD_NS, "sz").item(0)).getAttributeNS(WORD_NS, "val"));
+            assertEquals(colour, ((org.w3c.dom.Element) props.getElementsByTagNameNS(WORD_NS, "color").item(0)).getAttributeNS(WORD_NS, "val"));
+        }
+    }
+
+    private static String formattedObjectRunXml(MathObjectRef object, String runPropertiesXml) {
+        return objectRunXml(object).replaceFirst("<w:r>", "<w:r>" + java.util.regex.Matcher.quoteReplacement(runPropertiesXml));
+    }
+
+    @Test
     void classifiesUnexpectedNativeDriftWhenStructureChangesWithoutPatchingWork() {
         DocxMathPatchMain.PatchSummary summary = new DocxMathPatchMain.PatchSummary(
                 1,
@@ -123,7 +313,24 @@ final class DocxMathPatchWorkflowTest {
         assertTrue(result.xml.contains("Alpha "));
         assertTrue(result.xml.contains("omega."));
         assertTrue(result.xml.contains("oMath"));
+        assertOmmlIsParagraphChild(result.xml, 1);
         assertFalse(result.xml.contains("<w:object"));
+    }
+
+    @Test
+    void preservesShortUnitsAndAnswerLabelsBesideSingleEquation() throws Exception {
+        for (String label : List.of("Suy ra:", " (gam)", " kJ/mol.", "[A] ", ".", " ")) {
+            var object = mathObjectRef(1, wmfMathml("x", "+", "1"));
+            for (boolean before : List.of(true, false)) {
+                var runs = before ? List.of(textRunXml(label), objectRunXml(object))
+                        : List.of(objectRunXml(object), textRunXml(label));
+                var result = runPatch(inlineObjectDocumentXml("", runs), List.of(object), List.of(object));
+                assertEquals(0, result.summary.patchedBlocks(), label);
+                assertEquals(1, result.summary.patchedInline(), label);
+                assertTrue(result.xml.contains(label), label);
+                assertOmmlIsParagraphChild(result.xml, 1);
+            }
+        }
     }
 
     @Test
@@ -220,6 +427,7 @@ final class DocxMathPatchWorkflowTest {
         );
 
         assertEquals(2, result.summary.patchedInline());
+        assertOmmlIsParagraphChild(result.xml, 2);
         assertEquals(1, result.summary.multiObjectPatchedParagraphs());
         assertEquals(0, result.summary.skippedMultiObjectParagraphs());
         assertFalse(result.xml.contains("<w:object"));
@@ -667,6 +875,19 @@ final class DocxMathPatchWorkflowTest {
                 Arrays.stream(PatchSkipReason.values()).toList(),
                 result.summary.skipBreakdown().stream().map(DocxMathPatchMain.SkipBreakdownEntry::reason).toList()
         );
+    }
+
+    private static void assertOmmlIsParagraphChild(String xml, int count) throws Exception {
+        var factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        var doc = factory.newDocumentBuilder().parse(new org.xml.sax.InputSource(new java.io.StringReader(xml)));
+        var equations = doc.getElementsByTagNameNS("http://schemas.openxmlformats.org/officeDocument/2006/math", "oMath");
+        assertEquals(count, equations.getLength());
+        for (int i = 0; i < equations.getLength(); i++) {
+            var parent = equations.item(i).getParentNode();
+            assertEquals("p", parent.getLocalName(), "inline OMML must be a paragraph child, not nested in w:r");
+            assertEquals("http://schemas.openxmlformats.org/wordprocessingml/2006/main", parent.getNamespaceURI());
+        }
     }
 
     private PatchRunResult runPatch(

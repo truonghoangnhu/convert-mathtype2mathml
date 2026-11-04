@@ -296,19 +296,29 @@ public final class DocxMathPatchMain {
             }
         }
         if (resolvedPartName == null) {
-            warn("Unresolved math object: no manifest match for "
+            warn("unsupported: unresolved math object, no manifest match for "
                     + String.join(" | ", candidatePartNames.stream().filter(s -> s != null && !s.isBlank()).toList()));
             return ResolutionResult.failure(
                     SkipClassification.of(PatchSkipReason.UNRESOLVED_MANIFEST, "no manifest match for occurrence")
             );
         }
 
-        String normalizedMathml = mathmlNormalizer.normalize(mathml);
-        String ommlXml = mathmlToOmmlConverter.convert(normalizedMathml);
-        if (ommlXml == null || ommlXml.isBlank()) {
-            warn("Failed to convert OMML for " + resolvedPartName);
+        String ommlXml;
+        try {
+            String normalizedMathml = mathmlNormalizer.normalize(mathml);
+            if (!com.example.docxmath.MathmlContent.hasFormula(normalizedMathml)) {
+                warn("unsupported: empty or invalid MathML for " + resolvedPartName + "; original OLE retained");
+                return ResolutionResult.failure(SkipClassification.of(
+                        PatchSkipReason.OMML_CONVERSION_FAILED, "unsupported: empty or invalid MathML"));
+            }
+            ommlXml = mathmlToOmmlConverter.convert(normalizedMathml);
+            if (!com.example.docxmath.MathmlContent.hasOmmlRunContent(ommlXml)) {
+                throw new IllegalStateException("empty or non-editable OMML output");
+            }
+        } catch (RuntimeException ex) {
+            warn("failed: OMML conversion for " + resolvedPartName + "; original OLE retained: " + ex.getMessage());
             return ResolutionResult.failure(
-                    SkipClassification.of(PatchSkipReason.OMML_CONVERSION_FAILED, "failed to convert OMML for " + resolvedPartName)
+                    SkipClassification.of(PatchSkipReason.OMML_CONVERSION_FAILED, "failed: OMML conversion for " + resolvedPartName)
             );
         }
         return ResolutionResult.success(new ResolvedMathOccurrence(occurrence, resolvedPartName, ommlXml));

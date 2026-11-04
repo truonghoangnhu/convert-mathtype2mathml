@@ -1,0 +1,18 @@
+{
+  "source": "in/TN-THPT-2026-Hoa-Lan-2.docx",
+  "part": "word/document.xml",
+  "paragraph": 95,
+  "ole_part": "word/embeddings/oleObject81.bin",
+  "ole_sha256": "f5ca4fc93dbe5d16810672dda31d3e1f49b89565385500d5ad82060cbf0e6859",
+  "status": "unsupported",
+  "mtef_version": 5,
+  "application_key": "DSMT6",
+  "mtef_sha256": "8b4bd7d65209e8963c91c987255962da12bb62c3a624c9497c0c236579d151a0",
+  "mtef_bytes": 192,
+  "record_signature": "encoding_def,font_def,font_def,font_def,font_def,eqn_prefs,full,end",
+  "template_selectors": {},
+  "char_count": 0,
+  "slot_count": 0,
+  "payload_class": "FULL_END_ONLY",
+  "source_sha256": "2434d13d1f390d88b6c3309918ec2b42f08801acfa62c1ade89c3fa913412c0e"
+}

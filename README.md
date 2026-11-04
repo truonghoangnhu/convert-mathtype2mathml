@@ -1,92 +1,54 @@
 # docx-html-math
 
-A practical pipeline for converting modern `.docx` documents while keeping equations on the native Word/OMML path.
+A pipeline for converting `.docx` equations while preserving editable mathematical content.
 
-Official support scope is now limited to modern `.docx` inputs with:
+Supported inputs include native **OMML** and legacy MathType OLE, including
+**Equation.DSMT4**, as migration inputs with a verified decoding scope.
+`Equation.DSMT4` identifies an object; conversion capability depends on the
+actual extracted **MTEF payload**, not the ProgID alone.
 
-- native Word equations stored as **OMML**
-- equation content that the current pipeline converts stably to **OMML**
+Canonical migration path:
 
-Legacy DSMT4 / old MathType OLE material remains in this repository only as historical investigation and reporting context. It is no longer an active product target.
+```text
+OLE → MTEF → normalized MathML → OMML for Word
+                         └──→ LibreOffice Math import / Writer verification
+```
 
-See also: [docs/support_scope_policy.md](./docs/support_scope_policy.md)
-Technical checklist: [docs/modern_docx_omml_todo.md](./docs/modern_docx_omml_todo.md)
+Use the existing external transpect decoder and sidecar workflow below.
+Native OMML continues on its existing path. This does not claim universal
+DSMT4 decoding. `FULL_END_ONLY` remains an active investigation with no proven
+recovery path; preserve these objects until faithful decoding is demonstrated.
 
-## Modern DOCX + OMML Only Phase
+## Support and acceptance
 
-Active roadmap scope for this phase:
+See [support policy](./docs/support_scope_policy.md) for the canonical boundary
+and [real-source acceptance](./docs/dsmt4_migration_acceptance.md) for the
+chemistry arrow first, then all **265 MathType occurrences in five exams**.
+The expanded source corpus is now available: **32 DOCX files / 2,617 DSMT4
+occurrences / 27 native OMML equations**. The real-data run produced **2,508
+OMML candidates** and retained **109 MathType objects**. All outputs remain
+`needs_review`; see [the real corpus evidence](./docs/dsmt4_real_corpus_2026-11-03.md)
+for actual MTEF classification, application checks and remaining layout limits.
 
-- support modern `.docx` inputs only
-- keep native Word equations on the OMML path
-- do planning, regression definition, and test scaffolding before broader product logic changes
-- keep converter behavior changes minimal unless they are required to make the modern path clearer or safer
+- `unsupported`: no usable verified decoder output, including empty or metadata-only MathML.
+- `failed`: a conversion error; retain the source OLE/preview and position.
+- `needs_review`: generated candidate or placement/content/application checks remain unverified.
+- Count reconciliation is only the first check. Acceptance requires correct formula
+  contents, editability, original placement and correct display after saving and
+  reopening in **Word and Writer**.
+- `<math/>`, nested empty containers, annotations and preview images cannot count
+  as successful editable formula conversion.
 
-Frozen historical background:
+The Java patcher retains the original package when nothing is patched. Existing
+placement safety checks remain in force. Patch counters report technical work,
+not semantic or application acceptance. Keep original sources for recovery and
+comparison even when a candidate converts successfully.
 
-- DSMT4, old MathType OLE, and old `.doc` investigations remain in the repo as historical reference
-- those materials are not the active roadmap, not the default regression pack, and not a reason to reopen legacy recovery work
+Direct binary `.doc` ingestion and malformed pseudo-DOCX packages remain out of
+scope. Resave `.doc` as valid `.docx` before processing, retaining the original.
 
-## Why this branch exists
-
-The mainline path is a modern DOCX + OMML workflow:
-
-- keep native OMML intact where it already exists
-- preserve a canonical math representation that can round-trip through OMML cleanly
-- keep the repository focused on stable `.docx` inputs instead of broad legacy format recovery
-
-The repository still contains legacy investigation scripts and reports because they document past limits of old MathType / DSMT4 material, but those lines are frozen reference material rather than the active roadmap.
-
-## Supported input scope
-
-- modern `.docx` documents
-- native OMML equations already stored in WordprocessingML
-- equation content that the current pipeline converts stably to OMML
-- HTML and DOCX flows that stay on the OMML-backed path
-
-## Acceptance criteria
-
-- equation count stays stable after round-trip through the supported pipeline
-- equation placement stays stable in the reopened Word document
-- block equations remain editable native OMML where the pipeline already supports them
-- inline equations remain on the OMML-backed path without introducing legacy MathType/OLE regression
-- multi-equation paragraphs stay readable and reopen safely in Word when they are already supported by the current pipeline
-- supported output `.docx` keeps valid `m:oMath` / `m:oMathPara` structure for the equations it owns
-
-Operational output acceptance for supported modern `.docx`:
-
-- Word reopens the exported `.docx` safely
-- equation count is preserved
-- block versus inline placement is preserved
-- `m:oMath` / `m:oMathPara` structure stays valid for supported outputs
-
-## Out of scope
-
-- legacy DSMT4 / old MathType OLE objects as an official product target
-- old `.doc` equation workflows
-- malformed or partially packaged pseudo-`.docx` files that fail normal DOCX package handling
-- previously audited degenerate legacy equation families as active roadmap items
-
-## Current project focus
-
-- modern DOCX ingestion
-- native OMML preservation and OMML-backed conversion
-- predictable HTML output for modern documents
-- stable DOCX output where the pipeline already converts equation content cleanly to OMML
-
-## Current mainline pipeline focus
-
-- preserve native OMML without forcing a legacy recovery path
-- convert only equation content that already maps stably to OMML
-- keep block equations, inline equations, and supported multi-equation paragraphs in the modern DOCX path
-- treat legacy MathType/OLE recovery as historical context, not a target for new product work
-
-## Regression expectations
-
-- supported modern `.docx` inputs should keep equation count and placement stable
-- reopened files should remain safe to edit in Word
-- supported output should keep valid `oMath` / `oMathPara` structure
-- diagnostics should clearly separate supported modern inputs from out-of-scope legacy or malformed packages
-- smoke and regression runs should use the official modern DOCX + OMML smoke gate as the baseline
+Modern DOCX + OMML regression remains required alongside DSMT4 migration checks.
+Technical checklist: [docs/modern_docx_omml_todo.md](./docs/modern_docx_omml_todo.md).
 
 Official modern DOCX + OMML smoke gate:
 
@@ -163,17 +125,12 @@ Modern-path PR/release checklist (operational):
 
 ## Migration guidance for legacy files
 
-- Prefer reopening and resaving legacy material as modern `.docx` before using this repo.
-- Prefer converting or recreating equations as native OMML in Word when possible.
-- Treat old `.doc`, DSMT4, and MathType OLE-heavy sources as migration inputs, not as supported steady-state formats.
-- If legacy files must be studied, use the frozen DSMT4 docs as historical reference only; do not treat them as the current roadmap.
-
-## Non-goals
-
-- Do not expand official support back to legacy DSMT4 / MathType OLE.
-- Do not treat old `.doc` compatibility as part of the mainline product path.
-- Do not open new legacy investigation or production-fix work from this policy update alone.
-- Do not infer active support from historical audit scripts or archived reports.
+- Resave binary `.doc` as modern `.docx` before processing.
+- Run the OLE/MTEF sidecar workflow below, then generate a separate OMML DOCX.
+- Use normalized MathML for LibreOffice Math import and verify in Writer.
+- Preserve unresolved objects and record their payload class and diagnostic status.
+- Historical audit observations remain evidence; old support-exclusion/freeze
+  statements are superseded by the current support policy.
 
 ## Repository layout
 
@@ -220,9 +177,9 @@ Optional: skip MathJax and emit plain HTML + MathML only:
 java -jar target/docx-html-math-1.0.0-jar-with-dependencies.jar input.docx output.html --native-mathml-only
 ```
 
-## Legacy sidecar workflow (frozen historical background only)
+## MathType / DSMT4 migration sidecar workflow
 
-This section remains for historical and migration reference. It is not the official support boundary or active roadmap for the repository.
+This is the migration workflow for legacy OLE/MTEF. Usable sidecars are candidates for review; support depends on verified payload structure and the acceptance checks above.
 
 ### 1) Prepare transpect prerequisites
 
@@ -323,7 +280,7 @@ If no match exists:
 
 ## DOCX patch mode
 
-Officially supported use is the modern DOCX + OMML path. Legacy object patching details below are retained as historical implementation notes, not as the current support promise.
+DOCX patch mode supports migration of legacy MathType sidecars to native OMML, subject to content and placement checks. Keep unresolved objects unchanged and review generated candidates against the original.
 
 The HTML flow stays unchanged. The new mode adds a separate branch:
 
@@ -1072,7 +1029,7 @@ This is an investigation branch for the dominant pattern family, not a patch/fix
 
 ### Current DSMT4 investigation baseline
 
-Historical baseline only. Use these notes as archived legacy reference, not as the active roadmap or official support scope.
+The following observations are historical evidence for the continuing FULL_END_ONLY investigation. They do not establish a working decoder or formula contents; current support policy supersedes previous roadmap freezes.
 
 Confirmed findings:
 
@@ -1118,16 +1075,16 @@ Current interpretation:
 Recommended next step:
 
 - do not open a production-fix branch yet
-- only reopen this line of work if at least one of the following appears:
+- continue investigating this line, seeking the following evidence:
   - new corpus showing stronger subtype diversity
   - new format/spec information for this subtype
   - new parser-stage/body evidence from a future targeted investigation
-- until then, treat this branch as the frozen handoff baseline for the DSMT4 subtype investigation
+- retain these historical results as the comparison baseline for continued investigation
 
 Future revisit for the DSMT4 dominant subtype:
 
-- current status is intentionally frozen
-- reopen this only if at least one of the following appears:
+- current decoding capability remains unproven
+- seek additional evidence from:
   - new corpus
     - new independent DSMT4 source families
     - more payload classes matching the same dominant subtype
@@ -1292,18 +1249,15 @@ python3 scripts/overrides/validate_override_manifest.py \
 
 ## Important scope note
 
-Official support direction is now:
+Official support includes modern `.docx` with native OMML and legacy
+MathType/DSMT4 migration inputs whose actual MTEF payload can be decoded
+faithfully. OLE/MTEF decoding uses external transpect; normalized MathML feeds
+OMML generation for Word and MathML import into LibreOffice Math.
 
-- modern `.docx`
-- native OMML first
-- only equation formats that the current pipeline converts stably to OMML
-
-Historical legacy context in this branch still includes:
-
-- **OMML** -> handled directly in Java
-- **MathType WMF/OLE** -> handled by transpect outside Java, then fed back as sidecars
-
-Legacy MathType/DSMT4 material is retained for reference and migration context only. It is not the current product target.
+Unverified payload classes, including FULL_END_ONLY, remain unsupported for
+conversion and under investigation. Preserve their original OLE/preview;
+never report empty MathML as success. See the canonical
+[support policy](./docs/support_scope_policy.md).
 
 The repository does **not** attempt to embed the full transpect stack into Maven.
 That keeps the core Java project cleaner and makes troubleshooting easier.
