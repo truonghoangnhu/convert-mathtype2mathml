@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Shared scope, not a claim that Word loses every character in these blocks.
+     Only the four observed symbols are promoted to pure math-text conversion.
+     Other symbols in normal-text runs require review and keep the original OLE. -->
+<symbol-policy review-class="[&#x2100;-&#x214F;&#x1D400;-&#x1D7FF;]"
+               verified-pure-class="[ℝℤℕℓ]"/>

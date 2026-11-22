@@ -90,6 +90,18 @@ public final class PoiMathSourceDetector implements MathSourceDetector {
             return false;
         }
         if (paragraphObjectCount != 1) return false;
+        return isObjectOnlyParagraph(paragraph) && DisplayEquationPlacement.keepsSourcePlacement(paragraph);
+    }
+
+    static boolean isObjectOnlyParagraph(XWPFParagraph paragraph) {
+        return isObjectOnlyParagraph(paragraph, false);
+    }
+
+    static boolean isVisuallyStandaloneParagraph(XWPFParagraph paragraph) {
+        return isObjectOnlyParagraph(paragraph, true);
+    }
+
+    private static boolean isObjectOnlyParagraph(XWPFParagraph paragraph, boolean ignoreNonRenderingContent) {
         // A short answer marker or unit is still document content. A block
         // replacement owns the whole paragraph, so only object-only runs qualify.
         Node paragraphNode = paragraph.getCTP().getDomNode();
@@ -97,12 +109,30 @@ public final class PoiMathSourceDetector implements MathSourceDetector {
             if (child.getNodeType() != Node.ELEMENT_NODE) continue;
             String name = child.getLocalName();
             if ("pPr".equals(name) || "bookmarkStart".equals(name) || "bookmarkEnd".equals(name)) continue;
+            if (ignoreNonRenderingContent && isWordElement(child, "proofErr")) continue;
             if (!"r".equals(name)) return false;
             for (Node runChild = child.getFirstChild(); runChild != null; runChild = runChild.getNextSibling()) {
                 if (runChild.getNodeType() != Node.ELEMENT_NODE) continue;
                 String runName = runChild.getLocalName();
+                // A real space is deliberately not ignored: Word keeps those formulas inline.
+                if (ignoreNonRenderingContent && isWordElement(runChild, "t")
+                        && hasNoTextContent(runChild)) continue;
                 if (!"rPr".equals(runName) && !"object".equals(runName)) return false;
             }
+        }
+        return true;
+    }
+
+    private static boolean isWordElement(Node node, String name) {
+        return name.equals(node.getLocalName())
+                && "http://schemas.openxmlformats.org/wordprocessingml/2006/main".equals(node.getNamespaceURI());
+    }
+
+    private static boolean hasNoTextContent(Node node) {
+        // XMLBeans DOM does not implement the DOM Level 3 getTextContent method.
+        for (Node child = node.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child.getNodeType() != Node.TEXT_NODE && child.getNodeType() != Node.CDATA_SECTION_NODE) return false;
+            if (child.getNodeValue() != null && !child.getNodeValue().isEmpty()) return false;
         }
         return true;
     }

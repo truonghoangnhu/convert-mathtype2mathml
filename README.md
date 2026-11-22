@@ -24,11 +24,59 @@ recovery path; preserve these objects until faithful decoding is demonstrated.
 See [support policy](./docs/support_scope_policy.md) for the canonical boundary
 and [real-source acceptance](./docs/dsmt4_migration_acceptance.md) for the
 chemistry arrow first, then all **265 MathType occurrences in five exams**.
+The five-exam set is now [identified and reconciled by BIN payload](./docs/working/dsmt4_five_exam_reconciliation_2026-11-05.md)
+against the user-supplied a3.1 archive; semantic/application acceptance remains open.
 The expanded source corpus is now available: **32 DOCX files / 2,617 DSMT4
-occurrences / 27 native OMML equations**. The real-data run produced **2,508
-OMML candidates** and retained **109 MathType objects**. All outputs remain
+occurrences / 27 native OMML equations**. The 2026-11-06 inline-boundary run
+produced **2,286 OMML candidates** and retained **331 MathType objects**, plus
+10 other OLE objects. It retains 131 more objects than the earlier 2,417-candidate
+snapshot because an unseparated formula-to-word boundary keeps the entire
+paragraph unchanged. This prevents guessing a gap supplied by the OLE viewport;
+it does not establish editable conversion of the retained objects. See the
+[boundary evidence and application limits](./docs/working/codex_dsmt4_inline_boundary_2026-11-06.md).
+The subsequent [inline grouping fix](./docs/working/codex_dsmt4_nobreak_2026-11-06.md)
+keeps each newly converted inline object in an OMML box to prevent Word splitting
+it at a relation across lines/pages. The boxed baseline is
+`out/dsmt4-nobreak-final-2026-11-06/`, with the same counts and retained objects.
+The later [Writer comparison repair](./docs/working/codex_dsmt4_writer_comparison_2026-11-06.md)
+uses a nonempty invisible delimiter for the verified leading `>number°C` inline
+shape; `out/dsmt4-writer-comparison-2026-11-06/` changes only Hóa #68. Word and
+Writer edit/save/reopen probes retain `>`, with scoped UI coverage and full
+layout still unaccepted. Final independent Claude review is pending its usage limit.
+Word edit/save/close/reopen was observed for the `AB = CD = 16cm` probe;
+full-document pagination and overwide equations still need review. All outputs remain
 `needs_review`; see [the real corpus evidence](./docs/dsmt4_real_corpus_2026-11-03.md)
 for actual MTEF classification, application checks and remaining layout limits.
+The [joint Codex/Claude follow-up](./docs/working/codex_dsmt4_joint_followup_2026-11-06.md)
+adds a TN Word edit/reopen check and maps each of the 265 occurrences to the
+current artifact without importing stale application verdicts. The Math row
+alignment rule is now bounded to verified flat three-row assignment systems in
+the separate Math adapter; see the [alignment follow-up](./docs/working/codex_dsmt4_math_alignment_2026-11-06.md).
+The [Writer/MathML follow-up](./docs/working/codex_dsmt4_writer_mathml_review_2026-11-05.md)
+established the bounded W/L/T rules used by the separate preparation command below.
+The [2026-11-06 follow-up](./docs/working/codex_dsmt4_ui_and_math_fences_2026-11-06.md)
+adds G: group multiple arguments of explicitly unseparated `()`/`||` fences into
+one `mrow`, retaining the fence envelope. The 21 affected Math candidates were
+rendered before/after and reopened. Bounded positive-charge, half-open interval
+and bare-bar repairs cover 13 further Math candidates. All 34 changed candidates
+were rendered and reopened; these checks do not establish full-exam acceptance.
+The [Celsius follow-up](./docs/working/codex_dsmt4_degree_alignment_2026-11-06.md)
+adds a bounded literal-delimiter rule for the scripted `°C` pattern and explicit
+noncentered-table-alignment diagnostics; only one further Math candidate changes.
+Rule A subsequently adds a generated StarMath annotation alongside unchanged
+presentation MathML for the verified unstyled, flat three-row assignment shape.
+Toán #13–15 were rendered and saved/reopened with complete row contents and left
+alignment preserved; #15 also has a standalone Math edit/save/reopen check.
+The nested table in #16 stays unchanged with an alignment diagnostic.
+Experimental fence expansion remains outside production. Editable ODT examples do
+not establish general DOCX compatibility: leading relations outside the bounded
+temperature repair and equation-row alignment still need Writer review. Full five-exam acceptance remains open.
+The [07 Nov closeout](./docs/working/codex_dsmt4_closeout_2026-11-07.md) adds six
+standalone Math UI edit/reopen checks and one Writer/ODT embedded-vector check.
+A narrowly guarded Math-only V annotation preserves vector accents for a
+single-letter vector assigned three signed integer coordinates; only two Math
+candidates change. Current Writer whole-exam rendering still shows page reflow.
+
 
 - `unsupported`: no usable verified decoder output, including empty or metadata-only MathML.
 - `failed`: a conversion error; retain the source OLE/preview and position.
@@ -234,7 +282,33 @@ The manifest maps original DOCX part names such as:
 
 to generated MathML files.
 
-### 3) Convert DOCX to HTML and consume the sidecars
+### 3) Prepare a separate MathML file for LibreOffice Math
+
+```bash
+python3 scripts/transpect/prepare_libreoffice_mathml.py \
+  work/equation.mathml \
+  out/equation-libreoffice.mathml > out/equation-libreoffice.report.json
+```
+
+This optional command is only for LibreOffice Math's MathML importer. It creates
+a new file and never overwrites the source or an existing output. Use the
+original normalized MathML manifest for Word/OMML and HTML conversion.
+
+The measured rules wrap multiple root children into one row, and use empty groups
+around the demonstrated leading/trailing relations to avoid LibreOffice parsing
+errors. They preserve formula tokens; they do not repair all LibreOffice import
+problems. The JSON report lists changes and conditions outside the measured scope.
+
+- Exit `0`: candidate prepared, status **`needs_review`**, application acceptance `not_run`.
+- Exit `2`: **`unsupported`**, no candidate (for example empty/invisible-only or namespace-free MathML).
+- Exit `1`: **`failed`**, inspect the JSON reason; retain the source.
+
+Import the new file into LibreOffice Math, then verify editing, placement and
+save/reopen in Writer. Empty-separator fences, vector arrows, font/spacing and
+equation-row alignment still need review. This command does not fix Writer DOCX
+roundtrips, infer missing operands with content, or implement the experimental F rule.
+
+### 4) Convert DOCX to HTML and consume the sidecars
 
 ```bash
 java -jar target/docx-html-math-1.0.0-jar-with-dependencies.jar \
@@ -325,7 +399,8 @@ Phase 3.1 classification and benchmark scope:
 
 - no new patch heuristic is enabled in phase 3.1
 - the patch path now classifies skip reasons with a stable taxonomy for benchmark use
-- current taxonomy includes `NATIVE_OMML_PRESENT`, `DRAWING_IN_RUN`, `LAST_RENDERED_PAGE_BREAK_IN_RUN`, `MULTIPLE_OBJECTS_IN_SINGLE_RUN`, `MIXED_OBJECT_AND_TEXT_IN_RUN`, `UNSUPPORTED_PARAGRAPH_CHILD`, `UNKNOWN_SOURCE_KIND`, `AMBIGUOUS_SEGMENT_SEQUENCE`, `UNRESOLVED_MANIFEST`, `OMML_CONVERSION_FAILED`, `XML_MUTATION_ROLLBACK`, `OTHER_UNSAFE_MODEL`
+- current taxonomy includes `NATIVE_OMML_PRESENT`, `DRAWING_IN_RUN`, `LAST_RENDERED_PAGE_BREAK_IN_RUN`, `MULTIPLE_OBJECTS_IN_SINGLE_RUN`, `MIXED_OBJECT_AND_TEXT_IN_RUN`, `UNSUPPORTED_PARAGRAPH_CHILD`, `UNKNOWN_SOURCE_KIND`, `AMBIGUOUS_SEGMENT_SEQUENCE`, `UNRESOLVED_MANIFEST`, `OMML_CONVERSION_FAILED`, `XML_MUTATION_ROLLBACK`, `OTHER_UNSAFE_MODEL`, `INLINE_SPACING_REQUIRES_REVIEW`
+- `INLINE_SPACING_REQUIRES_REVIEW` retains an object followed immediately by a letter without an explicit separator; multi-object paragraphs are retained atomically. Skip breakdowns count single-object decisions or multi-object **paragraph** decisions, not retained occurrences. Use the output inventory for object counts.
 - multi-object paragraph skips are counted once per paragraph
 - unresolved single-object cases are counted at occurrence level because the patch path never entered a paragraph-level multi-object plan
 - after phase 3.2, `LAST_RENDERED_PAGE_BREAK_IN_RUN` should only remain for cases that are still unsafe after ignoring the artifact; benign cases are patched instead of counted as skips

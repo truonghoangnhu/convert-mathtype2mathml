@@ -72,6 +72,60 @@ final class XsltMathmlToOmmlConverterTest {
     }
 
     @Test
+    void prescriptArgumentsFollowSchemaOrderAndKeepTheirBase() throws Exception {
+        // CT_SPre is sub, sup, e (unlike sSubSup, whose base comes first).
+        // Writer loses C when the old converter emits e, sub, sup for real Lý #8.
+        for (String post : new String[]{"", "<mn>2</mn><mn>3</mn>",
+                "<mn>2</mn><none/>", "<none/><mn>3</mn>"}) {
+            Element omml = convert(MML + "<mmultiscripts><mi>C</mi>" + post
+                    + "<mprescripts/><mn>6</mn><mn>14</mn></mmultiscripts></math>");
+            Element pre = (Element) all(omml, "sPre").item(0);
+            var names = new java.util.ArrayList<String>();
+            for (var c = pre.getFirstChild(); c != null; c = c.getNextSibling()) {
+                if (c instanceof Element) names.add(c.getLocalName());
+            }
+            assertEquals(java.util.List.of("sub", "sup", "e"), names);
+            assertEquals("6", pre.getElementsByTagNameNS(OMML, "sub").item(0).getTextContent());
+            assertEquals("14", pre.getElementsByTagNameNS(OMML, "sup").item(0).getTextContent());
+            assertTrue(pre.getLastChild().getTextContent().contains("C"), "base C must survive");
+        }
+    }
+
+    @Test
+    void separatorFreeFencedExpressionHasOneEditableArgument() throws Exception {
+        // Real Toan_TQB_HN_Lx #54: separate delimiter arguments broke Writer's import
+        // of the nested f(x), adding the literal text "left" after save/reopen.
+        Element omml = convert(MML + "<mfenced open=\"(\" close=\")\" separators=\"\">"
+                + "<mn>2</mn><mi>f</mi><mfenced separators=\"\"><mi>x</mi></mfenced>"
+                + "<mo>−</mo><mn>1</mn></mfenced></math>");
+        var outer = all(omml, "d").item(0);
+        int arguments = 0;
+        for (var c = outer.getFirstChild(); c != null; c = c.getNextSibling()) {
+            if (OMML.equals(c.getNamespaceURI()) && "e".equals(c.getLocalName())) arguments++;
+        }
+        assertEquals(1, arguments);
+        assertEquals("2fx−1", text(omml));
+        assertEquals(2, all(omml, "d").getLength(), "nested f(x) delimiter remains editable");
+    }
+
+    @Test
+    void visibleAndDefaultFencedSeparatorsKeepSeparateArguments() throws Exception {
+        for (String separators : new String[]{"", " separators=\";\""}) {
+            Element omml = convert(MML + "<mfenced" + separators + "><mi>x</mi><mi>y</mi></mfenced></math>");
+            assertEquals(2, all(omml, "e").getLength());
+        }
+    }
+
+    @Test
+    void chemistryArrowWithEmptyOverLabelHasNoPlaceholderArgument() throws Exception {
+        // Real Hoa_Ha_Noi_L1 #66/#67: mover(arrow, empty mrow) is an ordinary arrow.
+        Element omml = convert(MML + "<mi>Li</mi><mover><mo>→</mo><mrow/></mover><mi>C</mi></math>");
+        assertEquals("Li→C", text(omml));
+        assertEquals(0, all(omml, "limUpp").getLength());
+        assertEquals(0, all(omml, "groupChr").getLength());
+    }
+
+    @Test
     void arrowWithBothLabelsIsAStretchingGroupCharWithLowerLabelBeneath() throws Exception {
         Element omml = convert(MML + "<munderover><mo>\u2192</mo><mrow><mi>b</mi></mrow><mrow><mi>a</mi></mrow></munderover></math>");
         Element limLow = (Element) all(omml, "limLow").item(0);
@@ -118,6 +172,59 @@ final class XsltMathmlToOmmlConverterTest {
         Element u = (Element) all(under, "groupChr").item(0);
         assertEquals("top", ((Element) u.getElementsByTagNameNS(OMML, "pos").item(0)).getAttributeNS(OMML, "val"));
         assertEquals("top", ((Element) u.getElementsByTagNameNS(OMML, "vertJc").item(0)).getAttributeNS(OMML, "val"));
+    }
+
+    private static Element runContaining(Element omml, String text) {
+        var runs = omml.getElementsByTagNameNS(OMML, "r");
+        for (int i = 0; i < runs.getLength(); i++) {
+            Element run = (Element) runs.item(i);
+            var t = run.getElementsByTagNameNS(OMML, "t");
+            if (t.getLength() > 0 && t.item(0).getTextContent().equals(text)) return run;
+        }
+        throw new AssertionError("no run with text " + text);
+    }
+
+    @Test
+    void letterlikeSymbolTextIsAMathRunSoWordKeepsItOnSave() throws Exception {
+        // Real Toan_TQB_HN_Lx #78 (a ∈ ℝ) and TN-THPT-2026 #17/#20 (ℓ) are mtext. Word 16.114 saves
+        // ℝ/ℓ/ℤ/ℕ inside an m:nor run as plain R/l/Z/N, but keeps them (as m:scr) in a math run.
+        for (String ch : new String[] {"ℝ", "ℓ", "ℤ", "ℕ"}) {
+            Element omml = convert(MML + "<mi>a</mi><mo>∈</mo><mtext>" + ch + "</mtext></math>");
+            Element run = runContaining(omml, ch);
+            assertEquals(0, run.getElementsByTagNameNS(OMML, "nor").getLength(), ch);
+            Element sty = (Element) run.getElementsByTagNameNS(OMML, "sty").item(0);
+            assertEquals("p", sty == null ? null : sty.getAttributeNS(OMML, "val"), ch);
+        }
+    }
+
+    @Test
+    void adjacentNormalTextAndLetterlikeTokensKeepSeparateRunKinds() throws Exception {
+        for (String ch : new String[]{"ℝ", "ℤ", "ℕ", "ℓ"}) {
+            Element omml = convert(MML + "<mtext>x</mtext><mtext>" + ch
+                    + "</mtext><mtext>kg</mtext></math>");
+            assertEquals("x" + ch + "kg", text(omml));
+            assertEquals(3, all(omml, "r").getLength());
+            assertEquals(1, all(runContaining(omml, "x"), "nor").getLength());
+            assertEquals(0, all(runContaining(omml, ch), "nor").getLength());
+            assertEquals(1, all(runContaining(omml, "kg"), "nor").getLength());
+        }
+    }
+
+    @Test
+    void unverifiedSymbolsAreNotSilentlyPromotedToUprightMath() throws Exception {
+        for (String ch : new String[]{"℃", "№", "™", "℅", "𝑥", "ℂ"}) {
+            Element omml = convert(MML + "<mtext>" + ch + "</mtext></math>");
+            assertEquals(ch, text(omml));
+            assertEquals(1, all(runContaining(omml, ch), "nor").getLength(), ch);
+        }
+    }
+
+    @Test
+    void ordinaryTextAndMixedTextKeepNormalTextRuns() throws Exception {
+        Element unit = convert(MML + "<mn>3</mn><mtext>km</mtext></math>");
+        assertEquals(1, runContaining(unit, "km").getElementsByTagNameNS(OMML, "nor").getLength());
+        Element mixed = convert(MML + "<mtext>xℝ</mtext></math>");
+        assertEquals(1, runContaining(mixed, "xℝ").getElementsByTagNameNS(OMML, "nor").getLength());
     }
 
     @Test

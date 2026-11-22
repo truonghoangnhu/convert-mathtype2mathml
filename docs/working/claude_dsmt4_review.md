@@ -10,7 +10,7 @@ Bằng chứng riêng nằm trong `work/claude-review/` (script + DOCX tổng h�
 
 ## 1. Findings
 
-> **Trạng thái xử lý:** P1-1 và P1-2 đã sửa (xem `docs/dsmt4_real_corpus_2026-11-03.md`, mục 3–4). Các P2 chưa xử lý. Chưa render lại trong Word/Writer.
+> **Trạng thái xử lý:** P1-1 và P1-2 đã sửa (xem `docs/dsmt4_real_corpus_2026-11-03.md`, mục 3–4). Bốn P2 đã triển khai ở bản ứng viên chờ Codex review (`docs/working/claude_dsmt4_p2_handoff.md`). Hai nhận định dưới đây được hiệu chỉnh theo kết quả đó: nhánh tách run (P2-3) **có chạy** ở đường nhiều object (có test), chỉ đường một object chặn run hỗn hợp; và `restoreParagraph` **làm mồ côi** `XWPFParagraph` thật (đã tái hiện), không chỉ là rủi ro tiềm ẩn.
 
 ### P1-1 — OMML inline làm mất toàn bộ định dạng run của object nguồn (cỡ chữ, màu, gạch chân, tô nền, đậm)
 - Chỗ: `XmlBeansOmmlInjector.java:139-167` (`replaceObjectRun` chỉ clone `rPr` cho các run `before/after`, mà hai run này gần như luôn rỗng nên không được chèn), `:84-101` (`injectBlock` cũng bỏ run). Bộ chuyển `mml2omml.xsl` chỉ sinh `w:rFonts` Cambria Math cho `m:r`.

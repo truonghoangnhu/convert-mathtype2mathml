@@ -16,6 +16,16 @@ SPEC.loader.exec_module(MODULE)
 
 
 class DocxPatchSmokeRunnerTest(unittest.TestCase):
+    def test_spacing_retention_is_counted_as_a_structural_residual(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            reporting = MODULE.collect_reporting_semantics(
+                {"workdir": Path(tmp)},
+                {"summary": {"scanned": 3}, "breakdown": {"INLINE_SPACING_REQUIRES_REVIEW": 1}},
+            )
+        self.assertEqual(reporting["values"]["equation_structural_residual_skips"], 1)
+        self.assertEqual(reporting["values"]["equation_patched"], 0)
+
     def test_parse_patch_output_extracts_summary_and_breakdown(self) -> None:
         stdout = "\n".join(
             [

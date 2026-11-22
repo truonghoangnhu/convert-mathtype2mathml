@@ -268,12 +268,20 @@ public final class DocxToHtmlCli {
         payload.put("inline", summary.patchedInline());
         payload.put("native", summary.nativeOmmlUntouched());
         payload.put("unresolved", summary.unresolved());
+        payload.put("conversion_diagnostics", summary.conversionDiagnostics());
         payload.put("skipped_unsafe_inline", summary.skippedUnsafeInlineObjects());
         payload.put("skipped_multi", summary.skippedMultiObjectParagraphs());
         payload.put("skipped_unknown", summary.skippedUnknownOrAmbiguous());
         payload.put("multi_patched", summary.multiObjectPatchedParagraphs());
         payload.put("multi_skipped_unsafe", summary.multiObjectSkippedUnsafeParagraphs());
         payload.put("multi_skipped_ambiguous", summary.multiObjectSkippedAmbiguousParagraphs());
+        // Additive: "scanned" above stays the walker's occurrence count (native OMML included).
+        if (summary.objectInventory() != null) {
+            payload.put("discovered_objects", summary.objectInventory().discovered());
+            payload.put("scanned_objects", summary.objectInventory().scanned());
+            payload.put("unscanned_objects", summary.objectInventory().unscanned());
+            payload.put("unscanned_containers", summary.objectInventory().unscannedByContainer());
+        }
         if (!summary.ommlPreservationToken().isEmpty()) {
             payload.put("omml_preservation", summary.ommlPreservationToken());
         }
@@ -372,6 +380,14 @@ public final class DocxToHtmlCli {
             rendered.append(" omml_drift_bundle=").append(ommlDriftBundle);
         }
         rendered.append(System.lineSeparator());
+        if (summary.objectInventory() != null) {
+            // Own line: parsers read the "Patch summary:" line, which keeps its keys.
+            rendered.append("Object inventory: discovered=").append(summary.objectInventory().discovered())
+                    .append(" scanned_objects=").append(summary.objectInventory().scanned())
+                    .append(" unscanned=").append(summary.objectInventory().unscanned())
+                    .append(" unscanned_containers=").append(summary.objectInventory().unscannedContainersToken())
+                    .append(System.lineSeparator());
+        }
         rendered.append("Skip breakdown:").append(System.lineSeparator());
         for (PatchSkipReason reason : PatchSkipReason.values()) {
             rendered.append("- ").append(reason.name()).append("=").append(summary.skipBreakdownCount(reason))

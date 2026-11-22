@@ -47,6 +47,14 @@ public final class InlineSafetyEvaluator {
             );
         }
 
+        if (PoiMathSourceDetector.isVisuallyStandaloneParagraph(occurrence.paragraph())
+                && (!PoiMathSourceDetector.isObjectOnlyParagraph(occurrence.paragraph())
+                || !DisplayEquationPlacement.keepsSourcePlacement(occurrence.paragraph()))) {
+            return InlinePatchPlan.skip(occurrence, InlinePatchPlan.SkipReason.AMBIGUOUS_RUN_SPAN,
+                    SkipClassification.of(PatchSkipReason.OTHER_UNSAFE_MODEL,
+                            "needs_review: standalone equation placement is not established; original retained"));
+        }
+
         Node runNode = occurrence.paragraph().getRuns().get(occurrence.runIndex()).getCTR().getDomNode();
         int objectChildren = 0;
         NodeList children = runNode.getChildNodes();
@@ -78,6 +86,10 @@ public final class InlineSafetyEvaluator {
                     InlinePatchPlan.SkipReason.AMBIGUOUS_RUN_SPAN,
                     SkipClassification.of(PatchSkipReason.AMBIGUOUS_SEGMENT_SEQUENCE, "inline run must contain exactly one object")
             );
+        }
+        if (InlineBoundarySafety.followedByUnseparatedLetter(occurrence.sourceNode())) {
+            return InlinePatchPlan.skip(occurrence, InlinePatchPlan.SkipReason.SPACING_REQUIRES_REVIEW,
+                    InlineBoundarySafety.classification());
         }
         return InlinePatchPlan.safe(occurrence);
     }
