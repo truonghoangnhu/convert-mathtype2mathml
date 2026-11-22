@@ -140,6 +140,21 @@ Writer measurement of 2026-11-22 found 166 → 160 pages over 32 exams. Evidence
 Writer showing a sentence period alone on a line after an equation in Toán 02 is
 a known display limitation.
 
+Known presentation limitations (decision, 2026-11-22). In Word: a labelled ⇌ does
+not stretch under its label; an empty-label MathType template arrow becomes a
+plain short `→` (no substitution of `⟶`, which the MTEF does not contain);
+`S.ABCD` shows a gap after the period; inline fractions and integrals render in
+text style; Cambria Math replaces Times New Roman. These do not make an occurrence
+`failed`, but they also do not satisfy display acceptance by themselves.
+
+Writer route (decision, 2026-11-22). The required Writer acceptance route is the
+normalized MathML imported into LibreOffice Math, as described above. Writer
+opening the Word DOCX (OMML) must keep every formula's content, but its known
+presentation defects are recorded as limitations rather than acceptance blockers:
+labelled arrows drawn at script size, lost left alignment in equation systems, and
+`¿` for a literal backslash such as the set difference `ℝ\{0}`. The last one is
+still an open defect outside the 265-occurrence subset.
+
 Start with the chemistry arrow formula, then reconcile every one of the
 265 MathType occurrences across the five original exams. See
 [the acceptance procedure](./dsmt4_migration_acceptance.md). The user-supplied

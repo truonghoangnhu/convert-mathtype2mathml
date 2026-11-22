@@ -99,7 +99,18 @@ this converter found no new Writer error markers (10 → 10; the previous candid
 candidate. Counts are unchanged: 71 display + 2,215 inline. The owner accepted the
 resulting Writer reflow (A6) and chose no height phantoms (B4). See
 [the layout decisions](./working/claude_dsmt4_layout_decisions_2026-11-22.md).
-Accepted remains zero; the 265-occurrence ledger still has to be rebuilt on this output.
+Accepted remains zero; the 265-occurrence ledger is rebuilt below.
+
+Ledger rebuild on the final output (2026-11-22, C1–C3, D1/D3 of the checklist).
+Writer DOCX now shows Hóa #68 `>150°C` correctly; labelled arrows and the Toán #15
+system alignment remain Writer limitations. With the current preparation command all
+265 MathML candidates import into LibreOffice Math without `¿`, and none of the 36
+import failures of 2026-11-05 recurs. The output has 247 OMML and 18 retained OLE
+occurrences (five more retained by the inline-spacing guard). The overlay ledger
+records accepted 0, needs_review 265, failed 0 (previously 219/46): failures were
+fixed or recorded as known limitations, not accepted. UI edit/save/reopen on this
+output is `not_run`; Word page counts (B9), overwide equations (B7) and the per-group
+UI checks (D2) still require an interactive Word session.
 
 ## Run order
 

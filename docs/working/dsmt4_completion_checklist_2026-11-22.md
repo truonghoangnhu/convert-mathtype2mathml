@@ -1,9 +1,8 @@
 # Checklist hoàn tất DSMT4 — 2026-11-22
 
-**Trạng thái:** chưa hoàn tất. Corpus vẫn `needs_review`, accepted = 0.
-- PR #4 đang mở, không còn ở Draft. CI xanh chỉ áp dụng cho commit `467370f`.
-- Working tree còn 136 thay đổi chưa commit: 16 file `src/main`, 4 `src/test`, 3 `scripts`, 4 `tests`, 102 file trong `docs/working`.
-- Các bản sửa mới nhất của converter vẫn chỉ nằm trong scratch.
+**Trạng thái (cập nhật cuối ngày 22/11):** chưa hoàn tất. Corpus vẫn `needs_review`, accepted = 0 (ledger mới: needs_review 265, failed 0).
+- PR #4 đang mở. Converter A1–A4 đã vào production ở commit `b01025c`; CI (generated-output gate) xanh trên `b01025c`.
+- Còn chặn: các bước cần UI Word (B7, B9, D2) chưa chạy vì màn hình bị khoá trong lượt làm việc. Không merge cho tới khi D4 có bằng chứng UI trên output cuối.
 
 Ký hiệu: `[ ]` chưa làm · `[~]` đã làm một phần · `[x]` xong.
 Cột **Xong khi** là tiêu chí nghiệm thu, không phải mô tả công việc.
@@ -37,34 +36,36 @@ Các run 18–21/11 chỉ là chẩn đoán, chưa có thay đổi converter.
 | B4 `[x]` | **Quyết định chính sách:** dùng phantom giữ chiều cao, hay chấp nhận phân trang lệch | B1–B3; `work/dsmt4-claude-b4-brief-20261122` (22/11): Writer 32 đề có 166 → 160 trang (6 đề mất 1 trang), 92% mốc đúng trang gốc; phantom chưa có cách tính tổng quát và Writer bỏ phantom khi nhập | **Đã quyết (chủ dự án, 22/11): phương án A — không dùng phantom.** Chấp nhận phân trang lệch theo tiêu chí trong `support_scope_policy.md` |
 | B5 `—` | ~~Thiết kế phantom cho mọi công thức~~ | Không áp dụng theo B4 | — |
 | B6 `—` | ~~Triển khai phantom~~ | Không áp dụng theo B4 | — |
-| B9 `[ ]` | Đo số trang trên **Word** cho 28 đề có công thức chuyển đổi (nguồn và output), theo tiêu chí của B4 | Mới có 6 đề trên Word: giữ số trang, điểm ngắt trang khác. Cần quyền điều khiển toàn màn hình để xuất PDF | Có bảng số trang Word cho 28 đề; đề nào mất trang được ghi cụ thể |
+| B9 `[ ]` **chặn** | Đo số trang trên **Word** cho 29 đề có công thức chuyển đổi (nguồn và output), theo tiêu chí của B4 | Mới có 6 đề trên Word: giữ số trang, điểm ngắt trang khác. Bản sao 29 cặp đã chuẩn bị ở `work/dsmt4-claude-b9-word-pages-20261122/` (`exams.json`); lượt 22/11 dừng vì màn hình khoá (Word không cho chụp cửa sổ). (Trước đây ghi 28; thực tế 29 đề có `converted > 0`) | Có bảng số trang Word cho 28 đề; đề nào mất trang được ghi cụ thể |
 | B10 `[ ]` | (Tuỳ chọn, không chặn) Chỉnh khoảng cách hàng của 25 hệ phương trình cho gần MathType (A+) | Codex 18/11: xử lý phần lớn chênh lệch của hệ, còn thiếu ~8 pt; chưa có quy tắc tổng quát | Có quy tắc từ dữ liệu nguồn, test đỏ → xanh, đo trên Word |
-| B7 `[ ]` | Công thức quá rộng và phân trang toàn đề sau box `noBreak` (toan086 đã đạt trên probe) | `codex_dsmt4_nobreak_2026-11-06.md` | Toàn bộ 4 đề có DSMT4 không còn công thức bị ngắt hoặc tràn lề |
-| B8 `[ ]` | Các lỗi Word đã thấy ngày 05/11, chưa có quyết định | `claude_dsmt4_acceptance_final_…T1448.md` | Mỗi mục có quyết định sửa hoặc ghi giới hạn |
+| B7 `[ ]` **chặn** | Công thức quá rộng và phân trang toàn đề sau box `noBreak` (toan086 đã đạt trên probe) | `codex_dsmt4_nobreak_2026-11-06.md` | Toàn bộ 4 đề có DSMT4 không còn công thức bị ngắt hoặc tràn lề |
+| B8 `[x]` | Các lỗi Word đã thấy ngày 05/11 | `claude_dsmt4_acceptance_final_…T1448.md` | **Đã quyết (22/11, theo uỷ quyền của chủ dự án): cả năm mục ghi là giới hạn đã biết, không sửa converter trong PR này** (chi tiết dưới) |
 
-Chi tiết B8:
-- ⇌ có nhãn không giãn (giới hạn của Word);
-- mũi tên mẫu rỗng thành `→` ngắn (có đổi sang `⟶` không);
-- `S.ABCD` hiện thành `S. ABCD` (tách run `.` với `m:nor`);
-- phân số và tích phân inline bị thu nhỏ;
-- font Cambria Math thay cho Times New Roman.
+Chi tiết B8 (quyết định 22/11):
+- ⇌ có nhãn không giãn: giới hạn của Word (probe `groupChr` và `limUpp` đều không giãn);
+- mũi tên mẫu rỗng thành `→` ngắn: giữ `→`, **không** đổi sang `⟶` (đổi ký tự là suy diễn trình bày ngoài MTEF);
+- `S.ABCD` hiện thành `S. ABCD`: giới hạn khoảng cách; sửa cần tách run `.` trong logic gom token, để sau;
+- phân số và tích phân inline bị thu nhỏ: OMML không có display-style cho inline (cùng nguyên nhân B4);
+- font Cambria Math thay cho Times New Roman: font toán mặc định của Word, chấp nhận.
 
 ## C. Writer và LibreOffice
 
 | # | Việc | Ghi chú | Xong khi |
 |---|---|---|---|
-| C1 `[ ]` | Đối chiếu lại các mục Writer DOCX đã báo ngày 05/11 với output sau khi tích hợp A | Đã báo: hoa068 hiện `¿` và mất `>` khi lưu; mũi tên có nhãn bị dẹt; hệ toan015 lệch hàng; các run 12/11 về leading relation và alignment có thể đã xử lý một phần | Mỗi mục được đánh dấu đã sửa, giới hạn đã chấp nhận, hoặc còn mở, kèm render |
-| C2 `[ ]` | Lệnh `prepare_libreoffice_mathml.py` (hiện là W/L/T/G/C/I/B): đo lại 36 lỗi nhập đã báo ngày 05/11 | Gồm ngoặc `separators=""`, khoảng `[a;b)`, `\|…\|`, `²⁺`, `t(°C)` | Nhập lại 265 ứng viên, 0 lỗi nội dung, hoặc mỗi lỗi còn lại được ghi lý do |
-| C3 `[ ]` | **Quyết định:** Writer DOCX là tuyến bắt buộc khi nghiệm thu, hay chỉ ghi giới hạn đã biết | Theo `support_scope_policy.md`, tuyến Writer hiện là MathML → LibreOffice Math | Chính sách được cập nhật |
+| C1 `[x]` | Đối chiếu lại các mục Writer DOCX đã báo ngày 05/11 với output sau khi tích hợp A | `work/dsmt4-claude-c1-writer-recheck-20261122` (22/11): hoa068 `>150°C` **đã sửa**; mũi tên có nhãn vẫn cỡ chỉ số và toan015 vẫn lệch cột (**giới hạn**, Word đúng); 10 `¿` còn lại trên corpus là phép trừ tập `ℝ\{0}` ở 5 công thức ngoài bộ 265 (**còn mở**) | Mỗi mục được đánh dấu đã sửa, giới hạn đã chấp nhận, hoặc còn mở, kèm render |
+| C2 `[x]` | Lệnh `prepare_libreoffice_mathml.py` (W/L/T/G/C/I/B/D/A/V): đo lại 36 lỗi nhập đã báo ngày 05/11 | `work/dsmt4-claude-c2-lo-math-20261122` (22/11): 265/265 chuẩn bị rc 0; nhập và render 8 trang: 0 `¿`, **36/36 lỗi cũ không còn**; còn mũi tên có nhãn ngắn (hoa037/042/086). Chưa chạy UI sửa–mở lại | Nhập lại 265 ứng viên, 0 lỗi nội dung, hoặc mỗi lỗi còn lại được ghi lý do |
+| C3 `[x]` | **Quyết định:** Writer DOCX là tuyến bắt buộc khi nghiệm thu, hay chỉ ghi giới hạn đã biết | Theo `support_scope_policy.md`, tuyến Writer hiện là MathML → LibreOffice Math | **Đã quyết (22/11):** tuyến Writer bắt buộc là MathML → LibreOffice Math; Writer mở DOCX (OMML) phải giữ đủ nội dung nhưng lỗi trình bày (mũi tên có nhãn, căn hàng hệ, ¿ của `ℝ\{0}`) ghi là giới hạn đã biết. Đã ghi vào `support_scope_policy.md` |
 
 ## D. Nghiệm thu 265 occurrence (bộ 5 đề)
 
 | # | Việc | Xong khi |
 |---|---|---|
-| D1 `[ ]` | Dựng lại ledger trên output production cuối cùng (sau A và B): render đề đầy đủ bằng Word và Writer, tách đoạn, ghi tiêu chí từng occurrence | Ledger mới; 0 occurrence chưa có trạng thái |
-| D2 `[ ]` | Sửa–lưu–đóng–mở lại qua UI, theo **từng nhóm cấu trúc**, trên Word, Writer DOCX và LibreOffice Math/ODT | Mỗi nhóm có ít nhất một mẫu đạt trên mỗi tuyến bắt buộc |
-| D3 `[ ]` | Với những gì chưa chạy, ghi `not_run`; không suy rộng từ mẫu | — |
-| D4 `[ ]` | Chuyển sang `accepted` chỉ những occurrence đạt đủ nội dung, khả năng sửa, vị trí và hiển thị sau khi mở lại | Đối chiếu tổng accepted + needs_review + failed + unsupported = 265 |
+| D1 `[x]` | Dựng lại ledger trên output production cuối cùng (sau A và B): render đề đầy đủ bằng Word và Writer, tách đoạn, ghi tiêu chí từng occurrence | Ledger mới; 0 occurrence chưa có trạng thái |
+| D2 `[ ]` **chặn** | Sửa–lưu–đóng–mở lại qua UI, theo **từng nhóm cấu trúc**, trên Word, Writer DOCX và LibreOffice Math/ODT | Mỗi nhóm có ít nhất một mẫu đạt trên mỗi tuyến bắt buộc |
+| D3 `[x]` | Với những gì chưa chạy, ghi `not_run`; không suy rộng từ mẫu | `ui_edit_reopen_final_output = not_run` cho 265 |
+| D4 `[~]` | Chuyển sang `accepted` chỉ những occurrence đạt đủ nội dung, khả năng sửa, vị trí và hiển thị sau khi mở lại | Đối chiếu tổng accepted + needs_review + failed + unsupported = 265 |
+
+D1 (22/11): `work/dsmt4-claude-d-ledger-20261122/` dựng lại 265 dòng trên output A7 từ ledger 05/11 cộng bằng chứng C1/C2 và quyết định B8/C3. Output: 247 OMML + 18 OLE giữ (5 mới do `INLINE_SPACING_REQUIRES_REVIEW`). Kết quả: accepted 0, needs_review 265, failed 0 (05/11: 219/46). Hết `failed` vì lỗi đã sửa hoặc được ghi giới hạn, **không** vì đã nghiệm thu. D4: chưa occurrence nào đủ bằng chứng accepted.
 
 Các nhóm cấu trúc ở D2:
 - công thức hóa học inline;
@@ -88,15 +89,15 @@ Hiện có từ ngày 05/11:
 
 ## E. Phạm vi và chính sách cần chốt
 
-- `[ ]` 18 OLE giữ nguyên trong bộ 5 đề (331 trên toàn corpus), gồm hai OLE Lý ¶91. Chốt: giữ nguyên OLE như kết quả hợp lệ, hay cần chuyển đổi tiếp.
-- `[ ]` `FULL_END_ONLY` vẫn `unsupported`. Chỉ thay đổi khi có đường giải mã trung thực.
-- `[ ]` Ngưỡng chấp nhận cho trình bày: font, khoảng cách, phân trang, chiều cao dòng (liên quan B4).
+- `[x]` 18 OLE giữ nguyên trong bộ 5 đề (331 trên toàn corpus), gồm hai OLE Lý ¶91. **Chốt (22/11):** giữ nguyên OLE là kết quả bảo toàn hợp lệ theo hợp đồng thất bại (`needs_review`/`unsupported`), không phải conversion; không mở rộng chuyển đổi trong PR này.
+- `[x]` `FULL_END_ONLY` vẫn `unsupported`. Chỉ thay đổi khi có đường giải mã trung thực.
+- `[x]` Ngưỡng chấp nhận cho trình bày: theo "Layout tolerance" (B4) và giới hạn B8 trong `support_scope_policy.md`. Số trang Word toàn corpus vẫn chờ B9.
 
 ## F. Đóng project
 
 - `[ ]` Dọn `docs/working` (102 file). Chọn những file cần commit; phần còn lại giữ local hoặc gom lại.
 - `[ ]` Cập nhật `docs/dsmt4_migration_acceptance.md`, `docs/support_scope_policy.md`, README theo snapshot cuối.
-- `[ ]` Commit, push, chờ CI xanh trên đúng commit cuối.
+- `[~]` Commit, push, chờ CI xanh trên đúng commit cuối (`b01025c` xanh; commit tài liệu 22/11 cần CI lại).
 - `[ ]` Cập nhật mô tả PR #4. Tách rõ phần đã kiểm với phần giới hạn.
 - `[ ]` Merge chỉ sau khi D4 và E có kết quả rõ ràng.
 
@@ -107,9 +108,8 @@ Hiện có từ ngày 05/11:
 1. ~~A5 (audit 32 đề trên bản cuối)~~ — xong 22/11.
 2. ~~A6 và B4~~ — đã quyết 22/11 (A6: chấp nhận; B4: không phantom).
 3. ~~A7 (tích hợp)~~ — xong 22/11 (chưa commit).
-4. B7–B9 (B5–B6 không áp dụng; B10 tuỳ chọn).
-5. C1–C3.
-6. D1–D4.
-7. F.
+4. ~~C1–C3, B8, E, D1, D3~~ — xong 22/11.
+5. **Còn lại, cần màn hình mở khoá cho Word UI:** B9, B7, D2, rồi D4.
+6. F: merge chỉ sau D4.
 
 Các mục A và B chặn D, vì ledger phải chạy trên output cuối cùng.
