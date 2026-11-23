@@ -137,15 +137,16 @@ drawn short, one bevelled fraction drawn stacked). Editing inside these Writer d
 sixteen samples covering every structure group except the leading relation; the other
 231 formulas were unchanged.
 
-D4 result (2026-11-23). After a page-by-page review of the Word-saved and reopened Toán,
-TN and Lý copies, an occurrence is accepted when its output is native OMML, its Word
+D4 result (2026-11-23). After a page-by-page review of the Word-saved and reopened copies
+of all four exams, an occurrence is accepted when its output is native OMML, its Word
 display after save and reopen was reviewed without a recorded limitation, its XML is
 unchanged by the Word save, it passed the Writer document check after reopening, and its
 structure group has a UI-verified sample on both Word and the Writer document. Ledger:
-accepted 143 (Toán 112, TN 22, Lý 9), needs_review 122, failed 0, unsupported 0. Still
-needs_review: the 100 Hóa occurrences (Word display review not yet done), the 18 retained
-objects, li009 (bevelled fraction drawn stacked in LibreOffice Math) and toan022/027/090
-(gap after the period in S.ABCD in Word).
+accepted 237 (Hóa 94, Toán 112, TN 22, Lý 9), needs_review 28, failed 0, unsupported 0.
+Still needs_review: the 18 retained objects; hoa037, hoa042, hoa066, hoa067 and hoa086
+(arrow presentation limitations); li009 (bevelled fraction drawn stacked in LibreOffice
+Math); toan022/027/090 (gap after the period in S.ABCD in Word); and hoa068, whose
+leading-relation group has no Writer UI sample yet.
 
 ## Run order
 
