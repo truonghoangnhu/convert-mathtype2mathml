@@ -135,7 +135,11 @@ hidden height structures (e.g. empty `m:phant` struts) are added to compensate.
 A conversion is still unacceptable if any text, figure or equation is lost,
 overlaps other content or runs past the margins. Word page counts against the
 source must be measured and any exam that changes page count is listed; the
-Writer measurement of 2026-11-22 found 166 → 160 pages over 32 exams. Evidence:
+Writer measurement of 2026-11-22 found 166 → 160 pages over 32 exams. The Word measurement of 2026-11-23 found 149 → 140 pages over the 29 exams
+with converted equations; nine lose one page (Hóa Bắc Ninh, Lý TN L2, TN Hóa,
+TN Hóa lần 2, Toán Tuyên Quang, Toán 02, Toán Phú Thọ, Toán TQB, VL Ninh Bình)
+and none gains. In the four DSMT4 exams no equation leaves the text column or
+splits across lines in Word. Evidence:
 [layout decisions A6/B4](./working/claude_dsmt4_layout_decisions_2026-11-22.md).
 Writer showing a sentence period alone on a line after an equation in Toán 02 is
 a known display limitation.

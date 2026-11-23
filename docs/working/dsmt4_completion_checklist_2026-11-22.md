@@ -2,7 +2,7 @@
 
 **Trạng thái (cập nhật cuối ngày 22/11):** chưa hoàn tất. Corpus vẫn `needs_review`, accepted = 0 (ledger mới: needs_review 265, failed 0).
 - PR #4 đang mở. Converter A1–A4 đã vào production ở commit `b01025c`; CI (generated-output gate) xanh trên `b01025c`.
-- Còn chặn: các bước cần UI Word (B7, B9, D2) chưa chạy vì màn hình bị khoá trong lượt làm việc. Không merge cho tới khi D4 có bằng chứng UI trên output cuối.
+- 23/11: B7, B9 xong trên Word; D2 Word mới xong 6 mẫu Hóa (màn hình khoá lại khi sang đề Lý). Không merge: D4 chưa có occurrence nào đủ điều kiện (xem D4).
 
 Ký hiệu: `[ ]` chưa làm · `[~]` đã làm một phần · `[x]` xong.
 Cột **Xong khi** là tiêu chí nghiệm thu, không phải mô tả công việc.
@@ -36,9 +36,9 @@ Các run 18–21/11 chỉ là chẩn đoán, chưa có thay đổi converter.
 | B4 `[x]` | **Quyết định chính sách:** dùng phantom giữ chiều cao, hay chấp nhận phân trang lệch | B1–B3; `work/dsmt4-claude-b4-brief-20261122` (22/11): Writer 32 đề có 166 → 160 trang (6 đề mất 1 trang), 92% mốc đúng trang gốc; phantom chưa có cách tính tổng quát và Writer bỏ phantom khi nhập | **Đã quyết (chủ dự án, 22/11): phương án A — không dùng phantom.** Chấp nhận phân trang lệch theo tiêu chí trong `support_scope_policy.md` |
 | B5 `—` | ~~Thiết kế phantom cho mọi công thức~~ | Không áp dụng theo B4 | — |
 | B6 `—` | ~~Triển khai phantom~~ | Không áp dụng theo B4 | — |
-| B9 `[ ]` **chặn** | Đo số trang trên **Word** cho 29 đề có công thức chuyển đổi (nguồn và output), theo tiêu chí của B4 | Mới có 6 đề trên Word: giữ số trang, điểm ngắt trang khác. Bản sao 29 cặp đã chuẩn bị ở `work/dsmt4-claude-b9-word-pages-20261122/` (`exams.json`); lượt 22/11 dừng vì màn hình khoá (Word không cho chụp cửa sổ). (Trước đây ghi 28; thực tế 29 đề có `converted > 0`) | Có bảng số trang Word cho 28 đề; đề nào mất trang được ghi cụ thể |
+| B9 `[x]` | Đo số trang trên **Word** cho 29 đề có công thức chuyển đổi (nguồn và output), theo tiêu chí của B4 | Mới có 6 đề trên Word: giữ số trang, điểm ngắt trang khác. Bản sao 29 cặp đã chuẩn bị ở `work/dsmt4-claude-b9-word-pages-20261122/` (`exams.json`); 23/11: **Word 149 → 140 trang; 9/29 đề mất 1 trang** (Hóa Bắc Ninh 12→11, Lý TN L2, TN Hóa, TN Hóa lần 2, Toán Tuyên Quang 7→6, Toán 02, Toán Phú Thọ, Toán TQB 4→3, VL Ninh Bình); không đề nào tăng (`word-pages.json`). (Trước đây ghi 28; thực tế 29 đề) | Có bảng số trang Word cho 28 đề; đề nào mất trang được ghi cụ thể |
 | B10 `[ ]` | (Tuỳ chọn, không chặn) Chỉnh khoảng cách hàng của 25 hệ phương trình cho gần MathType (A+) | Codex 18/11: xử lý phần lớn chênh lệch của hệ, còn thiếu ~8 pt; chưa có quy tắc tổng quát | Có quy tắc từ dữ liệu nguồn, test đỏ → xanh, đo trên Word |
-| B7 `[ ]` **chặn** | Công thức quá rộng và phân trang toàn đề sau box `noBreak` (toan086 đã đạt trên probe) | `codex_dsmt4_nobreak_2026-11-06.md` | Toàn bộ 4 đề có DSMT4 không còn công thức bị ngắt hoặc tràn lề |
+| B7 `[x]` | Công thức quá rộng và phân trang toàn đề sau box `noBreak` (toan086 đã đạt trên probe) | `codex_dsmt4_nobreak_2026-11-06.md`; `work/dsmt4-claude-b7-word-overwide-20261123` (23/11): khung AX của mọi công thức trên Word, 4 đề: **0 tràn lề, 0 công thức inline bị ngắt dòng** | Toàn bộ 4 đề có DSMT4 không còn công thức bị ngắt hoặc tràn lề |
 | B8 `[x]` | Các lỗi Word đã thấy ngày 05/11 | `claude_dsmt4_acceptance_final_…T1448.md` | **Đã quyết (22/11, theo uỷ quyền của chủ dự án): cả năm mục ghi là giới hạn đã biết, không sửa converter trong PR này** (chi tiết dưới) |
 
 Chi tiết B8 (quyết định 22/11):
@@ -61,11 +61,13 @@ Chi tiết B8 (quyết định 22/11):
 | # | Việc | Xong khi |
 |---|---|---|
 | D1 `[x]` | Dựng lại ledger trên output production cuối cùng (sau A và B): render đề đầy đủ bằng Word và Writer, tách đoạn, ghi tiêu chí từng occurrence | Ledger mới; 0 occurrence chưa có trạng thái |
-| D2 `[ ]` **chặn** | Sửa–lưu–đóng–mở lại qua UI, theo **từng nhóm cấu trúc**, trên Word, Writer DOCX và LibreOffice Math/ODT | Mỗi nhóm có ít nhất một mẫu đạt trên mỗi tuyến bắt buộc |
+| D2 `[~]` | Sửa–lưu–đóng–mở lại qua UI, theo **từng nhóm cấu trúc**, trên Word, Writer DOCX và LibreOffice Math/ODT | Mỗi nhóm có ít nhất một mẫu đạt trên mỗi tuyến bắt buộc |
 | D3 `[x]` | Với những gì chưa chạy, ghi `not_run`; không suy rộng từ mẫu | `ui_edit_reopen_final_output = not_run` cho 265 |
 | D4 `[~]` | Chuyển sang `accepted` chỉ những occurrence đạt đủ nội dung, khả năng sửa, vị trí và hiển thị sau khi mở lại | Đối chiếu tổng accepted + needs_review + failed + unsupported = 265 |
 
 D1 (22/11): `work/dsmt4-claude-d-ledger-20261122/` dựng lại 265 dòng trên output A7 từ ledger 05/11 cộng bằng chứng C1/C2 và quyết định B8/C3. Output: 247 OMML + 18 OLE giữ (5 mới do `INLINE_SPACING_REQUIRES_REVIEW`). Kết quả: accepted 0, needs_review 265, failed 0 (05/11: 219/46). Hết `failed` vì lỗi đã sửa hoặc được ghi giới hạn, **không** vì đã nghiệm thu. D4: chưa occurrence nào đủ bằng chứng accepted.
+
+D2 (23/11, `work/dsmt4-claude-d2-ui-20261123`): Word sửa–lưu–mở lại trên output cuối đạt 6 mẫu Hóa (inline hóa, ô bảng, block trái, điện tích, mũi tên có nhãn, quan hệ đầu). Còn 11 mẫu Lý/TN/Toán chờ màn hình mở khoá. LibreOffice Math UI chỉ có bằng chứng ODT tách riêng (12 ca, input trùng). **Chặn D4:** chính sách yêu cầu kiểm công thức Writer *trong tài liệu thực* và sau mở lại; hiện không có tài liệu Writer nào nhúng đối tượng LO Math (tuyến DOCX của Writer chỉ là giới hạn đã biết), nên `writer_in_document = not_run` cho 265 và accepted giữ 0. Cần quyết định: dựng tài liệu Writer nhúng LO Math, hay sửa tiêu chí Writer trong chính sách.
 
 Các nhóm cấu trúc ở D2:
 - công thức hóa học inline;
@@ -109,7 +111,7 @@ Hiện có từ ngày 05/11:
 2. ~~A6 và B4~~ — đã quyết 22/11 (A6: chấp nhận; B4: không phantom).
 3. ~~A7 (tích hợp)~~ — xong 22/11 (chưa commit).
 4. ~~C1–C3, B8, E, D1, D3~~ — xong 22/11.
-5. **Còn lại, cần màn hình mở khoá cho Word UI:** B9, B7, D2, rồi D4.
+5. ~~B9, B7~~ — xong 23/11. **Còn:** D2 Word 11 mẫu (cần màn hình mở khoá); quyết định tiêu chí Writer cho D4.
 6. F: merge chỉ sau D4.
 
 Các mục A và B chặn D, vì ledger phải chạy trên output cuối cùng.

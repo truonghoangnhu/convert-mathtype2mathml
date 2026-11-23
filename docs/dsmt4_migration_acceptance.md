@@ -112,6 +112,14 @@ fixed or recorded as known limitations, not accepted. UI edit/save/reopen on thi
 output is `not_run`; Word page counts (B9), overwide equations (B7) and the per-group
 UI checks (D2) still require an interactive Word session.
 
+Word follow-up (2026-11-23). Word pages: 149 → 140 over 29 exams, nine exams one
+page shorter, none longer. No equation in the four DSMT4 exams leaves the text
+column or splits across lines. Word edit/save/reopen on the final output passed
+for six chemistry samples (inline, table cell, left block, charges, labelled arrow,
+leading relation); eleven Lý/TN/Toán samples are not yet run. Accepted stays zero:
+the policy requires Writer verification in the actual document, and no Writer
+document embedding the LibreOffice Math objects exists yet.
+
 ## Run order
 
 1. Identify the exact chemistry arrow occurrence in its original exam and
