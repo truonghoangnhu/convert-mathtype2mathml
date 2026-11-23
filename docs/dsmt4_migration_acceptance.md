@@ -138,6 +138,21 @@ sixteen samples covering every structure group except the leading relation; the 
 231 formulas were unchanged. The leading-relation sample (hoa068) passed on 2026-11-24
 on a fresh copy of the Hóa document; the other 99 Hóa formulas were unchanged.
 
+Independent verification (Codex, 2026-11-24). On a separate copy of
+`out/dsmt4-claude-d4-writer-doc-20261123/verify/Hoa_Ha_Noi_L1-saved.odt`,
+Object68 was selected through Writer's Navigator and opened in Commands. The
+number was edited from `150` to `151`, preserving the leading relation:
+`{ { } > 150 ^ ° "C" }` → `{ { } > 151 ^ ° "C" }`. After saving, closing and
+reopening through the Writer UI, both Commands and the rendered formula still
+showed `>151°C`. Inspection of the saved ODT confirmed that Object68 was the only
+changed formula; the other 99 formula commands were unchanged, and its `as-char`
+anchor and containing paragraph text were preserved. This independently confirms
+the hoa068 edit/save/reopen result for Writer ODT with embedded LibreOffice Math;
+it does not certify a Writer DOCX roundtrip or change the 238/27 ledger below.
+Source/output hashes and observations are recorded in the
+[independent verification report](./working/hoa068_independent_verification_2026-11-24.json).
+The edited copy is a verification artifact, not a replacement for the exam output.
+
 D4 result (2026-11-23). After a page-by-page review of the Word-saved and reopened copies
 of all four exams, an occurrence is accepted when its output is native OMML, its Word
 display after save and reopen was reviewed without a recorded limitation, its XML is

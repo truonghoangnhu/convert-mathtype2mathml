@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-24",
+  "reviewer": "Codex (independent verification)",
+  "result": "pass",
+  "scope": "Writer ODT with embedded LibreOffice Math; does not certify Writer DOCX roundtrip",
+  "method": "Direct LibreOffice Writer UI: open independent copy, select Object68 via Navigator, edit 150 to 151 in Commands, save, close, reopen via UI, select Object68 and inspect Commands and rendering again",
+  "source": "out/dsmt4-claude-d4-writer-doc-20261123/verify/Hoa_Ha_Noi_L1-saved.odt",
+  "source_sha256": "53dade890b764b5765b8899f38b9a247f3dc4be1afee6b35326143fbac544653",
+  "edited_copy": "work/dsmt4-codex-hoa068-ui-20261124/hoa068-verification.odt",
+  "edited_copy_sha256": "413c1e81b9bbcc874e6e423d415d936d17f12fb63459ab842ebb24e54a20e2ec",
+  "object": "Object68",
+  "occurrence": "hoa068",
+  "commands_before": "{ { } > 150 ^ ° \"C\" }",
+  "commands_after_ui_reopen": "{ { } > 151 ^ ° \"C\" }",
+  "rendered_formula_after_ui_reopen": ">151°C",
+  "changed_formula_objects": [
+    "Object68"
+  ],
+  "unchanged_other_formula_commands": 99,
+  "anchor_before": "as-char",
+  "anchor_after": "as-char",
+  "containing_paragraph_text_unchanged": true,
+  "ledger_change": false,
+  "accepted": 238,
+  "needs_review": 27,
+  "artifact_availability": "ODT files and the original verification.json are local artifacts in ignored out/ and work/ directories; this report is versioned."
+}
