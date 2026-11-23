@@ -116,7 +116,10 @@ Word follow-up (2026-11-23). Word pages: 149 → 140 over 29 exams, nine exams o
 page shorter, none longer. No equation in the four DSMT4 exams leaves the text
 column or splits across lines. Word edit/save/reopen on the final output passed
 for six chemistry samples (inline, table cell, left block, charges, labelled arrow,
-leading relation); eleven Lý/TN/Toán samples are not yet run.
+leading relation); with the eleven Lý/TN/Toán samples (root, sPre, bevelled and plain
+fractions, ℓ, vector, system, integral, prime, ℝ) all seventeen pass, and every other
+equation in the four Word-saved copies keeps its content and structure. Word saves the
+math minus as "-", the prime as "'" and ℓ as a script-style "l"; all still display as before.
 
 Writer documents (2026-11-23). The four exams were opened in Writer with LibreOffice's
 own MathType conversion off, so every DSMT4 object stayed an OLE frame in place; each
@@ -129,9 +132,11 @@ the text and frame order match the source conversion; Writer page count is uncha
 (18). A page-by-page review of the reopened render against the source found no content
 error, overlap or margin overrun. Six occurrences show presentation limitations in
 LibreOffice Math (three labelled arrows not stretched, two empty-label template arrows
-drawn short, one bevelled fraction drawn stacked). Accepted stays zero: per-occurrence
-Word display after save and reopen, Writer in-document UI editing, and the remaining
-Word UI samples are not yet run.
+drawn short, one bevelled fraction drawn stacked). Editing inside these Writer documents
+(formula selected, edited in the Commands window, saved, closed, reopened) passed for
+sixteen samples covering every structure group except the leading relation; the other
+231 formulas were unchanged. Accepted stays zero until per-occurrence Word display after
+save and reopen is reviewed and the leading-relation group has a Writer sample.
 
 ## Run order
 

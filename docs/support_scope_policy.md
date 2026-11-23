@@ -162,7 +162,8 @@ The 2026-11-23 Writer documents for the four DSMT4 exams embed the prepared Math
 as LibreOffice Math objects at the source OLE positions and verify every converted
 occurrence in the document and after reopening; in that route labelled and
 empty-label template arrows do not stretch and a bevelled fraction is drawn stacked
-(known limitations). UI editing inside those documents is not yet recorded.
+(known limitations). UI editing inside those documents passed for sixteen samples
+(every structure group except the leading relation).
 
 Start with the chemistry arrow formula, then reconcile every one of the
 265 MathType occurrences across the five original exams. See
