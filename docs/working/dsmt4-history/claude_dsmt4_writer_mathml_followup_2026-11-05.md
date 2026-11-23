@@ -1,6 +1,6 @@
 # DSMT4: Writer/MathML follow-up — Claude, 2026-11-05
 
-> Đích dự kiến khi Codex copy: `docs/working/claude_dsmt4_writer_mathml_followup_2026-11-05.md`.
+> Đích dự kiến khi Codex copy: `docs/working/dsmt4-history/claude_dsmt4_writer_mathml_followup_2026-11-05.md`.
 > Mọi đường dẫn `scratch:` dưới đây tương đối với
 > `/Users/truonghoangnhu/.claude/jobs/f431a462/tmp/followup/`
 > (đích repo: scripts/ + checkpoint → `work/claude-writer-mathml-followup/`, out/ →

@@ -26,7 +26,7 @@ Tái lập: `work/codex-dsmt4-letterlike-review-2026-11-05/LetterlikeReviewProbe
 
 ## P3 — Số file/run thay đổi trong báo cáo không khớp artifact
 
-Vị trí: `docs/working/claude_dsmt4_acceptance_final_dsmt4-acceptance-final-20261105T1448.md:105`.
+Vị trí: `docs/working/dsmt4-history/claude_dsmt4_acceptance_final_dsmt4-acceptance-final-20261105T1448.md:105`.
 
 Báo cáo nói 13 file / 56 run. Đối chiếu độc lập 32 DOCX với baseline finalization và đọc cả `corpus/report.json` của chính Claude đều cho:
 

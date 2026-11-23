@@ -2,7 +2,7 @@
 
 Chủ dự án đã chốt hai quyết định:
 - **A6:** chấp nhận việc Writer chuyển trang sau khi tách toán tử `mo`; không sửa converter.
-- **B4:** không dùng phantom giữ chiều cao (phương án A); chấp nhận phân trang lệch so với bản gốc theo tiêu chí trong [chính sách](../support_scope_policy.md), mục Acceptance.
+- **B4:** không dùng phantom giữ chiều cao (phương án A); chấp nhận phân trang lệch so với bản gốc theo tiêu chí trong [chính sách](../../support_scope_policy.md), mục Acceptance.
 
 Bằng chứng chi tiết (scratch, không commit) nằm ở `work/dsmt4-claude-a5-final-native-20261122/`, `work/dsmt4-claude-a6-layout-20261122/` và `work/dsmt4-claude-b4-brief-20261122/`.
 

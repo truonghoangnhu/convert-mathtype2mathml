@@ -41,7 +41,7 @@ Each cross copy received a reversible prose `q`/Backspace edit to force a real s
 
 ## Claude review
 
-The first read-only attempt was blocked by the weekly limit. After reset, the same session completed the review: `docs/working/claude_dsmt4_writer_boundaries_review_2026-11-08.md`. It accepts withdrawing the premature plain-R-loss claim and records remaining cross-app/layout evidence gaps. The raw first attempt remains retained as historical evidence.
+The first read-only attempt was blocked by the weekly limit. After reset, the same session completed the review: `docs/working/dsmt4-history/claude_dsmt4_writer_boundaries_review_2026-11-08.md`. It accepts withdrawing the premature plain-R-loss claim and records remaining cross-app/layout evidence gaps. The raw first attempt remains retained as historical evidence.
 
 ## Gate for further work
 

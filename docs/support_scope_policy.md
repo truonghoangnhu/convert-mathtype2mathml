@@ -30,7 +30,7 @@ LibreOffice Math. Writer acceptance must verify the imported formula in its
 actual document and after reopening. A preview image is reference evidence,
 not an editable conversion. Existing native OMML remains on its current path.
 The LibreOffice-only adapter investigated in the
-[follow-up review](./working/codex_dsmt4_writer_mathml_review_2026-11-05.md)
+[follow-up review](./working/dsmt4-history/codex_dsmt4_writer_mathml_review_2026-11-05.md)
 now has a separate bounded W/L/T/G/C/I/B/D/A preparation command,
 `scripts/transpect/prepare_libreoffice_mathml.py`. It writes a new MathML candidate,
 keeps the source unchanged and reports `needs_review`, never application acceptance.
@@ -39,7 +39,7 @@ with no attributes beyond `open`, `close`, `separators` and no significant mixed
 It retains the original fence element and arguments. The 21 affected candidates
 were rendered and reopened in a scoped Math/ODT probe; one absolute-value sample
 also passed UI edit/save/close/reopen. See the
-[follow-up evidence](./working/codex_dsmt4_ui_and_math_fences_2026-11-06.md).
+[follow-up evidence](./working/dsmt4-history/codex_dsmt4_ui_and_math_fences_2026-11-06.md).
 Nonempty/default separators and other fences/attributes remain untested and unchanged.
 C is limited to single ASCII-letter `mi` bases with `+`, `2+`, `3+` exponents; I to bare
 comma-decimal `[a;b)` rows; B to a leading `|msub(mi,mi)|=...` row with single ASCII-letter operands. These repairs
@@ -49,7 +49,7 @@ D only quotes the delimiter pair in adjacent `msup(mo "(", mo "°"), mi "C", mo 
 only in a single flat unstyled top-level math/mrow with one such unit, balanced
 other bare parentheses and no other structural rule besides W; nested/styled
 or combined contexts are deferred. D keeps the original script base/degree.
-The [degree follow-up](./working/codex_dsmt4_degree_alignment_2026-11-06.md) records
+The [degree follow-up](./working/dsmt4-history/codex_dsmt4_degree_alignment_2026-11-06.md) records
 production render and UI operand editing. Noncentered table alignment now has a
 per-input diagnostic; its XML is retained and layout is not certified.
 A handles only unstyled `math → mfenced(open={, close="", separators="") →
@@ -65,7 +65,7 @@ is still kept byte-identical. Three actual candidates (toan013–015) passed the
 recorded render/headless-roundtrip checks; toan015 has standalone Math UI
 edit/reopen evidence with byte-identical production input. Other shapes, including
 the nested toan016 table, retain diagnostics and need review. See the
-[alignment evidence and limits](./working/codex_dsmt4_math_alignment_2026-11-06.md).
+[alignment evidence and limits](./working/dsmt4-history/codex_dsmt4_math_alignment_2026-11-06.md).
 The F fence-expansion rule remains experimental and is not included.
 Leading relations can fail on Writer DOCX roundtrips,
 and Writer can lose left alignment within equation systems. Do not infer
@@ -92,7 +92,7 @@ claim a new general DSMT4 decoder or bundle that runtime into Maven.
   paragraphs stay intact on a hit. No padding or formula characters are guessed.
   Retention is not editable migration acceptance: Writer can display the retained
   OLE incompletely even when Word preserves it. See the
-  [inline-boundary evidence](./working/codex_dsmt4_inline_boundary_2026-11-06.md).
+  [inline-boundary evidence](./working/dsmt4-history/codex_dsmt4_inline_boundary_2026-11-06.md).
 - Nonempty XML, a `<math/>`, nested empty containers, annotations, whitespace,
   or a preview alone cannot establish successful formula conversion.
 - Current patch counters remain technical counters: `unresolved` and skip
@@ -108,7 +108,7 @@ evidence, not full pagination acceptance. An equation wider than the available
 line needs separate layout review. Inline supplied OMML must be an `oMath` root,
 or an `oMathPara` containing exactly one equation; unverified roots are refused
 without mutating the source paragraph. See the
-[noBreak follow-up](./working/codex_dsmt4_nobreak_2026-11-06.md).
+[noBreak follow-up](./working/dsmt4-history/codex_dsmt4_nobreak_2026-11-06.md).
 
 ## Acceptance
 
@@ -118,7 +118,7 @@ outside verified conversion coverage are retained for review. The shared scope i
 pure `mtext` to math runs based on recorded Word roundtrips. This conservative
 gate can retain otherwise usable unit symbols; it does not establish that every
 symbol in those Unicode blocks is corrupted by Word. See the
-[scope follow-up](./working/codex_dsmt4_symbol_scope_2026-11-06.md).
+[scope follow-up](./working/dsmt4-history/codex_dsmt4_symbol_scope_2026-11-06.md).
 
 Counts are the first reconciliation check. Acceptance also requires correct
 formula contents (including arrow direction, scripts, labels and conditions),
@@ -140,7 +140,7 @@ with converted equations; nine lose one page (Hóa Bắc Ninh, Lý TN L2, TN Hó
 TN Hóa lần 2, Toán Tuyên Quang, Toán 02, Toán Phú Thọ, Toán TQB, VL Ninh Bình)
 and none gains. In the four DSMT4 exams no equation leaves the text column or
 splits across lines in Word. Evidence:
-[layout decisions A6/B4](./working/claude_dsmt4_layout_decisions_2026-11-22.md).
+[layout decisions A6/B4](./working/dsmt4-history/claude_dsmt4_layout_decisions_2026-11-22.md).
 Writer showing a sentence period alone on a line after an equation in Toán 02 is
 a known display limitation.
 
@@ -170,7 +170,7 @@ Start with the chemistry arrow formula, then reconcile every one of the
 [the acceptance procedure](./dsmt4_migration_acceptance.md). The user-supplied
 a3.1 review archive identifies the five exams; all 265 BIN occurrences match
 the original sources byte-for-byte and in order in the archive's unshuffled
-variants. See [the subset reconciliation](./working/dsmt4_five_exam_reconciliation_2026-11-05.md).
+variants. See [the subset reconciliation](./working/dsmt4-history/dsmt4_five_exam_reconciliation_2026-11-05.md).
 This closes identification and count reconciliation, not semantic or application acceptance.
 
 Counting embedded objects is not patching them. Objects the patcher does not
@@ -180,7 +180,7 @@ thereby supported.
 
 ## Writer leading-temperature comparison boundary
 
-The [2026-11-06 comparison repair](./working/codex_dsmt4_writer_comparison_2026-11-06.md)
+The [2026-11-06 comparison repair](./working/dsmt4-history/codex_dsmt4_writer_comparison_2026-11-06.md)
 groups the leading operator only for newly converted inline `>number°C` math
 with the tested numeric-degree/unit structure. Its nonempty invisible delimiter
 adds no operand or character. Word and Writer probes preserve the operator after

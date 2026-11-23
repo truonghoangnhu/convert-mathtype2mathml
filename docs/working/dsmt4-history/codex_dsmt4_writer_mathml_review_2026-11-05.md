@@ -24,7 +24,7 @@ Không chạy lại UI xuất DOCX trong đợt này; bằng chứng DOCX thất
 
 ## Bằng chứng và giới hạn
 
-- Bàn giao gốc: `docs/working/claude_dsmt4_writer_mathml_followup_2026-11-05.md`; ảnh/log/ledger: `out/dsmt4-writer-mathml-followup-2026-11-05/`. Bản copy đã đối chiếu SHA với scratch; đây là kiểm tra vận chuyển artifact, không phải nghiệm thu công thức.
+- Bàn giao gốc: `docs/working/dsmt4-history/claude_dsmt4_writer_mathml_followup_2026-11-05.md`; ảnh/log/ledger: `out/dsmt4-writer-mathml-followup-2026-11-05/`. Bản copy đã đối chiếu SHA với scratch; đây là kiểm tra vận chuyển artifact, không phải nghiệm thu công thức.
 - Test độc lập: `work/codex-writer-adapter-ui/test_candidate_boundaries.py`; log xanh candidate-v2: `independent-green.log`, `claude-tests-green.log`.
 - UI Hóa: `embedded-ui-verification.json`; UI Toán: `toan054-ui-verification.json` trong cùng thư mục.
 - Ledger Claude 17 failed / 248 needs_review / 0 accepted chỉ mô tả tiêu chí nhập MathML vào Math ở prototype; không thay ledger nghiệm thu Word/Writer của corpus.

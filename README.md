@@ -24,7 +24,7 @@ recovery path; preserve these objects until faithful decoding is demonstrated.
 See [support policy](./docs/support_scope_policy.md) for the canonical boundary
 and [real-source acceptance](./docs/dsmt4_migration_acceptance.md) for the
 chemistry arrow first, then all **265 MathType occurrences in five exams**.
-The five-exam set is now [identified and reconciled by BIN payload](./docs/working/dsmt4_five_exam_reconciliation_2026-11-05.md)
+The five-exam set is now [identified and reconciled by BIN payload](./docs/working/dsmt4-history/dsmt4_five_exam_reconciliation_2026-11-05.md)
 against the user-supplied a3.1 archive; semantic/application acceptance remains open.
 The expanded source corpus is now available: **32 DOCX files / 2,617 DSMT4
 occurrences / 27 native OMML equations**. The 2026-11-06 inline-boundary run
@@ -33,12 +33,12 @@ produced **2,286 OMML candidates** and retained **331 MathType objects**, plus
 snapshot because an unseparated formula-to-word boundary keeps the entire
 paragraph unchanged. This prevents guessing a gap supplied by the OLE viewport;
 it does not establish editable conversion of the retained objects. See the
-[boundary evidence and application limits](./docs/working/codex_dsmt4_inline_boundary_2026-11-06.md).
-The subsequent [inline grouping fix](./docs/working/codex_dsmt4_nobreak_2026-11-06.md)
+[boundary evidence and application limits](./docs/working/dsmt4-history/codex_dsmt4_inline_boundary_2026-11-06.md).
+The subsequent [inline grouping fix](./docs/working/dsmt4-history/codex_dsmt4_nobreak_2026-11-06.md)
 keeps each newly converted inline object in an OMML box to prevent Word splitting
 it at a relation across lines/pages. The boxed baseline is
 `out/dsmt4-nobreak-final-2026-11-06/`, with the same counts and retained objects.
-The later [Writer comparison repair](./docs/working/codex_dsmt4_writer_comparison_2026-11-06.md)
+The later [Writer comparison repair](./docs/working/dsmt4-history/codex_dsmt4_writer_comparison_2026-11-06.md)
 uses a nonempty invisible delimiter for the verified leading `>number°C` inline
 shape; `out/dsmt4-writer-comparison-2026-11-06/` changes only Hóa #68. Word and
 Writer edit/save/reopen probes retain `>`, with scoped UI coverage and full
@@ -47,20 +47,20 @@ Word edit/save/close/reopen was observed for the `AB = CD = 16cm` probe;
 full-document pagination and overwide equations still need review. All outputs remain
 `needs_review`; see [the real corpus evidence](./docs/dsmt4_real_corpus_2026-11-03.md)
 for actual MTEF classification, application checks and remaining layout limits.
-The [joint Codex/Claude follow-up](./docs/working/codex_dsmt4_joint_followup_2026-11-06.md)
+The [joint Codex/Claude follow-up](./docs/working/dsmt4-history/codex_dsmt4_joint_followup_2026-11-06.md)
 adds a TN Word edit/reopen check and maps each of the 265 occurrences to the
 current artifact without importing stale application verdicts. The Math row
 alignment rule is now bounded to verified flat three-row assignment systems in
-the separate Math adapter; see the [alignment follow-up](./docs/working/codex_dsmt4_math_alignment_2026-11-06.md).
-The [Writer/MathML follow-up](./docs/working/codex_dsmt4_writer_mathml_review_2026-11-05.md)
+the separate Math adapter; see the [alignment follow-up](./docs/working/dsmt4-history/codex_dsmt4_math_alignment_2026-11-06.md).
+The [Writer/MathML follow-up](./docs/working/dsmt4-history/codex_dsmt4_writer_mathml_review_2026-11-05.md)
 established the bounded W/L/T rules used by the separate preparation command below.
-The [2026-11-06 follow-up](./docs/working/codex_dsmt4_ui_and_math_fences_2026-11-06.md)
+The [2026-11-06 follow-up](./docs/working/dsmt4-history/codex_dsmt4_ui_and_math_fences_2026-11-06.md)
 adds G: group multiple arguments of explicitly unseparated `()`/`||` fences into
 one `mrow`, retaining the fence envelope. The 21 affected Math candidates were
 rendered before/after and reopened. Bounded positive-charge, half-open interval
 and bare-bar repairs cover 13 further Math candidates. All 34 changed candidates
 were rendered and reopened; these checks do not establish full-exam acceptance.
-The [Celsius follow-up](./docs/working/codex_dsmt4_degree_alignment_2026-11-06.md)
+The [Celsius follow-up](./docs/working/dsmt4-history/codex_dsmt4_degree_alignment_2026-11-06.md)
 adds a bounded literal-delimiter rule for the scripted `°C` pattern and explicit
 noncentered-table-alignment diagnostics; only one further Math candidate changes.
 Rule A subsequently adds a generated StarMath annotation alongside unchanged
@@ -71,7 +71,7 @@ The nested table in #16 stays unchanged with an alignment diagnostic.
 Experimental fence expansion remains outside production. Editable ODT examples do
 not establish general DOCX compatibility: leading relations outside the bounded
 temperature repair and equation-row alignment still need Writer review. Full five-exam acceptance remains open.
-The [07 Nov closeout](./docs/working/codex_dsmt4_closeout_2026-11-07.md) adds six
+The [07 Nov closeout](./docs/working/dsmt4-history/codex_dsmt4_closeout_2026-11-07.md) adds six
 standalone Math UI edit/reopen checks and one Writer/ODT embedded-vector check.
 A narrowly guarded Math-only V annotation preserves vector accents for a
 single-letter vector assigned three signed integer coordinates; only two Math

@@ -45,7 +45,7 @@ Review Claude cần kiểm phương pháp ghép nhãn/spacing hiệu lực, ph�
 
 ## Bổ sung sau review Claude (10/11/2026)
 
-Review gốc ở `docs/working/claude_dsmt4_full_exam_layout_review_2026-11-09.md`: không có P1 hoặc sai số tính toán; có2P2 về diễn giải chỉ số. Đã xử lý như sau, không thay đổi DOCX/render đã review.
+Review gốc ở `docs/working/dsmt4-history/claude_dsmt4_full_exam_layout_review_2026-11-09.md`: không có P1 hoặc sai số tính toán; có2P2 về diễn giải chỉ số. Đã xử lý như sau, không thay đổi DOCX/render đã review.
 
 **Khoảng Câu → A không đồng nghĩa khoảng cách đoạn.** Nó trộn số dòng thân câu, pitch/chiều cao dòng, vị trí chữ A bên cạnh công thức cao, và khoảng giữa các đoạn. Bù w:before chỉ khớp một nhãn được chọn; không phục hồi chiều cao công thức, đáy hàng đáp án hoặc khoảng tới câu sau. Review nêu I.2/I.6 có thành phần do kích thước công thức; đây là nhận định từ render, chưa có phân rã định lượng đủ để nói “phần lớn” sai số do một nguyên nhân cụ thể.
 
@@ -66,4 +66,4 @@ Cohort chung toàn đề của Word có các ordinal xuất phát 1–10,13,14,1
 
 Quyết định giữ scratch không đổi. Việc tiếp theo là đo metric của toàn dòng/hàng toán bằng nguồn đáng tin cậy và liên kết tới paragraph trước khi chọn cơ chế sửa; không thêm tiếp hằng số w:before/keepNext theo từng điểm hỏng.
 
-Review bổ sung đã xong: `docs/working/claude_dsmt4_full_exam_layout_followup_2026-11-10.md` xác nhận cả2P2 đã giải quyết, không có P1/P2 mới trong phần bổ sung. Đã xử lý các P3 cuối: lưu lệnh/exit code/output path của lần tái tạo grouping control trong `targeted-checks-post-review.json`; nói rõ guard thêm sau render chưa được thực thi; verifier lấy entry I.12 từ trial-plan, bỏ hằng số44/230. Verifier cuối và diff check đạt. Đây là đóng gói xong đợt đo/review, KHÔNG phải hoàn tất hỗ trợ DSMT4 hoặc đạt bố cục toàn đề.
+Review bổ sung đã xong: `docs/working/dsmt4-history/claude_dsmt4_full_exam_layout_followup_2026-11-10.md` xác nhận cả2P2 đã giải quyết, không có P1/P2 mới trong phần bổ sung. Đã xử lý các P3 cuối: lưu lệnh/exit code/output path của lần tái tạo grouping control trong `targeted-checks-post-review.json`; nói rõ guard thêm sau render chưa được thực thi; verifier lấy entry I.12 từ trial-plan, bỏ hằng số44/230. Verifier cuối và diff check đạt. Đây là đóng gói xong đợt đo/review, KHÔNG phải hoàn tất hỗ trợ DSMT4 hoặc đạt bố cục toàn đề.

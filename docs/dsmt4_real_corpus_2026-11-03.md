@@ -2,16 +2,16 @@
 
 ## Scope and verdict
 
-The supplied `in/` corpus contains **32 DOCX files**, **2,617 Equation.DSMT4 occurrences**, **27 native OMML equations**, and **10 other OLE objects**. Counts include raw XML occurrences, not inferred formulas inside images. The initial 265-object / five-exam target was subsequently identified and reconciled against the user archive on 2026-11-05; see [the subset reconciliation](./working/dsmt4_five_exam_reconciliation_2026-11-05.md).
+The supplied `in/` corpus contains **32 DOCX files**, **2,617 Equation.DSMT4 occurrences**, **27 native OMML equations**, and **10 other OLE objects**. Counts include raw XML occurrences, not inferred formulas inside images. The initial 265-object / five-exam target was subsequently identified and reconciled against the user archive on 2026-11-05; see [the subset reconciliation](./working/dsmt4-history/dsmt4_five_exam_reconciliation_2026-11-05.md).
 
 **Verdict: `needs_review`.** All files generated review candidates; this is not semantic or layout acceptance for all formulas. The originals remain byte-identical.
 
-The [finalization report](./working/codex_dsmt4_finalization_2026-11-05.md)
+The [finalization report](./working/dsmt4-history/codex_dsmt4_finalization_2026-11-05.md)
 records the earlier 93 Java / 116 Python / 4 workflow tests, fresh generated-output
 gate, 32-file repatch and the separate LibreOffice Math preparation command.
 Historical tables below retain their snapshot-specific counts.
 
-The later [Math alignment follow-up](./working/codex_dsmt4_math_alignment_2026-11-06.md)
+The later [Math alignment follow-up](./working/dsmt4-history/codex_dsmt4_math_alignment_2026-11-06.md)
 prepares all 265 five-exam Math inputs separately: three flat assignment systems
 change, 262 remain byte-identical. All three pass scoped render/headless-save
 checks, and toan015 has standalone Math UI edit/reopen evidence. The nested
@@ -44,7 +44,7 @@ Runtime provenance:
 Word confirmed that proofing markers or zero-length text runs can leave a lone
 inline equation centred despite a left-aligned source OLE. These ambiguous
 paragraphs now retain the original OLE. Actual spaces keep their existing inline
-path. [R1 evidence](./working/codex_dsmt4_r1_2026-11-05.md): 92 Java tests and
+path. [R1 evidence](./working/dsmt4-history/codex_dsmt4_r1_2026-11-05.md): 92 Java tests and
 4/4 generated-output checks passed. Re-running 32 files into
 `out/dsmt4-r1-corpus-2026-11-05/` preserved the counts and equation content/placement
 of the prescript snapshot below; 32/32 package/non-math checks passed.
@@ -68,7 +68,7 @@ explicit `noBreak` property while keeping the box. Writer headless Toán page
 images remain identical to the previous snapshot; this is no new Writer UI
 acceptance. Fresh validation: **114 Java, 136 Python, 4 workflow tests; generated
 output gate 4/4**. Full pagination, other Word probes and corpus acceptance stay
-open. See the [implementation, review and evidence](./working/codex_dsmt4_nobreak_2026-11-06.md).
+open. See the [implementation, review and evidence](./working/dsmt4-history/codex_dsmt4_nobreak_2026-11-06.md).
 
 ## Previous inline-boundary follow-up — 2026-11-06
 
@@ -84,7 +84,7 @@ The five-exam subset has 247 candidates + 18 retained OLE + 18 native OMML.
 These are preservation/patch counts, not application acceptance. Two retained
 Lý cases were observed in Word after save/close/reopen; Writer displays those
 same source/output OLE incompletely. See the
-[bounded policy, review and evidence](./working/codex_dsmt4_inline_boundary_2026-11-06.md).
+[bounded policy, review and evidence](./working/dsmt4-history/codex_dsmt4_inline_boundary_2026-11-06.md).
 
 ## Historical converter follow-up — 2026-11-05
 
@@ -99,7 +99,7 @@ including non-math leaves/run properties (zero differences).
 The 5-exam subset is now **252 candidates + 13 retained OLE + 18 original OMML**.
 These are technical counts, not accepted equations. `sPre` ordering was a converter
 bug, not an unavoidable Writer loss: see [the schema-order fix and application
-evidence](./working/codex_dsmt4_prescript_order_2026-11-05.md). Corpus remains
+evidence](./working/dsmt4-history/codex_dsmt4_prescript_order_2026-11-05.md). Corpus remains
 `needs_review`; the historical numbers and table below refer to the earlier
 Word-placement snapshot, not this new output.
 
@@ -184,11 +184,11 @@ Regression fixtures retain the actual two arrow MathML/MTEF payloads and FULL_EN
 
 Candidates regenerated into `out/dsmt4-p2-2026-11-04/patched/`; a same-commit baseline (`467370f` jar) is in `out/dsmt4-p2-2026-11-04/baseline-467370f/`. The P1 folder `out/dsmt4-p1-2026-11-04/` predates the labelled-arrow fix 5, so equations are compared against the baseline, not against P1. Report: `out/dsmt4-p2-2026-11-04/report.json`. All 32 sources keep their SHA-256 before, during and after the run and match the earlier inventory.
 
-- **Block placement (P2-2).** The initial P2 candidate used inline `oMath` for non-centred object-only paragraphs. Writer respected the paragraph alignment, but actual Word opening still centred those equations. This approach is superseded: plain standalone equations now carry explicit `m:oMathParaPr/m:jc` matching source placement; indented/numbered/bidi or unresolved layouts retain OLE. At that snapshot: 54 `centerGroup` display + 17 `left` display + 2,428 inline = 2,499 inserted; nine additional indented objects stay unchanged. All 2,526 output equations match the same-commit baseline in content, and the entire source paragraph is unchanged for each of the nine new skips. See [Word follow-up evidence](./working/codex_dsmt4_word_placement_2026-11-04.md).
+- **Block placement (P2-2).** The initial P2 candidate used inline `oMath` for non-centred object-only paragraphs. Writer respected the paragraph alignment, but actual Word opening still centred those equations. This approach is superseded: plain standalone equations now carry explicit `m:oMathParaPr/m:jc` matching source placement; indented/numbered/bidi or unresolved layouts retain OLE. At that snapshot: 54 `centerGroup` display + 17 `left` display + 2,428 inline = 2,499 inserted; nine additional indented objects stay unchanged. All 2,526 output equations match the same-commit baseline in content, and the entire source paragraph is unchanged for each of the nine new skips. See [Word follow-up evidence](./working/dsmt4-history/codex_dsmt4_word_placement_2026-11-04.md).
 - **Visible-content gate (P2-1).** A token counts only if it holds a code point outside Cc, Cf, Zs, Zl, Zp (and not U+EF0A), identically in the Java MathML/OMML gates and the Python sidecar gate, with shared vectors in `fixtures/mathml_content/visible_content_vectors.json`. Invisible operators beside visible tokens are kept by the gate; note that Microsoft's `mml2omml.xsl` itself removes U+2062 and U+200B from text (U+2061 stays). Private-use characters and zero-width `mpadded` are not treated as invisible. Re-gating all 2,523 corpus sidecars changes nothing (2,521 usable, 2 unusable).
 - **Paragraph edits and rollback (P2-3).** Edits now run on a copy of the paragraph and reach the live paragraph only on success, as a minimal difference: unchanged children stay the same nodes, replaced runs leave `XWPFParagraph` through `removeRun` and split runs enter through `insertNewRun`. Before, a failure part-way restored the paragraph by replacing its node, which disconnected the live `XWPFParagraph` (`XmlValueDisconnectedException`), and a successful patch disconnected every cached run. Splitting no longer creates empty runs from whitespace between run children.
 - **Object inventory (P2-4).** The patch summary now reports `discovered_objects`, `scanned_objects`, `unscanned_objects` and `unscanned_containers` (JSONL keys, plus an `Object inventory:` text line; `scanned` and the `Patch summary:` line keep their meaning). Objects in content controls, text boxes, alternate content, other containers or other parts are counted by container, logged as unsupported and left unchanged; discovery does not make them patchable. In this corpus discovered = scanned = 2,627 in every file (0 unscanned).
-- **Five-exam / 265-object target.** Identified on 2026-11-05 from the user-supplied `kiem-tra-word-va-doi-chieu-tay-a3.1.zip`: `Li_Nghe_An_L5`, `Thi_Thu_TN_CN`, `Toan_TQB_HN_Lx`, `TN-THPT-2026`, `Hoa_Ha_Noi_L1`. Their 265 DSMT4 BIN occurrences match both unshuffled ZIP variants byte-for-byte and in order; all have actual MTEF5/DSMT7 parser evidence. That subset snapshot: 263 inserted candidates, two OLE retained together in paragraph 91 of the Nghệ An exam (native OMML coexistence), and 18 preserved native OMML. See [the 265-object ledger](./working/dsmt4_five_exam_reconciliation_2026-11-05.md). The archive's Word result cells are blank: identification/count reconciliation is closed, semantic and application acceptance remains open.
+- **Five-exam / 265-object target.** Identified on 2026-11-05 from the user-supplied `kiem-tra-word-va-doi-chieu-tay-a3.1.zip`: `Li_Nghe_An_L5`, `Thi_Thu_TN_CN`, `Toan_TQB_HN_Lx`, `TN-THPT-2026`, `Hoa_Ha_Noi_L1`. Their 265 DSMT4 BIN occurrences match both unshuffled ZIP variants byte-for-byte and in order; all have actual MTEF5/DSMT7 parser evidence. That subset snapshot: 263 inserted candidates, two OLE retained together in paragraph 91 of the Nghệ An exam (native OMML coexistence), and 18 preserved native OMML. See [the 265-object ledger](./working/dsmt4-history/dsmt4_five_exam_reconciliation_2026-11-05.md). The archive's Word result cells are blank: identification/count reconciliation is closed, semantic and application acceptance remains open.
 - Seen while rendering, not changed: in `Hoa_Bac-Ninh_L1` paragraphs 126 and 304 (one sidecar) the decoder's MathML spells the arrow labels as `®iÖn ph©n dung dÞch` / `cã mµng ng¨n`, TCVN3-encoded "điện phân dung dịch" / "có màng ngăn". A search of `mtext` in all sidecars for TCVN3-specific characters found no other case (other accented hits are ordinary Unicode Vietnamese such as `khí`); the text was the same in baseline and initial P2 candidate. The Word placement follow-up retains both original OLE objects (their paragraphs are indented), so the current output no longer substitutes these corrupted labels. The decoder/encoding issue remains open.
 
 ## Verification and artifacts

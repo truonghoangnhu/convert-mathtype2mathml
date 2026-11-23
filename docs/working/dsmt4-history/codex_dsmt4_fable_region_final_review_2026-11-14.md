@@ -34,4 +34,4 @@ No new W/L pair is justified by this study. An eligible pair still requires a ge
 
 The next investigation should establish a specific intended tab-column contract from source layout and actual native positions, or select a newly evidenced genuine overflow occurrence. It should not repeat the global screen or manufacture a split case. Corpus status remains needs_review; accepted is unchanged.
 
-Primary handoff: `work/dsmt4-claude-region-overflow-20261113T201043/execution/continuation-05/report.md` and `review-handoff.json`. Codex review evidence: `attempt-05/review/`. The preceding Formula-group measurement report is `docs/working/codex_dsmt4_formula_group_review_2026-11-14.md`.
+Primary handoff: `work/dsmt4-claude-region-overflow-20261113T201043/execution/continuation-05/report.md` and `review-handoff.json`. Codex review evidence: `attempt-05/review/`. The preceding Formula-group measurement report is `docs/working/dsmt4-history/codex_dsmt4_formula_group_review_2026-11-14.md`.

@@ -90,7 +90,7 @@ trong textbox. Phân biệt lỗi mới, lỗi tồn tại trước, và khoản
 
 ## Kết quả cần trả
 
-Ghi vào `docs/working/claude_dsmt4_review.md`:
+Ghi vào `docs/working/dsmt4-history/claude_dsmt4_review.md`:
 
 1. Findings theo P0/P1/P2: file + dòng, trigger, tác động, bằng chứng/tái hiện,
    đề xuất sửa và test cần thêm. Nếu không có finding actionable, nói rõ.
