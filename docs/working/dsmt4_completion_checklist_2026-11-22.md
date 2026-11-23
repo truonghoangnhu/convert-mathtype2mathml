@@ -1,6 +1,6 @@
 # Checklist hoàn tất DSMT4 — 2026-11-22
 
-**Trạng thái (cập nhật cuối ngày 22/11):** chưa hoàn tất. Corpus vẫn `needs_review`, accepted = 0 (ledger mới: needs_review 265, failed 0).
+**Trạng thái (cập nhật 23/11):** chưa hoàn tất. Ledger 265: **accepted 143** (Toán 112, TN 22, Lý 9), needs_review 122, failed 0, unsupported 0. Còn: soát hiển thị Word đề Hóa (100), mẫu Writer cho hoa068.
 - PR #4 đang mở. Converter A1–A4 đã vào production ở commit `b01025c`; CI (generated-output gate) xanh trên `b01025c`.
 - 23/11: B7, B9 xong trên Word; D2 Word mới xong 6 mẫu Hóa (màn hình khoá lại khi sang đề Lý). Đã dựng tài liệu Writer nhúng LibreOffice Math từ MathML cho 4 đề: 241 pass, 6 giới hạn trình bày, 18 OLE giữ. Không merge: D4 vẫn chưa có occurrence nào đủ điều kiện (xem D4).
 
@@ -69,7 +69,7 @@ D1 (22/11): `work/dsmt4-claude-d-ledger-20261122/` dựng lại 265 dòng trên 
 
 D2 (23/11): **Word** sửa–lưu–mở lại trên output cuối đạt **17/17 mẫu** (`work/dsmt4-claude-d2-ui-20261123`), phủ đủ 13 nhóm cấu trúc; Word chỉ chuẩn hoá `−`→`-`, `′`→`'`, `ℓ`→script `l` (hiển thị không đổi). **Writer (tài liệu đề thực, LibreOffice Math nhúng)** đạt **16/16 mẫu** (`work/dsmt4-claude-d4-writer-ui-20261123`): công thức sau mở lại đúng bản sửa, 231 công thức khác không đổi; phủ 12/13 nhóm — thiếu quan hệ đầu công thức (hoa068 không chọn được bằng Navigator khi điều khiển nền). Tuyến Writer DOCX không bắt buộc (C3). LibreOffice Math/ODT tách riêng: 12 ca cũ.
 
-D4 — tài liệu Writer (23/11, `work/dsmt4-claude-d4-writer-doc-20261123`, người dùng chọn dựng tài liệu thay vì nới tiêu chí): 4 đề gốc mở trong Writer với `MathTypeToMath=false`; mỗi OLE (khớp byte và rId với đề gốc, 265/265) có output Word là OMML được thay bằng đối tượng LibreOffice Math chứa MathML đã chuẩn bị (247, trùng byte C2); 18 OLE giữ nguyên. Headless trong tài liệu: 247/247 công thức bằng bản nạp riêng, không đổi sau lưu–mở lại (vòng 2 cũng ổn định), còn as-char ở đúng đoạn, văn bản và thứ tự khung trùng bản gốc; 18 trang vẫn 18. Đã xem cả 18 trang trước/sau: không lỗi nội dung, chồng lấn hay tràn lề. `writer_in_document`: pass 241, known_limitation 6 (hoa037/042/086 mũi tên có nhãn không giãn; hoa066/067 mũi tên template thành `→` ngắn; li009 phân số nghiêng vẽ thành phân số đứng), retained_ole 18. **accepted vẫn 0** vì còn thiếu hiển thị từng occurrence trên Word sau lưu–mở lại (đã có: nội dung/cấu trúc mọi công thức giữ nguyên qua Word lưu–mở lại ở 4 bản sao, B7 hình học) và mẫu Writer cho nhóm quan hệ đầu công thức.
+D4 — tài liệu Writer (23/11, `work/dsmt4-claude-d4-writer-doc-20261123`, người dùng chọn dựng tài liệu thay vì nới tiêu chí): 4 đề gốc mở trong Writer với `MathTypeToMath=false`; mỗi OLE (khớp byte và rId với đề gốc, 265/265) có output Word là OMML được thay bằng đối tượng LibreOffice Math chứa MathML đã chuẩn bị (247, trùng byte C2); 18 OLE giữ nguyên. Headless trong tài liệu: 247/247 công thức bằng bản nạp riêng, không đổi sau lưu–mở lại (vòng 2 cũng ổn định), còn as-char ở đúng đoạn, văn bản và thứ tự khung trùng bản gốc; 18 trang vẫn 18. Đã xem cả 18 trang trước/sau: không lỗi nội dung, chồng lấn hay tràn lề. `writer_in_document`: pass 241, known_limitation 6 (hoa037/042/086 mũi tên có nhãn không giãn; hoa066/067 mũi tên template thành `→` ngắn; li009 phân số nghiêng vẽ thành phân số đứng), retained_ole 18. Sau đó (23/11): soát từng trang Word trên bản đã Word lưu–mở lại cho Toán, TN, Lý (mọi công thức đúng; toan022/027/090 có khoảng trống sau `S.` = giới hạn B8); XML mọi công thức của 4 bản Word lưu giữ nguyên. **D4: accepted 143** (Toán 112, TN 22, Lý 9). needs_review 122 = Hóa 100 (chưa soát hiển thị Word, màn hình khoá giữa chừng) + 18 OLE giữ + li009 + toan022/027/090. Quy tắc và cột mới: `work/dsmt4-claude-d-ledger-20261122/README.md`.
 
 Các nhóm cấu trúc ở D2:
 - công thức hóa học inline;
@@ -113,7 +113,7 @@ Hiện có từ ngày 05/11:
 2. ~~A6 và B4~~ — đã quyết 22/11 (A6: chấp nhận; B4: không phantom).
 3. ~~A7 (tích hợp)~~ — xong 22/11 (chưa commit).
 4. ~~C1–C3, B8, E, D1, D3~~ — xong 22/11.
-5. ~~B9, B7~~ — xong 23/11. ~~Tài liệu Writer cho D4~~ — dựng và kiểm headless 23/11. ~~D2 Word 17 mẫu, Writer trong tài liệu 16 mẫu~~ — xong 23/11. **Còn:** xem hiển thị từng occurrence trên Word sau lưu–mở lại; mẫu Writer cho hoa068.
+5. ~~B9, B7~~ — xong 23/11. ~~Tài liệu Writer cho D4~~ — dựng và kiểm headless 23/11. ~~D2 Word 17 mẫu, Writer trong tài liệu 16 mẫu~~ — xong 23/11. ~~Soát hiển thị Word Toán/TN/Lý, D4 lần 1 (143 accepted)~~ — xong 23/11. **Còn:** soát hiển thị Word đề Hóa; mẫu Writer cho hoa068.
 6. F: merge chỉ sau D4.
 
 Các mục A và B chặn D, vì ledger phải chạy trên output cuối cùng.

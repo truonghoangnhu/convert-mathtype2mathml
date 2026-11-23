@@ -135,8 +135,17 @@ LibreOffice Math (three labelled arrows not stretched, two empty-label template 
 drawn short, one bevelled fraction drawn stacked). Editing inside these Writer documents
 (formula selected, edited in the Commands window, saved, closed, reopened) passed for
 sixteen samples covering every structure group except the leading relation; the other
-231 formulas were unchanged. Accepted stays zero until per-occurrence Word display after
-save and reopen is reviewed and the leading-relation group has a Writer sample.
+231 formulas were unchanged.
+
+D4 result (2026-11-23). After a page-by-page review of the Word-saved and reopened Toán,
+TN and Lý copies, an occurrence is accepted when its output is native OMML, its Word
+display after save and reopen was reviewed without a recorded limitation, its XML is
+unchanged by the Word save, it passed the Writer document check after reopening, and its
+structure group has a UI-verified sample on both Word and the Writer document. Ledger:
+accepted 143 (Toán 112, TN 22, Lý 9), needs_review 122, failed 0, unsupported 0. Still
+needs_review: the 100 Hóa occurrences (Word display review not yet done), the 18 retained
+objects, li009 (bevelled fraction drawn stacked in LibreOffice Math) and toan022/027/090
+(gap after the period in S.ABCD in Word).
 
 ## Run order
 
