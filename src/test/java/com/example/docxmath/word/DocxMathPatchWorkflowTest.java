@@ -212,6 +212,24 @@ final class DocxMathPatchWorkflowTest {
     }
 
     @Test
+    void retainsSourceWhenScriptBaseContainsOnlyEmptyOrInvisibleTokens() throws Exception {
+        for (String base : List.of("<mi/>", "<mrow><mi/></mrow>", "<mtext> </mtext>",
+                "<mi>&#x2062;</mi>", "<mspace width=\"1em\"/>")) {
+            var object = mathObjectRef(1, "<math><msup>" + base + "<mn>2</mn></msup><mo>+</mo><mi>y</mi></math>");
+            Path temp = Files.createTempDirectory("dsmt4-invisible-script-base");
+            Path input = temp.resolve("input.docx");
+            Path output = temp.resolve("output.docx");
+            writeMinimalDocx(input, oleObjectDocumentXml(object), List.of(object));
+            var summary = new DocxMathPatchMain(
+                    ManifestMathSidecarRepository.load(writeManifest(temp, List.of(object)))).patch(input, output);
+            assertEquals(0, summary.patchedBlocks() + summary.patchedInline(), base);
+            assertEquals(1, summary.skipBreakdownCount(PatchSkipReason.OMML_CONVERSION_FAILED), base);
+            assertEquals(java.util.Map.of("missing_script_base", 1), summary.conversionDiagnostics(), base);
+            assertArrayEquals(Files.readAllBytes(input), Files.readAllBytes(output), base);
+        }
+    }
+
+    @Test
     void retainsWholeMultiObjectParagraphWhenOneScriptBaseIsIncomplete() throws Exception {
         var good = mathObjectRef(1, wmfMathml("x", "+", "1"));
         var bad = mathObjectRef(2, "<math><msubsup><mrow/><mn>94</mn><mn>238</mn></msubsup><mi>Pu</mi></math>");
@@ -256,6 +274,59 @@ final class DocxMathPatchWorkflowTest {
     private static final String SOURCE_RUN_PROPERTIES =
             "<w:rPr><w:b/><w:color w:val=\"0000CC\"/><w:position w:val=\"-4\"/><w:sz w:val=\"28\"/>"
                     + "<w:szCs w:val=\"28\"/><w:highlight w:val=\"yellow\"/><w:u w:val=\"single\"/></w:rPr>";
+
+    @Test
+    void carriesExplicitHiddenStateOntoInlineAndBlockEquationRuns() throws Exception {
+        var object = mathObjectRef(1, wmfMathml("x", "+", "1"));
+        for (String value : List.of("", " w:val=\"0\"", " w:val=\"false\"")) {
+            String properties = "<w:rPr><w:vanish" + value + "/></w:rPr>";
+            for (boolean block : List.of(false, true)) {
+                var runs = block ? List.of(formattedObjectRunXml(object, properties))
+                        : List.of(textRunXml("Cho "), formattedObjectRunXml(object, properties), textRunXml(" xong"));
+                var result = runPatch(inlineObjectDocumentXml(block ? CENTRED_PARAGRAPH : "", runs),
+                        List.of(object), List.of(object));
+                assertEquals(block ? 1 : 0, result.summary.patchedBlocks());
+                assertEquals(block ? 0 : 1, result.summary.patchedInline());
+                var mathRuns = parseNamespaceAware(result.xml).getElementsByTagNameNS(OMML_NS, "r");
+                assertTrue(mathRuns.getLength() > 0);
+                for (int i = 0; i < mathRuns.getLength(); i++) {
+                    var hidden = ((org.w3c.dom.Element) mathRuns.item(i)).getElementsByTagNameNS(WORD_NS, "vanish");
+                    assertEquals(1, hidden.getLength(), "every equation run must retain explicit hidden state");
+                    assertEquals(value.isEmpty() ? "" : value.contains("false") ? "false" : "0",
+                            ((org.w3c.dom.Element) hidden.item(0)).getAttributeNS(WORD_NS, "val"));
+                }
+            }
+        }
+    }
+
+    @Test
+    void preservesHiddenMixedRunWithoutHidingNeighbouringEquation() throws Exception {
+        var hidden = mathObjectRef(1, wmfMathml("x", "+", "1"));
+        var visible = mathObjectRef(2, wmfMathml("y", "+", "2"));
+        var result = runPatch(inlineObjectDocumentXml("", List.of(textRunXml("Cho "),
+                mixedObjectRunXml(hidden).replace(SPLIT_RUN_PROPERTIES, "<w:rPr><w:vanish/></w:rPr>"),
+                textRunXml(" và "), objectRunXml(visible))), List.of(hidden, visible), List.of(hidden, visible));
+        assertEquals(2, result.summary.patchedInline());
+        var equations = parseNamespaceAware(result.xml).getElementsByTagNameNS(OMML_NS, "oMath");
+        assertEquals(2, equations.getLength());
+        var hiddenRuns = ((org.w3c.dom.Element) equations.item(0)).getElementsByTagNameNS(OMML_NS, "r");
+        assertTrue(hiddenRuns.getLength() > 0);
+        assertEquals(hiddenRuns.getLength(), ((org.w3c.dom.Element) equations.item(0))
+                .getElementsByTagNameNS(WORD_NS, "vanish").getLength());
+        assertEquals(0, ((org.w3c.dom.Element) equations.item(1)).getElementsByTagNameNS(WORD_NS, "vanish").getLength());
+        var textRuns = parseNamespaceAware(result.xml).getElementsByTagNameNS(WORD_NS, "r");
+        int splitTextRuns = 0;
+        for (int i = 0; i < textRuns.getLength(); i++) {
+            var run = (org.w3c.dom.Element) textRuns.item(i);
+            var texts = run.getElementsByTagNameNS(WORD_NS, "t");
+            if (texts.getLength() == 1 && (texts.item(0).getTextContent().equals("pre ")
+                    || texts.item(0).getTextContent().equals(" post"))) {
+                splitTextRuns++;
+                assertEquals(1, run.getElementsByTagNameNS(WORD_NS, "vanish").getLength());
+            }
+        }
+        assertEquals(2, splitTextRuns, "both text fragments of the hidden source run survive");
+    }
 
     @Test
     void carriesSourceRunSizeAndColourOntoEveryInlineEquationRun() throws Exception {

@@ -29,7 +29,7 @@ public final class XmlBeansOmmlInjector implements OmmlInjector {
     // Source run properties that Word applies to an equation run. Bold/italic/position are
     // left out: math style comes from the MathML, and w:position only aligned the OLE picture.
     // Listed in CT_RPr schema order, which the merge below keeps.
-    private static final List<String> CARRIED_RUN_PROPERTIES = List.of("color", "sz", "szCs", "highlight", "u");
+    private static final List<String> CARRIED_RUN_PROPERTIES = List.of("vanish", "color", "sz", "szCs", "highlight", "u");
     private static final List<String> RUN_PROPERTY_ORDER = List.of(
             "rStyle", "rFonts", "b", "bCs", "i", "iCs", "caps", "smallCaps", "strike", "dstrike", "outline",
             "shadow", "emboss", "imprint", "noProof", "snapToGrid", "vanish", "webHidden", "color", "spacing",

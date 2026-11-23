@@ -120,17 +120,20 @@ public final class MathmlContent {
                         break;
                     }
                 }
-                boolean content = false;
-                if (base != null) {
-                    for (Node child = base.getFirstChild(); child != null; child = child.getNextSibling()) {
-                        if (child instanceof Element e && !(ns.equals(e.getNamespaceURI()) && "argPr".equals(e.getLocalName()))) {
-                            content = true;
-                            break;
-                        }
-                    }
-                }
-                if (!content) return true;
+                if (base == null || !hasScriptBaseContent(base, ns)) return true;
             }
+        }
+        return false;
+    }
+
+    private static boolean hasScriptBaseContent(Element element, String ns) {
+        if (!ns.equals(element.getNamespaceURI()) || element.getLocalName().endsWith("Pr")) return false;
+        if ("t".equals(element.getLocalName())) return hasVisibleCodePoint(element.getTextContent());
+        // Runs and transparent grouping boxes need actual content. Other math structures
+        // (e.g. delimiters, radicals and fractions) can draw visible geometry of their own.
+        if (!Set.of("e", "r", "box").contains(element.getLocalName())) return true;
+        for (Node child = element.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child instanceof Element e && hasScriptBaseContent(e, ns)) return true;
         }
         return false;
     }
