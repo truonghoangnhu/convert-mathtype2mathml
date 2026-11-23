@@ -14,13 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.regex.Pattern;
 
 public final class PoiMathSourceDetector implements MathSourceDetector {
-    private static final Pattern LIST_LABEL_PATTERN = Pattern.compile(
-            "^(?:(?:[A-Da-d][\\.)])|(?:\\([0-9]{1,2}\\))|(?:[0-9]{1,2}[\\.)])|(?:[\\u2022\\u25CF\\u25E6]))$"
-    );
-
     @Override
     public List<MathOccurrence> detect(XWPFDocument document, XWPFParagraph paragraph) {
         List<MathOccurrence> results = new ArrayList<>();
@@ -94,55 +89,52 @@ public final class PoiMathSourceDetector implements MathSourceDetector {
         if (paragraphHasNativeOmml) {
             return false;
         }
-        String text = Objects.toString(paragraph.getText(), "");
-        String compactText = text.replaceAll("\\s+", "").trim();
-        if (paragraphObjectCount != 1) {
-            return false;
-        }
-        if (compactText.isEmpty()) {
-            return true;
-        }
-        if (hasListLikeParagraphProperties(paragraph) || isListLikeShortLabel(compactText)) {
-            return false;
-        }
-        if (hasVisibleTextOnBothSides(paragraph, objectRunIndex)) {
-            return false;
-        }
-        return compactText.length() <= 7;
+        if (paragraphObjectCount != 1) return false;
+        return isObjectOnlyParagraph(paragraph) && DisplayEquationPlacement.keepsSourcePlacement(paragraph);
     }
 
-    private static boolean hasListLikeParagraphProperties(XWPFParagraph paragraph) {
+    static boolean isObjectOnlyParagraph(XWPFParagraph paragraph) {
+        return isObjectOnlyParagraph(paragraph, false);
+    }
+
+    static boolean isVisuallyStandaloneParagraph(XWPFParagraph paragraph) {
+        return isObjectOnlyParagraph(paragraph, true);
+    }
+
+    private static boolean isObjectOnlyParagraph(XWPFParagraph paragraph, boolean ignoreNonRenderingContent) {
+        // A short answer marker or unit is still document content. A block
+        // replacement owns the whole paragraph, so only object-only runs qualify.
         Node paragraphNode = paragraph.getCTP().getDomNode();
-        Element pPr = findFirstDescendant(paragraphNode, "pPr");
-        if (pPr == null) {
-            return false;
-        }
-        return findFirstDescendant(pPr, "numPr") != null || findFirstDescendant(pPr, "ind") != null;
-    }
-
-    private static boolean isListLikeShortLabel(String compactText) {
-        return LIST_LABEL_PATTERN.matcher(compactText).matches();
-    }
-
-    private static boolean hasVisibleTextOnBothSides(XWPFParagraph paragraph, int objectRunIndex) {
-        StringBuilder before = new StringBuilder();
-        StringBuilder after = new StringBuilder();
-        List<XWPFRun> runs = paragraph.getRuns();
-        for (int i = 0; i < runs.size(); i++) {
-            if (i == objectRunIndex) {
-                continue;
-            }
-            String text = Objects.toString(runs.get(i).text(), "");
-            if (text.isBlank()) {
-                continue;
-            }
-            if (i < objectRunIndex) {
-                before.append(text);
-            } else {
-                after.append(text);
+        for (Node child = paragraphNode.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child.getNodeType() != Node.ELEMENT_NODE) continue;
+            String name = child.getLocalName();
+            if ("pPr".equals(name) || "bookmarkStart".equals(name) || "bookmarkEnd".equals(name)) continue;
+            if (ignoreNonRenderingContent && isWordElement(child, "proofErr")) continue;
+            if (!"r".equals(name)) return false;
+            for (Node runChild = child.getFirstChild(); runChild != null; runChild = runChild.getNextSibling()) {
+                if (runChild.getNodeType() != Node.ELEMENT_NODE) continue;
+                String runName = runChild.getLocalName();
+                // A real space is deliberately not ignored: Word keeps those formulas inline.
+                if (ignoreNonRenderingContent && isWordElement(runChild, "t")
+                        && hasNoTextContent(runChild)) continue;
+                if (!"rPr".equals(runName) && !"object".equals(runName)) return false;
             }
         }
-        return !before.toString().trim().isEmpty() && !after.toString().trim().isEmpty();
+        return true;
+    }
+
+    private static boolean isWordElement(Node node, String name) {
+        return name.equals(node.getLocalName())
+                && "http://schemas.openxmlformats.org/wordprocessingml/2006/main".equals(node.getNamespaceURI());
+    }
+
+    private static boolean hasNoTextContent(Node node) {
+        // XMLBeans DOM does not implement the DOM Level 3 getTextContent method.
+        for (Node child = node.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child.getNodeType() != Node.TEXT_NODE && child.getNodeType() != Node.CDATA_SECTION_NODE) return false;
+            if (child.getNodeValue() != null && !child.getNodeValue().isEmpty()) return false;
+        }
+        return true;
     }
 
     private static int countObjects(XWPFParagraph paragraph) {

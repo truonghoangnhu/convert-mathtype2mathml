@@ -100,6 +100,11 @@ public final class MultiObjectSafetyEvaluator {
                     )
             );
         }
+        if (segments.stream().anyMatch(segment ->
+                InlineBoundarySafety.followedByUnseparatedLetter(segment.paragraphChild()))) {
+            return MultiObjectPatchPlan.skip(paragraph, MultiObjectPatchPlan.SkipReason.SPACING_REQUIRES_REVIEW,
+                    InlineBoundarySafety.classification());
+        }
         return MultiObjectPatchPlan.safe(paragraph, segments);
     }
 

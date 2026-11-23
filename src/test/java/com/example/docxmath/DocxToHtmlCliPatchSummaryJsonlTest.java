@@ -19,6 +19,38 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class DocxToHtmlCliPatchSummaryJsonlTest {
     @Test
+    void jsonlPreservesConversionDiagnosticCountsWithoutWarningLogs() throws Exception {
+        var summary = new DocxMathPatchMain.PatchSummary(
+                1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, List.of(), null, null, null,
+                java.util.Map.of("normal_text_symbol_requires_review", 1));
+        String record = DocxToHtmlCli.buildPatchSummaryJsonRecord(
+                Path.of("input.docx"), Path.of("output.docx"), null, summary);
+        var json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(record);
+        org.junit.jupiter.api.Assertions.assertEquals(1,
+                json.path("conversion_diagnostics").path("normal_text_symbol_requires_review").asInt());
+    }
+
+    @Test
+    void jsonlDiagnosticsHaveStableAlphabeticalOrderAndImmutableSnapshot() throws Exception {
+        var counts = new java.util.LinkedHashMap<String, Integer>();
+        for (String key : List.of("normal_text_symbol_requires_review", "unusable_mathml",
+                "missing_script_base", "conversion_exception", "empty_omml")) counts.put(key, 1);
+        var summary = new DocxMathPatchMain.PatchSummary(
+                5, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, List.of(), null, null, null, counts);
+        counts.clear();
+        String record = DocxToHtmlCli.buildPatchSummaryJsonRecord(
+                Path.of("input.docx"), Path.of("output.docx"), null, summary);
+        var diagnostics = new com.fasterxml.jackson.databind.ObjectMapper().readTree(record)
+                .path("conversion_diagnostics");
+        var keys = new java.util.ArrayList<String>();
+        diagnostics.fieldNames().forEachRemaining(keys::add);
+        org.junit.jupiter.api.Assertions.assertEquals(List.of("conversion_exception", "empty_omml",
+                "missing_script_base", "normal_text_symbol_requires_review", "unusable_mathml"), keys);
+        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException.class,
+                () -> summary.conversionDiagnostics().put("extra", 1));
+    }
+
+    @Test
     void omitsDriftFieldsFromJsonRecordWhenNoDriftExists() throws Exception {
         DocxMathPatchMain.PatchSummary summary = new DocxMathPatchMain.PatchSummary(
                 1,
@@ -45,6 +77,7 @@ final class DocxToHtmlCliPatchSummaryJsonlTest {
         );
 
         assertTrue(record.contains("\"omml_preservation\":\"preserved\""));
+        assertTrue(record.contains("\"conversion_diagnostics\":{}"), record);
         assertTrue(record.contains("\"omml_before\":\"eq:1,inline:1,block:0,shape:inline_only\""));
         assertTrue(record.contains("\"omml_after\":\"eq:1,inline:1,block:0,shape:inline_only\""));
         assertFalse(record.contains("\"omml_drift_warning\""));
@@ -85,6 +118,31 @@ final class DocxToHtmlCliPatchSummaryJsonlTest {
         assertTrue(record.contains("\"omml_drift_class\":\"expected_patch_drift\""));
         assertTrue(record.contains("\"omml_drift_pair\":\"before(eq:0,inline:0,block:0,shape:no_omml)->after(eq:1,inline:0,block:1,shape:block_only)\""));
         assertTrue(record.contains("\"omml_drift_bundle\":\"warn:eq|block|shape;class:expected_patch_drift;pair:before(eq:0,inline:0,block:0,shape:no_omml)->after(eq:1,inline:0,block:1,shape:block_only)\""));
+    }
+
+    // New keys are additive: "scanned" keeps its meaning and the Patch summary line its fields.
+    @Test
+    void reportsObjectInventoryAdditivelyInJsonAndHumanSummary() throws Exception {
+        var snapshot = new DocxMathPatchMain.OmmlStructureSnapshot(1, 1, 0, "inline_only");
+        var summary = new DocxMathPatchMain.PatchSummary(1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, java.util.List.of(),
+                new DocxMathPatchMain.OmmlStructureSnapshot(0, 0, 0, "no_omml"), snapshot,
+                new com.example.docxmath.word.ObjectInventory(4, 1, java.util.Map.of("sdt", 2, "part:header", 1)));
+
+        String record = DocxToHtmlCli.buildPatchSummaryJsonRecord(Path.of("/tmp/in.docx"), Path.of("/tmp/out.docx"), null, summary);
+        assertTrue(record.contains("\"scanned\":1,"));
+        assertTrue(record.contains("\"discovered_objects\":4,\"scanned_objects\":1,\"unscanned_objects\":3,"
+                + "\"unscanned_containers\":{\"part:header\":1,\"sdt\":2}"));
+
+        String human = DocxToHtmlCli.renderPatchSummaryOutput(Path.of("/tmp/in.docx"), Path.of("/tmp/out.docx"), null, summary, false);
+        String summaryLine = Arrays.stream(human.split(System.lineSeparator()))
+                .filter(line -> line.startsWith("Patch summary: ")).findFirst().orElseThrow();
+        assertFalse(summaryLine.contains("discovered"));
+        assertTrue(human.contains("Object inventory: discovered=4 scanned_objects=1 unscanned=3 "
+                + "unscanned_containers=part:header:1,sdt:2" + System.lineSeparator() + "Skip breakdown:"));
+
+        var legacy = new DocxMathPatchMain.PatchSummary(1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, java.util.List.of(), snapshot, snapshot);
+        assertFalse(DocxToHtmlCli.buildPatchSummaryJsonRecord(null, null, null, legacy).contains("discovered_objects"));
+        assertFalse(DocxToHtmlCli.renderPatchSummaryOutput(null, null, null, legacy, false).contains("Object inventory"));
     }
 
     @Test

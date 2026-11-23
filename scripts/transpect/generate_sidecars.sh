@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
+export PYTHONPATH="$SCRIPT_DIR${PYTHONPATH:+:$PYTHONPATH}"
+
 if [ "$#" -lt 5 ] || [ "$#" -gt 6 ]; then
   echo "Usage: $0 <input.docx> <out-dir> <mathtype-extension-dir> <xmlcalabash-jar> <saxon-he-jar> [transpect-config.xml]" >&2
   exit 1
@@ -503,24 +506,7 @@ suppressed_preview_parts = {
     if pair.get('preview_part') and pair.get('object_kind') not in {'equation', '', None}
 }
 
-def is_usable_math(path: Path) -> bool:
-    if not path.exists() or path.stat().st_size == 0:
-        return False
-    text = path.read_text(encoding='utf-8', errors='ignore').strip()
-    if '<math' not in text:
-        return False
-    try:
-        root = ET.fromstring(text)
-    except ET.ParseError:
-        return False
-    if root.tag.split('}')[-1] != 'math':
-        return False
-    children = [child for child in list(root) if isinstance(child.tag, str)]
-    if children:
-        return True
-    if (root.text or '').strip():
-        return True
-    return False
+from mathml_content import is_usable_math
 
 cache_hits = 0
 cache_misses = 0
@@ -574,24 +560,7 @@ wmf_math_dir = Path(sys.argv[2])
 cache_dir = Path(sys.argv[3])
 refs = json.loads(refs_path.read_text(encoding='utf-8'))
 
-def is_usable_math(path: Path) -> bool:
-    if not path.exists() or path.stat().st_size == 0:
-        return False
-    text = path.read_text(encoding='utf-8', errors='ignore').strip()
-    if '<math' not in text:
-        return False
-    try:
-        root = ET.fromstring(text)
-    except ET.ParseError:
-        return False
-    if root.tag.split('}')[-1] != 'math':
-        return False
-    children = [child for child in list(root) if isinstance(child.tag, str)]
-    if children:
-        return True
-    if (root.text or '').strip():
-        return True
-    return False
+from mathml_content import is_usable_math
 
 written = 0
 failed = 0
@@ -639,24 +608,7 @@ for stale in bin_needed_dir.glob('*'):
     if stale.is_file():
         stale.unlink()
 
-def is_usable_math(path: Path) -> bool:
-    if not path.exists() or path.stat().st_size == 0:
-        return False
-    text = path.read_text(encoding='utf-8', errors='ignore').strip()
-    if '<math' not in text:
-        return False
-    try:
-        root = ET.fromstring(text)
-    except ET.ParseError:
-        return False
-    if root.tag.split('}')[-1] != 'math':
-        return False
-    children = [child for child in list(root) if isinstance(child.tag, str)]
-    if children:
-        return True
-    if (root.text or '').strip():
-        return True
-    return False
+from mathml_content import is_usable_math
 
 wmf_usable_parts = set()
 for part, digest in refs['wmf_part_to_hash'].items():
@@ -737,24 +689,7 @@ for stale in bin_convert_dir.glob('*'):
     if stale.is_file():
         stale.unlink()
 
-def is_usable_math(path: Path) -> bool:
-    if not path.exists() or path.stat().st_size == 0:
-        return False
-    text = path.read_text(encoding='utf-8', errors='ignore').strip()
-    if '<math' not in text:
-        return False
-    try:
-        root = ET.fromstring(text)
-    except ET.ParseError:
-        return False
-    if root.tag.split('}')[-1] != 'math':
-        return False
-    children = [child for child in list(root) if isinstance(child.tag, str)]
-    if children:
-        return True
-    if (root.text or '').strip():
-        return True
-    return False
+from mathml_content import is_usable_math
 
 cache_hits = 0
 cache_misses = 0
@@ -798,24 +733,7 @@ bin_math_dir = Path(sys.argv[2])
 fallback_file = Path(sys.argv[3])
 state = json.loads(state_path.read_text(encoding='utf-8'))
 
-def is_usable_math(path: Path) -> bool:
-    if not path.exists() or path.stat().st_size == 0:
-        return False
-    text = path.read_text(encoding='utf-8', errors='ignore').strip()
-    if '<math' not in text:
-        return False
-    try:
-        root = ET.fromstring(text)
-    except ET.ParseError:
-        return False
-    if root.tag.split('}')[-1] != 'math':
-        return False
-    children = [child for child in list(root) if isinstance(child.tag, str)]
-    if children:
-        return True
-    if (root.text or '').strip():
-        return True
-    return False
+from mathml_content import is_usable_math
 
 fallback_hashes = []
 for digest in state.get('bin_needed_hashes', []):
@@ -840,24 +758,7 @@ import xml.etree.ElementTree as ET
 output_path = Path(sys.argv[1])
 failed_marker = Path(sys.argv[2])
 
-def is_usable_math(path: Path) -> bool:
-    if not path.exists() or path.stat().st_size == 0:
-        return False
-    text = path.read_text(encoding='utf-8', errors='ignore').strip()
-    if '<math' not in text:
-        return False
-    try:
-        root = ET.fromstring(text)
-    except ET.ParseError:
-        return False
-    if root.tag.split('}')[-1] != 'math':
-        return False
-    children = [child for child in list(root) if isinstance(child.tag, str)]
-    if children:
-        return True
-    if (root.text or '').strip():
-        return True
-    return False
+from mathml_content import is_usable_math
 
 if not is_usable_math(output_path):
     if output_path.exists():
@@ -884,24 +785,7 @@ bin_math_dir = Path(sys.argv[2])
 cache_dir = Path(sys.argv[3])
 state = json.loads(state_path.read_text(encoding='utf-8'))
 
-def is_usable_math(path: Path) -> bool:
-    if not path.exists() or path.stat().st_size == 0:
-        return False
-    text = path.read_text(encoding='utf-8', errors='ignore').strip()
-    if '<math' not in text:
-        return False
-    try:
-        root = ET.fromstring(text)
-    except ET.ParseError:
-        return False
-    if root.tag.split('}')[-1] != 'math':
-        return False
-    children = [child for child in list(root) if isinstance(child.tag, str)]
-    if children:
-        return True
-    if (root.text or '').strip():
-        return True
-    return False
+from mathml_content import is_usable_math
 
 written = 0
 failed = 0
@@ -944,24 +828,7 @@ manifest_path = Path(sys.argv[4])
 state = json.loads(state_path.read_text(encoding='utf-8'))
 
 
-def is_usable_math(path: Path) -> bool:
-    if not path.exists() or path.stat().st_size == 0:
-        return False
-    text = path.read_text(encoding='utf-8', errors='ignore').strip()
-    if '<math' not in text:
-        return False
-    try:
-        root = ET.fromstring(text)
-    except ET.ParseError:
-        return False
-    if root.tag.split('}')[-1] != 'math':
-        return False
-    children = [child for child in list(root) if isinstance(child.tag, str)]
-    if children:
-        return True
-    if (root.text or '').strip():
-        return True
-    return False
+from mathml_content import is_usable_math
 
 manifest_entries = []
 wmf_success = 0

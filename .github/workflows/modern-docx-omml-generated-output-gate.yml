@@ -13,6 +13,11 @@ on:
       - "scripts/workflow/validate_modern_docx_omml.py"
       - "scripts/workflow/validate_modern_docx_omml_structure.py"
       - "src/main/**"
+      - "src/test/**"
+      - "scripts/transpect/mathml_content.py"
+      - "scripts/transpect/prepare_libreoffice_mathml.py"
+      - "tests/**"
+      - "fixtures/mathml_content/**"
   pull_request:
     paths:
       - ".github/workflows/modern-docx-omml-generated-output-gate.yml"
@@ -24,6 +29,11 @@ on:
       - "scripts/workflow/validate_modern_docx_omml.py"
       - "scripts/workflow/validate_modern_docx_omml_structure.py"
       - "src/main/**"
+      - "src/test/**"
+      - "scripts/transpect/mathml_content.py"
+      - "scripts/transpect/prepare_libreoffice_mathml.py"
+      - "tests/**"
+      - "fixtures/mathml_content/**"
 
 jobs:
   generated-output-gate:
@@ -40,8 +50,13 @@ jobs:
           java-version: "17"
           cache: maven
 
-      - name: Build patch-docx jar
-        run: mvn -q -DskipTests package
+      - name: Test and build patch-docx jar
+        run: mvn -q package
+
+      - name: Run Python regression tests
+        run: |
+          python3 -m unittest discover -s tests
+          python3 -m unittest discover -s scripts/workflow -p 'test_*.py'
 
       - name: Run modern DOCX + OMML generated-output gate
         run: python3 scripts/workflow/run_modern_docx_omml_generated_output_gate.py

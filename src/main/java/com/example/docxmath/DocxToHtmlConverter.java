@@ -3225,8 +3225,8 @@ public final class DocxToHtmlConverter {
             return new SidecarProbe(null, "no-manifest-entry:" + partName);
         }
         String mathml = sidecarRegistry.readMathmlForPart(partName);
-        if (mathml == null || mathml.isBlank()) {
-            return new SidecarProbe(null, "empty-sidecar:" + partName);
+        if (!MathmlContent.hasFormula(mathml)) {
+            return new SidecarProbe(null, "unsupported:empty-or-invalid-sidecar:" + partName);
         }
         mathml = normalizeMathmlFragment(mathml);
         sidecarMathmlCounter.incrementAndGet();

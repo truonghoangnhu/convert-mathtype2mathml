@@ -7,6 +7,7 @@
                 version="3.0"
                 exclude-result-prefixes="mml m w">
   <xsl:output method="xml" encoding="UTF-8"/>
+  <xsl:variable name="letterlikePolicy" select="document('letterlike_policy.xml')/symbol-policy"/>
 
 
   <xsl:variable name="StrUCAlphabet">ABCDEFGHIJKLMNOPQRSTUVWXYZ</xsl:variable>
@@ -488,6 +489,7 @@
          mml:mtext, then if any of its following siblings are to be grouped, they must also be mml:text elements.  
          The inverse is also true, suppose the $ndTokenFirst isn't an mml:mtext, then if any of its following siblings 
          are to be grouped with $ndTokenFirst, they can't be mml:mtext elements-->
+    <xsl:variable name="firstIsLetterlikeMText" select="m:IsLetterlikeMtext($ndTokenFirst)"/>
     <xsl:variable name="fNdTokenFirstIsMText">
          <xsl:choose>
             <xsl:when test="$ndTokenFirst/self::mml:mtext">1</xsl:when>
@@ -557,8 +559,29 @@
 					 
 					 The font family matches the current font family.
 					 ) // end of not().-->
+    <!-- A two-token integer-or-single-letter/sign superscript is a postfix charge.
+         Keep its normal same-property grouping: Writer parses a separated plus
+         as an incomplete binary expression. Do not exempt infix expressions,
+         subscripts, glyphs, or incompatible run properties. -->
+    <xsl:variable name="fPostfixChargeSuperscript"
+      select="boolean($ndTokenFirst/parent::mml:mrow[
+        count(*)=2
+        and *[1][not(*) and (
+          (self::mml:mn and string-length(normalize-space(.)) &gt; 0
+            and translate(normalize-space(.),'0123456789','')='')
+          or (self::mml:mi and matches(normalize-space(.),'^\p{L}$'))
+        )]
+        and *[2][self::mml:mo and not(*) and (.='+' or .='-' or .='−')]
+        and ((parent::mml:msup and count(preceding-sibling::*)=1)
+          or (parent::mml:msubsup and count(preceding-sibling::*)=2))
+      ])"/>
+    <!-- A complete two-token numeric continuation needs the old same-property
+         grouping. Writer ignores lit/nor on a standalone leading equals. -->
+    <xsl:variable name="fLeadingNumericContinuation"
+      select="m:IsLeadingNumericContinuation($ndTokenFirst)"/>
+    <!-- Otherwise keep explicit operators separate so Writer retains their role. -->
     <xsl:variable name="nndBeforeLim"
-                    select="count($ndTokenFirst/following-sibling::*      [(not(self::mml:mi) and not(self::mml:mn) and not(self::mml:mo) and not(self::mml:ms) and not(self::mml:mtext))      or      (self::mml:mi[child::mml:mglyph] or self::mml:mn[child::mml:mglyph] or self::mml:mo[child::mml:mglyph] or self::mml:ms[child::mml:mglyph] or self::mml:mtext[child::mml:mglyph])      or      (($fNdTokenFirstIsMText=1 and not(self::mml:mtext)) or ($fNdTokenFirstIsMText=0 and self::mml:mtext))      or        not(       ((($sFontCur=@mathvariant or $sFontCur=@mml:mathvariant)        or        ($sFontCur='normal'         and ((@mathvariant='normal' or @mml:mathvariant='normal')            or (((not(@mathvariant) or @mathvariant='') and (not(@mml:mathvariant) or @mml:mathvariant=''))              and (                     ((@fontstyle='normal' or @mml:fontstyle='normal') and (not(@fontweight='bold') and not(@mml:fontweight='bold')))                     or (self::mml:mi and string-length(normalize-space(.)) &gt; 1)                    )               )           )        )        or        ($sFontCur='italic'          and ((@mathvariant='italic' or @mml:mathvariant='italic')            or (((not(@mathvariant) or @mathvariant='') and (not(@mml:mathvariant) or @mml:mathvariant=''))             and (                     ((@fontstyle='italic' or @mml:fontstyle='italic') and (not(@fontweight='bold') and not(@mml:fontweight='bold')))                    or                  (self::mml:mn                  or self::mml:mo                 or (self::mml:mi and string-length(normalize-space(.)) &lt;= 1))                    )               )           )        )         or        ($sFontCur='bold'         and ((@mathvariant='bold' or @mml:mathvariant='bold')            or (((not(@mathvariant) or @mathvariant='') and (not(@mml:mathvariant) or @mml:mathvariant=''))                and (                     ((@fontweight='bold' or @mml:fontweight='bold')                     and ((@fontstyle='normal' or @mml:fontstyle='normal') or (self::mml:mi and string-length(normalize-space(.)) &lt;= 1))                    )               )             )             )        )         or        (($sFontCur='bi' or $sFontCur='bold-italic')         and (            (@mathvariant='bold-italic' or @mml:mathvariant='bold-italic')            or (((not(@mathvariant) or @mathvariant='') and (not(@mml:mathvariant) or @mml:mathvariant=''))             and (                ((@fontweight='bold' or @mml:fontweight='bold') and (@fontstyle='italic' or @mml:fontstyle='italic'))                or ((@fontweight='bold' or @mml:fontweight='bold')                   and (self::mml:mn                       or self::mml:mo                     or (self::mml:mi and string-length(normalize-space(.)) &lt;= 1)))                    )               )           )        )               or               (($sFontCur=''                   and (                      ((not(@mathvariant) or @mathvariant='')                         and (not(@mml:mathvariant) or @mml:mathvariant='')                         and (not(@fontstyle) or @fontstyle='')                         and (not(@mml:fontstyle) or @mml:fontstyle='')                         and (not(@fontweight)or @fontweight='')                         and (not(@mml:fontweight) or @mml:fontweight='')                 )                        or                          (@mathvariant='italic' or @mml:mathvariant='italic')                         or (                            ((not(@mathvariant) or @mathvariant='') and (not(@mml:mathvariant) or @mml:mathvariant=''))                                and (                                   (((@fontweight='normal' or @mml:fontweight='normal')                                    and (@fontstyle='italic' or @mml:fontstyle='italic'))                                   )                                   or                                   ((not(@fontweight) or @fontweight='') and (not(@mml:fontweight) or @mml:fontweight=''))                                    and (@fontstyle='italic' or @mml:fontstyle='italic')                                   or                                   ((not(@fontweight) or @fontweight='') and (not(@mml:fontweight) or @mml:fontweight=''))                                    and (not(@fontstyle) or @fontstyle='')                                    and (not(@mml:fontstyle) or @mml:fontstyle=''))                             )                 )                ))        or               ($sFontCur='normal'                 and ((self::mml:mi                       and (not(@mathvariant) or @mathvariant='')                   and (not(@mml:mathvariant) or @mml:mathvariant)                   and (not(@fontstyle) or @fontstyle='')                    and (not(@mml:fontstyle) or @mml:fontstyle='')                   and (not(@fontweight) or @fontweight='')                    and (not(@mml:fontweight) or @mml:fontweight='')                   and (string-length(normalize-space(.)) &gt; 1)                   )                  or ((self::mml:ms or self::mml:mtext)                    and (not(@mathvariant) or @mathvariant='')                   and (not(@mml:mathvariant) or @mml:mathvariant)                   and (not(@fontstyle) or @fontstyle)                   and (not(@fontstyle) or @fontstyle='')                   and (not(@fontweight) or @fontweight)                   and (not(@mml:fontweight) or @mml:fontweight='')                   )                  )               )           )       and             (($font-family = @font-family or $font-family = @mml:font-family)               or (($font-family='' or not($font-family))                and (not(@font-family) or @font-family='')                and (not(@mml:font-family) or @mml:font-family='')               )              )      ))      ][1]/preceding-sibling::*)"/>
+                    select="count($ndTokenFirst/following-sibling::*      [(not($fPostfixChargeSuperscript or $fLeadingNumericContinuation) and (self::mml:mo or $ndTokenFirst/self::mml:mo)) or (not(self::mml:mi) and not(self::mml:mn) and not(self::mml:mo) and not(self::mml:ms) and not(self::mml:mtext))      or      (self::mml:mi[child::mml:mglyph] or self::mml:mn[child::mml:mglyph] or self::mml:mo[child::mml:mglyph] or self::mml:ms[child::mml:mglyph] or self::mml:mtext[child::mml:mglyph])      or (m:IsLetterlikeMtext(.) != $firstIsLetterlikeMText)      or      (($fNdTokenFirstIsMText=1 and not(self::mml:mtext)) or ($fNdTokenFirstIsMText=0 and self::mml:mtext))      or        not(       ((($sFontCur=@mathvariant or $sFontCur=@mml:mathvariant)        or        ($sFontCur='normal'         and ((@mathvariant='normal' or @mml:mathvariant='normal')            or (((not(@mathvariant) or @mathvariant='') and (not(@mml:mathvariant) or @mml:mathvariant=''))              and (                     ((@fontstyle='normal' or @mml:fontstyle='normal') and (not(@fontweight='bold') and not(@mml:fontweight='bold')))                     or (self::mml:mi and string-length(normalize-space(.)) &gt; 1)                    )               )           )        )        or        ($sFontCur='italic'          and ((@mathvariant='italic' or @mml:mathvariant='italic')            or (((not(@mathvariant) or @mathvariant='') and (not(@mml:mathvariant) or @mml:mathvariant=''))             and (                     ((@fontstyle='italic' or @mml:fontstyle='italic') and (not(@fontweight='bold') and not(@mml:fontweight='bold')))                    or                  (self::mml:mn                  or self::mml:mo                 or (self::mml:mi and string-length(normalize-space(.)) &lt;= 1))                    )               )           )        )         or        ($sFontCur='bold'         and ((@mathvariant='bold' or @mml:mathvariant='bold')            or (((not(@mathvariant) or @mathvariant='') and (not(@mml:mathvariant) or @mml:mathvariant=''))                and (                     ((@fontweight='bold' or @mml:fontweight='bold')                     and ((@fontstyle='normal' or @mml:fontstyle='normal') or (self::mml:mi and string-length(normalize-space(.)) &lt;= 1))                    )               )             )             )        )         or        (($sFontCur='bi' or $sFontCur='bold-italic')         and (            (@mathvariant='bold-italic' or @mml:mathvariant='bold-italic')            or (((not(@mathvariant) or @mathvariant='') and (not(@mml:mathvariant) or @mml:mathvariant=''))             and (                ((@fontweight='bold' or @mml:fontweight='bold') and (@fontstyle='italic' or @mml:fontstyle='italic'))                or ((@fontweight='bold' or @mml:fontweight='bold')                   and (self::mml:mn                       or self::mml:mo                     or (self::mml:mi and string-length(normalize-space(.)) &lt;= 1)))                    )               )           )        )               or               (($sFontCur=''                   and (                      ((not(@mathvariant) or @mathvariant='')                         and (not(@mml:mathvariant) or @mml:mathvariant='')                         and (not(@fontstyle) or @fontstyle='')                         and (not(@mml:fontstyle) or @mml:fontstyle='')                         and (not(@fontweight)or @fontweight='')                         and (not(@mml:fontweight) or @mml:fontweight='')                 )                        or                          (@mathvariant='italic' or @mml:mathvariant='italic')                         or (                            ((not(@mathvariant) or @mathvariant='') and (not(@mml:mathvariant) or @mml:mathvariant=''))                                and (                                   (((@fontweight='normal' or @mml:fontweight='normal')                                    and (@fontstyle='italic' or @mml:fontstyle='italic'))                                   )                                   or                                   ((not(@fontweight) or @fontweight='') and (not(@mml:fontweight) or @mml:fontweight=''))                                    and (@fontstyle='italic' or @mml:fontstyle='italic')                                   or                                   ((not(@fontweight) or @fontweight='') and (not(@mml:fontweight) or @mml:fontweight=''))                                    and (not(@fontstyle) or @fontstyle='')                                    and (not(@mml:fontstyle) or @mml:fontstyle=''))                             )                 )                ))        or               ($sFontCur='normal'                 and ((self::mml:mi                       and (not(@mathvariant) or @mathvariant='')                   and (not(@mml:mathvariant) or @mml:mathvariant)                   and (not(@fontstyle) or @fontstyle='')                    and (not(@mml:fontstyle) or @mml:fontstyle='')                   and (not(@fontweight) or @fontweight='')                    and (not(@mml:fontweight) or @mml:fontweight='')                   and (string-length(normalize-space(.)) &gt; 1)                   )                  or ((self::mml:ms or self::mml:mtext)                    and (not(@mathvariant) or @mathvariant='')                   and (not(@mml:mathvariant) or @mml:mathvariant)                   and (not(@fontstyle) or @fontstyle)                   and (not(@fontstyle) or @fontstyle='')                   and (not(@fontweight) or @fontweight)                   and (not(@mml:fontweight) or @mml:fontweight='')                   )                  )               )           )       and             (($font-family = @font-family or $font-family = @mml:font-family)               or (($font-family='' or not($font-family))                and (not(@font-family) or @font-family='')                and (not(@mml:font-family) or @mml:font-family='')               )              )      ))      ][1]/preceding-sibling::*)"/>
 
       <xsl:variable name="cndRun" select="$nndBeforeLim - $nndBeforeFirst"/>
 
@@ -788,18 +811,46 @@
       </xsl:if>
   </xsl:template>
 
+  <!-- Match only an entire root fragment '=' followed by one numeric token.
+       Root mrow/mstyle wrappers must be the sole child at every level. -->
+  <xsl:function name="m:IsLeadingNumericContinuation">
+    <xsl:param name="node"/>
+    <xsl:sequence select="exists($node/self::mml:mo)
+      and normalize-space($node)='=' and not($node/*)
+      and not($node/preceding-sibling::*) and count($node/parent::*/*)=2
+      and exists($node/following-sibling::*[1][self::mml:mn and not(*)
+        and matches(normalize-space(.),'^[0-9][0-9.,]*$')])
+      and exists($node/ancestor::mml:math)
+      and (every $ancestor in $node/ancestor::*[ancestor::mml:math]
+        satisfies (exists($ancestor/self::mml:mrow | $ancestor/self::mml:mstyle)
+          and not($ancestor/preceding-sibling::*)
+          and not($ancestor/following-sibling::*)))"/>
+  </xsl:function>
+
   <!-- %%Template: FNor
 				 Given the context of ndCur, determine if ndCur should be omml's normal style.
 	-->
   <xsl:template name="FNor">
       <xsl:param name="ndCur" select="."/>
       <xsl:choose>
-      <!-- Is the current node an mml:mtext, or if this is an mglyph whose parent is 
+      <!-- An mtext made only of the verified symbols ℝ, ℤ, ℕ, ℓ
+             stays a math run (it is upright via m:sty=p). Word saves such a symbol inside an m:nor run
+             as the plain letter (ℝ becomes R) but keeps it, as m:scr, in a math run. -->
+      <xsl:when test="m:IsLetterlikeMtext($ndCur)">0</xsl:when>
+      <!-- Is the current node an mml:mtext, or if this is an mglyph whose parent is
              an mml:mtext. -->
       <xsl:when test="$ndCur/self::mml:mtext or ($ndCur/self::mml:mglyph and parent::mml:mtext)">1</xsl:when>
          <xsl:otherwise>0</xsl:otherwise>
       </xsl:choose>
   </xsl:template>
+
+  <!-- Run grouping and FNor must use the same classification. Otherwise an adjacent
+       ordinary mtext swallows the symbol back into m:nor (or loses its own nor). -->
+  <xsl:function name="m:IsLetterlikeMtext">
+    <xsl:param name="node"/>
+    <xsl:sequence select="exists($node/self::mml:mtext)
+      and matches(normalize-space($node), concat('^', $letterlikePolicy/@verified-pure-class, '+$'))"/>
+  </xsl:function>
 
   <!-- %%Template: FLit
 				 Given the context of ndCur, determine if ndCur should have the 
@@ -2084,12 +2135,24 @@
                </xsl:choose>
             </xsl:with-param>
          </xsl:call-template>
-         <xsl:for-each select="*">
-            <e>
-               <xsl:call-template name="CreateArgProp"/>
-               <xsl:apply-templates mode="mml" select="."/>
-            </e>
-         </xsl:for-each>
+         <xsl:choose>
+            <!-- With no separators this is one expression, not independent slots.
+                 Multiple m:e made Writer corrupt nested f(x) on import/save. -->
+            <xsl:when test="@separators = '' or @mml:separators = ''">
+               <e>
+                  <xsl:call-template name="CreateArgProp"/>
+                  <xsl:apply-templates mode="mml" select="*"/>
+               </e>
+            </xsl:when>
+            <xsl:otherwise>
+               <xsl:for-each select="*">
+                  <e>
+                     <xsl:call-template name="CreateArgProp"/>
+                     <xsl:apply-templates mode="mml" select="."/>
+                  </e>
+               </xsl:for-each>
+            </xsl:otherwise>
+         </xsl:choose>
       </d>
   </xsl:template>
 
@@ -2457,20 +2520,15 @@
         <!-- we know we have some prescripts or else we would have taken the earlier
 					  branch. So, create an sPre and split the elements -->
         <sPre>
+               <!-- CT_SPre requires sub, sup, e; the base must follow the prescripts. -->
+          <xsl:call-template name="SplitScripts">
+                  <xsl:with-param name="ndScripts" select="mml:mprescripts[1]/following-sibling::*"/>
+               </xsl:call-template>
                <e>
                   <xsl:call-template name="CreateArgProp"/>
                   <xsl:apply-templates mode="mml" select="child::*[1]"/>
                </e>
 
-               <!-- The prescripts come after the mml:mprescript and if we get here
-							we know there exists some elements after the mml:mprescript element. 
-							
-							The prescript element has no sub/subsup variation, therefore, even if
-							we're only writing sub, we need to write out both the sub and sup element.
-							-->
-          <xsl:call-template name="SplitScripts">
-                  <xsl:with-param name="ndScripts" select="mml:mprescripts[1]/following-sibling::*"/>
-               </xsl:call-template>
             </sPre>
          </xsl:when>
 
@@ -2478,6 +2536,10 @@
 				element to house the prescripts, with a sub/sup/subsup element at its base. -->
       <xsl:otherwise>
             <sPre>
+               <!-- CT_SPre requires sub, sup, e; the base must follow the prescripts. -->
+          <xsl:call-template name="SplitScripts">
+                  <xsl:with-param name="ndScripts" select="mml:mprescripts[1]/following-sibling::*"/>
+               </xsl:call-template>
                <e>
                   <xsl:choose>
               <!-- We have both sub and super scripts-->
@@ -2529,11 +2591,6 @@
                   </xsl:choose>
                </e>
 
-               <!-- The prescripts come after the mml:mprescript and if we get here
-							we know there exists one such element -->
-          <xsl:call-template name="SplitScripts">
-                  <xsl:with-param name="ndScripts" select="mml:mprescripts[1]/following-sibling::*"/>
-               </xsl:call-template>
             </sPre>
          </xsl:otherwise>
       </xsl:choose>
@@ -3722,4 +3779,151 @@
   </xsl:template>
 
   <xsl:template name="mathrRpHook"/>
+
+  <!-- Local addition (the Microsoft stylesheet has no mspace rule, so explicit
+       spaces such as TeX "\ " or "10,0 A" were dropped and neighbours fused).
+       Widths below 0.12em are MathType's automatic thin spacing; Word's own math
+       layout already supplies it. Wider spaces become Unicode space characters in a
+       normal-text run, which Word keeps (ordinary U+0020 is not kept in math). -->
+  <xsl:template mode="mml" match="mml:mspace">
+    <xsl:variable name="w" select="normalize-space(@width)"/>
+    <xsl:variable name="unit" select="replace($w, '^-?[0-9.]+', '')"/>
+    <xsl:variable name="num" select="number(replace($w, '[^-0-9.]', ''))"/>
+    <xsl:variable name="em" as="xs:double"
+                  select="if ($unit = 'em') then $num
+                          else if ($unit = 'pt') then $num div 10
+                          else if ($unit = 'ex') then $num div 2
+                          else xs:double('NaN')"
+                  xmlns:xs="http://www.w3.org/2001/XMLSchema"/>
+    <xsl:variable name="spaces" as="xs:string"
+                  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                  select="if (string($em) = 'NaN' or $em &lt; 0.12) then ''
+                          else if ($em &lt; 0.25) then '&#x2006;'
+                          else if ($em &lt; 0.6) then '&#x2004;'
+                          else if ($em &lt; 1.5) then '&#x2003;'
+                          else '&#x2003;&#x2003;'"/>
+    <xsl:if test="$spaces != ''">
+      <r>
+        <rPr>
+          <nor/>
+        </rPr>
+        <w:rPr>
+          <w:rFonts w:ascii="Cambria Math" w:eastAsia="Cambria Math" w:hAnsi="Cambria Math" w:cs="Cambria Math"/>
+        </w:rPr>
+        <t>
+          <xsl:attribute name="xml:space">preserve</xsl:attribute>
+          <xsl:value-of select="$spaces"/>
+        </t>
+      </r>
+    </xsl:if>
+  </xsl:template>
+
+  <!-- Local addition. MathType's labelled reaction arrows (TeX \xrightarrow) arrive as an arrow
+       mo over/under its labels. The stylesheet's generic rule keeps the one-character arrow and
+       sets the labels around it, so the arrow no longer reaches across the text. Word's own
+       stretching arrow is m:groupChr; its arrow spans the label it groups and the other label
+       hangs below through m:limLow (checked by rendering in Word). In the two-label forms the
+       groupChr sits inside an invisible m:d: LibreOffice Writer otherwise imports
+       {label} csub {arrow} csub {label} and renders neither arrow nor labels (stray U+00BF
+       glyphs); inside m:d it shows the labels and a script-size arrow (it cannot stretch it).
+       Empty mrow labels on arrows are handled by the plain-arrow rule below. -->
+  <!-- An empty annotation is not an editable limit: otherwise applications draw
+       a placeholder above the ordinary arrow (real Hoa_Ha_Noi_L1 #66/#67). -->
+  <xsl:template mode="mml" priority="6"
+                match="mml:mover[*[1][self::mml:mo][normalize-space(.) = ('&#x2192;', '&#x2190;', '&#x21CC;', '&#x27F6;', '&#x27F5;')]]
+                                 [*[2][self::mml:mrow][not(*)][normalize-space(.) = '']]">
+    <xsl:apply-templates mode="mml" select="*[1]"/>
+  </xsl:template>
+  <xsl:template mode="mml" priority="5"
+                match="mml:munderover[*[1][self::mml:mo][normalize-space(.) = ('&#x2192;', '&#x2190;', '&#x21CC;', '&#x27F6;', '&#x27F5;')]]
+                                     [normalize-space(string-join(*[position() &gt; 1]/string(.), '')) != '']
+                     | mml:mover[*[1][self::mml:mo][normalize-space(.) = ('&#x2192;', '&#x2190;', '&#x21CC;', '&#x27F6;', '&#x27F5;')]]
+                                [normalize-space(string(*[2])) != '']
+                     | mml:munder[*[1][self::mml:mo][normalize-space(.) = ('&#x2192;', '&#x2190;', '&#x21CC;', '&#x27F6;', '&#x27F5;')]]
+                                 [normalize-space(string(*[2])) != '']">
+    <xsl:variable name="arrow" select="normalize-space(*[1])"/>
+    <xsl:variable name="under" select="if (self::mml:munder or self::mml:munderover) then *[2] else ()"/>
+    <xsl:variable name="over" select="if (self::mml:munderover) then *[3] else if (self::mml:mover) then *[2] else ()"/>
+    <xsl:variable name="hasUnder" select="normalize-space(string($under)) != ''"/>
+    <xsl:variable name="hasOver" select="normalize-space(string($over)) != ''"/>
+    <xsl:choose>
+      <!-- The arrow stretches to the label it groups, so group the wider one. -->
+      <xsl:when test="$hasOver and $hasUnder and string-length(normalize-space(string($under))) &gt; string-length(normalize-space(string($over)))">
+        <limUpp>
+          <e>
+            <d>
+              <dPr>
+                <begChr m:val=""/>
+                <endChr m:val=""/>
+              </dPr>
+              <e>
+<groupChr>
+              <groupChrPr>
+                <chr m:val="{$arrow}"/>
+                <pos m:val="top"/>
+                <vertJc m:val="top"/>
+              </groupChrPr>
+              <e>
+                <xsl:apply-templates mode="mml" select="$under"/>
+              </e>
+            </groupChr>
+              </e>
+            </d>
+          </e>
+          <lim>
+            <xsl:apply-templates mode="mml" select="$over"/>
+          </lim>
+        </limUpp>
+      </xsl:when>
+      <xsl:when test="$hasOver and $hasUnder">
+        <limLow>
+          <e>
+            <d>
+              <dPr>
+                <begChr m:val=""/>
+                <endChr m:val=""/>
+              </dPr>
+              <e>
+<groupChr>
+              <groupChrPr>
+                <chr m:val="{$arrow}"/>
+                <vertJc m:val="bot"/>
+              </groupChrPr>
+              <e>
+                <xsl:apply-templates mode="mml" select="$over"/>
+              </e>
+            </groupChr>
+              </e>
+            </d>
+          </e>
+          <lim>
+            <xsl:apply-templates mode="mml" select="$under"/>
+          </lim>
+        </limLow>
+      </xsl:when>
+      <xsl:when test="$hasOver">
+        <groupChr>
+          <groupChrPr>
+            <chr m:val="{$arrow}"/>
+            <vertJc m:val="bot"/>
+          </groupChrPr>
+          <e>
+            <xsl:apply-templates mode="mml" select="$over"/>
+          </e>
+        </groupChr>
+      </xsl:when>
+      <xsl:otherwise>
+        <groupChr>
+          <groupChrPr>
+            <chr m:val="{$arrow}"/>
+            <pos m:val="top"/>
+            <vertJc m:val="top"/>
+          </groupChrPr>
+          <e>
+            <xsl:apply-templates mode="mml" select="$under"/>
+          </e>
+        </groupChr>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
 </xsl:stylesheet>

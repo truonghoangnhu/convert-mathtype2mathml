@@ -13,7 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.LinkedHashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
@@ -34,6 +34,7 @@ public final class DocxMathPatchMain {
     private final InlineSafetyEvaluator inlineSafetyEvaluator;
     private final MultiObjectSafetyEvaluator multiObjectSafetyEvaluator;
     private final LogLevel logLevel;
+    private final Map<String, Integer> conversionDiagnostics = new java.util.LinkedHashMap<>();
 
     public DocxMathPatchMain(MathSidecarRepository sidecarRepository) {
         this(sidecarRepository, LogLevel.WARNINGS);
@@ -89,6 +90,7 @@ public final class DocxMathPatchMain {
     }
 
     PatchSummary patch(XWPFDocument document) throws IOException {
+        conversionDiagnostics.clear();
         int totalOccurrences = 0;
         int nativeOmmlUntouched = 0;
         int patchedBlocks = 0;
@@ -105,6 +107,12 @@ public final class DocxMathPatchMain {
 
         List<MathOccurrence> occurrences = walker.collect(document);
         totalOccurrences = occurrences.size();
+        // Taken before patching, while every collected object is still in the tree.
+        ObjectInventory objectInventory = ObjectInventory.of(document, occurrences);
+        if (objectInventory.unscanned() > 0 || !objectInventory.unscannedByContainer().isEmpty()) {
+            warn("unsupported: " + objectInventory.unscanned() + " embedded object(s) outside the walked paragraphs ("
+                    + objectInventory.unscannedContainersToken() + "); not scanned, original retained");
+        }
         for (ParagraphBatch paragraphBatch : groupByParagraph(occurrences)) {
             List<MathOccurrence> paragraphOccurrences = paragraphBatch.occurrences();
             for (MathOccurrence occurrence : paragraphOccurrences) {
@@ -165,7 +173,9 @@ public final class DocxMathPatchMain {
                 multiObjectSkippedAmbiguousParagraphs,
                 buildBreakdownEntries(skipBreakdown),
                 structureBeforePatch,
-                structureAfterPatch
+                structureAfterPatch,
+                objectInventory,
+                conversionDiagnostics
         );
     }
 
@@ -216,7 +226,7 @@ public final class DocxMathPatchMain {
         if (!inlinePlan.safe()) {
             warn("Skipped inline math object: " + describeClassification(inlinePlan.classification()));
             return switch (inlinePlan.skipReason()) {
-                case NATIVE_OMML_PRESENT -> SingleOccurrenceOutcome.skippedUnsafeInline(inlinePlan.classification());
+                case NATIVE_OMML_PRESENT, SPACING_REQUIRES_REVIEW -> SingleOccurrenceOutcome.skippedUnsafeInline(inlinePlan.classification());
                 case UNKNOWN_SOURCE, AMBIGUOUS_RUN_SPAN -> SingleOccurrenceOutcome.skippedUnknown(inlinePlan.classification());
                 case MULTI_OBJECT_PARAGRAPH -> SingleOccurrenceOutcome.skippedUnknown(inlinePlan.classification());
             };
@@ -296,19 +306,37 @@ public final class DocxMathPatchMain {
             }
         }
         if (resolvedPartName == null) {
-            warn("Unresolved math object: no manifest match for "
+            warn("unsupported: unresolved math object, no manifest match for "
                     + String.join(" | ", candidatePartNames.stream().filter(s -> s != null && !s.isBlank()).toList()));
             return ResolutionResult.failure(
                     SkipClassification.of(PatchSkipReason.UNRESOLVED_MANIFEST, "no manifest match for occurrence")
             );
         }
 
-        String normalizedMathml = mathmlNormalizer.normalize(mathml);
-        String ommlXml = mathmlToOmmlConverter.convert(normalizedMathml);
-        if (ommlXml == null || ommlXml.isBlank()) {
-            warn("Failed to convert OMML for " + resolvedPartName);
+        String ommlXml;
+        try {
+            String normalizedMathml = mathmlNormalizer.normalize(mathml);
+            if (!com.example.docxmath.MathmlContent.hasFormula(normalizedMathml)) {
+                conversionDiagnostics.merge("unusable_mathml", 1, Integer::sum);
+                warn("unsupported: empty or invalid MathML for " + resolvedPartName + "; original OLE retained");
+                return ResolutionResult.failure(SkipClassification.of(
+                        PatchSkipReason.OMML_CONVERSION_FAILED, "unsupported: empty or invalid MathML"));
+            }
+            ommlXml = mathmlToOmmlConverter.convert(normalizedMathml);
+            String rejection = com.example.docxmath.MathmlContent.ommlRejectionReason(ommlXml);
+            if (rejection != null) {
+                conversionDiagnostics.merge(rejection, 1, Integer::sum);
+                String detail = "failed: OMML conversion for " + resolvedPartName + ": OMML rejected: " + rejection;
+                warn(detail + "; original OLE retained");
+                return ResolutionResult.failure(
+                        SkipClassification.of(PatchSkipReason.OMML_CONVERSION_FAILED, detail));
+            }
+        } catch (RuntimeException ex) {
+            conversionDiagnostics.merge("conversion_exception", 1, Integer::sum);
+            warn("failed: OMML conversion for " + resolvedPartName + "; original OLE retained: " + ex.getMessage());
             return ResolutionResult.failure(
-                    SkipClassification.of(PatchSkipReason.OMML_CONVERSION_FAILED, "failed to convert OMML for " + resolvedPartName)
+                    SkipClassification.of(PatchSkipReason.OMML_CONVERSION_FAILED,
+                            "failed: OMML conversion for " + resolvedPartName + ": " + ex.getMessage())
             );
         }
         return ResolutionResult.success(new ResolvedMathOccurrence(occurrence, resolvedPartName, ommlXml));
@@ -339,14 +367,19 @@ public final class DocxMathPatchMain {
     }
 
     private static List<ParagraphBatch> groupByParagraph(List<MathOccurrence> occurrences) {
-        Map<String, ParagraphBatchBuilder> batches = new LinkedHashMap<>();
+        // Keyed by node identity: identity hash codes of two paragraphs can collide.
+        Map<Node, ParagraphBatchBuilder> byParagraph = new IdentityHashMap<>();
+        List<ParagraphBatchBuilder> batches = new ArrayList<>();
         for (MathOccurrence occurrence : occurrences) {
-            String key = Integer.toHexString(System.identityHashCode(occurrence.paragraph().getCTP().getDomNode()));
-            batches.computeIfAbsent(key, ignored -> new ParagraphBatchBuilder(occurrence.paragraph()))
+            byParagraph.computeIfAbsent(occurrence.paragraph().getCTP().getDomNode(), ignored -> {
+                        ParagraphBatchBuilder builder = new ParagraphBatchBuilder(occurrence.paragraph());
+                        batches.add(builder);
+                        return builder;
+                    })
                     .occurrences()
                     .add(occurrence);
         }
-        return batches.values().stream()
+        return batches.stream()
                 .map(builder -> new ParagraphBatch(builder.paragraph(), List.copyOf(builder.occurrences())))
                 .toList();
     }
@@ -365,8 +398,42 @@ public final class DocxMathPatchMain {
             int multiObjectSkippedAmbiguousParagraphs,
             List<SkipBreakdownEntry> skipBreakdown,
             OmmlStructureSnapshot structureBeforePatch,
-            OmmlStructureSnapshot structureAfterPatch
+            OmmlStructureSnapshot structureAfterPatch,
+            ObjectInventory objectInventory,
+            Map<String, Integer> conversionDiagnostics
     ) {
+        public PatchSummary {
+            conversionDiagnostics = java.util.Collections.unmodifiableMap(new java.util.TreeMap<>(conversionDiagnostics));
+        }
+
+        public PatchSummary(
+                int totalOccurrences, int patchedBlocks, int patchedInline, int nativeOmmlUntouched, int unresolved,
+                int skippedUnsafeInlineObjects, int skippedMultiObjectParagraphs, int skippedUnknownOrAmbiguous,
+                int multiObjectPatchedParagraphs, int multiObjectSkippedUnsafeParagraphs,
+                int multiObjectSkippedAmbiguousParagraphs, List<SkipBreakdownEntry> skipBreakdown,
+                OmmlStructureSnapshot structureBeforePatch, OmmlStructureSnapshot structureAfterPatch,
+                ObjectInventory objectInventory
+        ) {
+            this(totalOccurrences, patchedBlocks, patchedInline, nativeOmmlUntouched, unresolved,
+                    skippedUnsafeInlineObjects, skippedMultiObjectParagraphs, skippedUnknownOrAmbiguous,
+                    multiObjectPatchedParagraphs, multiObjectSkippedUnsafeParagraphs,
+                    multiObjectSkippedAmbiguousParagraphs, skipBreakdown, structureBeforePatch,
+                    structureAfterPatch, objectInventory, Map.of());
+        }
+        // Earlier shape, without the object inventory (reported as not measured).
+        public PatchSummary(
+                int totalOccurrences, int patchedBlocks, int patchedInline, int nativeOmmlUntouched, int unresolved,
+                int skippedUnsafeInlineObjects, int skippedMultiObjectParagraphs, int skippedUnknownOrAmbiguous,
+                int multiObjectPatchedParagraphs, int multiObjectSkippedUnsafeParagraphs,
+                int multiObjectSkippedAmbiguousParagraphs, List<SkipBreakdownEntry> skipBreakdown,
+                OmmlStructureSnapshot structureBeforePatch, OmmlStructureSnapshot structureAfterPatch
+        ) {
+            this(totalOccurrences, patchedBlocks, patchedInline, nativeOmmlUntouched, unresolved,
+                    skippedUnsafeInlineObjects, skippedMultiObjectParagraphs, skippedUnknownOrAmbiguous,
+                    multiObjectPatchedParagraphs, multiObjectSkippedUnsafeParagraphs,
+                    multiObjectSkippedAmbiguousParagraphs, skipBreakdown, structureBeforePatch, structureAfterPatch, null);
+        }
+
         public int skipBreakdownCount(PatchSkipReason reason) {
             return skipBreakdown.stream()
                     .filter(entry -> entry.reason() == reason)

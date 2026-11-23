@@ -1,5 +1,9 @@
 # DSMT4 MTEF Semantics Note
 
+> Current policy: DSMT4 migration and FULL_END_ONLY investigation are active.
+> Historical freeze/support-exclusion statements below are superseded by
+> [support_scope_policy.md](./support_scope_policy.md); decoding claims remain unproven.
+
 Frozen historical baseline only. This note preserves the last DSMT4/MTEF spec-reference reading for legacy reference and is not an active roadmap item.
 
 Scope:

@@ -25,7 +25,8 @@ public final class XsltMathmlToOmmlConverter implements MathmlToOmmlConverter {
                 if (xsltStream == null) {
                     throw new IllegalStateException("Missing resource: /mml2omml.xsl");
                 }
-                this.executable = compiler.compile(new StreamSource(xsltStream));
+                this.executable = compiler.compile(new StreamSource(xsltStream,
+                        XsltMathmlToOmmlConverter.class.getResource("/mml2omml.xsl").toExternalForm()));
             }
         } catch (Exception ex) {
             throw new IllegalStateException("Unable to initialize MathML->OMML transformer", ex);

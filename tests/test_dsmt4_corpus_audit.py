@@ -15,6 +15,14 @@ SPEC.loader.exec_module(MODULE)
 
 
 class Dsmt4CorpusAuditTest(unittest.TestCase):
+    def test_real_chemistry_full_end_only_payload_remains_metadata_only(self) -> None:
+        xml = (REPO_ROOT / "fixtures/dsmt4/full-end-only/chemistry.mtef.xml").read_text()
+        summary = MODULE.EMPTY.summarize_mtef_xml(xml)
+        self.assertTrue(summary["metadata_only"])
+        self.assertEqual(["full", "end"], summary["tail_after_eqn_prefs"])
+        self.assertEqual("DSMT6", summary["application_key"])
+        self.assertEqual({}, summary["body_tag_counts"])
+
     def test_normalize_key(self) -> None:
         self.assertEqual(MODULE.normalize_key("Vat_Ly_Le_Khiet"), "vatlylekhiet")
         self.assertEqual(MODULE.base_family_name("toan-2026-big--3457e9e43ced"), "toan-2026-big")

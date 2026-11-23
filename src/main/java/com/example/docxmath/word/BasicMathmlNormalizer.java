@@ -1,5 +1,6 @@
 package com.example.docxmath.word;
 
+import com.example.docxmath.MathmlContent;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -27,18 +28,18 @@ public final class BasicMathmlNormalizer implements MathmlNormalizer {
             return null;
         }
         String trimmed = rawMathml.trim();
-        if (trimmed.isEmpty()) {
+        if (!MathmlContent.hasFormula(trimmed)) {
             return null;
         }
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setNamespaceAware(true);
             factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
             Document document = factory.newDocumentBuilder().parse(new InputSource(new StringReader(trimmed)));
-            Element root = document.getDocumentElement();
-            if (root != null && "math".equals(root.getLocalName()) && root.getNamespaceURI() == null) {
-                root.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns", MATHML_NS);
-            }
+            normalizeElementNamespaces(document, document.getDocumentElement());
             sanitizeKnownGlyphArtifacts(document);
             TransformerFactory transformerFactory = TransformerFactory.newInstance();
             transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
@@ -49,8 +50,19 @@ public final class BasicMathmlNormalizer implements MathmlNormalizer {
             transformer.transform(new DOMSource(document), new StreamResult(out));
             return out.toString().trim();
         } catch (Exception ex) {
-            String strippedXmlDeclaration = trimmed.replaceFirst("^<\\?xml[^>]*>\\s*", "");
-            return stripKnownGlyphArtifacts(strippedXmlDeclaration);
+            return null;
+        }
+    }
+
+    private static void normalizeElementNamespaces(Document document, Element element) {
+        if (element.getNamespaceURI() == null) {
+            element = (Element) document.renameNode(element, MATHML_NS, element.getNodeName());
+        }
+        if ("annotation".equals(element.getLocalName()) || "annotation-xml".equals(element.getLocalName())) {
+            return;
+        }
+        for (Node child = element.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child instanceof Element e) normalizeElementNamespaces(document, e);
         }
     }
 

@@ -1,0 +1,32 @@
+{
+  "source": "in/Hoa_NB_L3.docx",
+  "source_sha256": "0419b445df97568ecb006465fb4048e5b40dab982858d678db33c96650648a13",
+  "scope": "two real MTEF5 labeled arrows; not general DSMT4 support",
+  "application_key": "DSMT7",
+  "mtef_version": 5,
+  "bin_preview_relation": "WMF equation bytes equal BIN equation bytes plus a trailing 0x0A",
+  "occurrences": [
+    {
+      "ordinal": 1,
+      "ole_part": "/word/embeddings/oleObject1.bin",
+      "ole_sha256": "bcb8e9412dd6fdb32f9a48ab17dcbd233c16c15fa1d7c74291b2aee0cef734a8",
+      "preview_part": "/word/media/image6.wmf",
+      "preview_sha256": "d24d01031c8b39198cd5a40fd9e54f5b063a8515dce1daa50cfcf4bb53f3988e",
+      "mtef_sha256": "88c3ed11250cf7d67e88d46e01894b3734862858c47412327dcd4ef43ca577a7",
+      "mathml_sha256": "6826776637f0c62011a781c6a37ec1d6b1b2200bcc8075c78e18a8424575a9de",
+      "expected_upper": "CH3OH, HCl khan",
+      "expected_lower": ",−H2O,"
+    },
+    {
+      "ordinal": 2,
+      "ole_part": "/word/embeddings/oleObject2.bin",
+      "ole_sha256": "f0c8d2e061d78e7cab8c7c4c992b1956eb23a69d60eae8043b8f489c8794470f",
+      "preview_part": "/word/media/image7.wmf",
+      "preview_sha256": "5663a50bf176752ab04f90904cc54490807ebd087368ad4ca8e5a5e5feb18582",
+      "mtef_sha256": "24136ff289021f4a463232e6582f056f886a7f5a983f51ac4cbba753d766f17e",
+      "mathml_sha256": "a5865961c57694318c4b804f772a50427fb88892a0cb4510d7174efbd305ec45",
+      "expected_upper": "NH3",
+      "expected_lower": ",−NH4Cl,"
+    }
+  ]
+}

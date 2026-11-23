@@ -1,5 +1,9 @@
 # DSMT4 Taxonomy Baseline
 
+> Current policy: DSMT4 migration and FULL_END_ONLY investigation are active.
+> Historical freeze/support-exclusion statements below are superseded by
+> [support_scope_policy.md](./support_scope_policy.md); decoding claims remain unproven.
+
 Frozen historical baseline only. This document is kept for legacy reference and is not the active product roadmap or support target.
 
 ## Current Labels

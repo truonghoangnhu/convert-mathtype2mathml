@@ -40,7 +40,8 @@ public record MultiObjectPatchPlan(
         UNSAFE_RUN_STRUCTURE(SkipCategory.UNSAFE),
         UNKNOWN_SOURCE(SkipCategory.AMBIGUOUS),
         AMBIGUOUS_RUN_SPAN(SkipCategory.AMBIGUOUS),
-        UNSUPPORTED_PARAGRAPH_STRUCTURE(SkipCategory.AMBIGUOUS);
+        UNSUPPORTED_PARAGRAPH_STRUCTURE(SkipCategory.AMBIGUOUS),
+        SPACING_REQUIRES_REVIEW(SkipCategory.UNSAFE);
 
         private final SkipCategory category;
 

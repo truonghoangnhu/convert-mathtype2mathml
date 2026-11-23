@@ -22,6 +22,7 @@ public record InlinePatchPlan(
         NATIVE_OMML_PRESENT,
         MULTI_OBJECT_PARAGRAPH,
         UNKNOWN_SOURCE,
-        AMBIGUOUS_RUN_SPAN
+        AMBIGUOUS_RUN_SPAN,
+        SPACING_REQUIRES_REVIEW
     }
 }

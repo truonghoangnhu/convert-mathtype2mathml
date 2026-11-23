@@ -1541,6 +1541,22 @@ class ModernDocxOmmlValidatorTests(unittest.TestCase):
 
     def test_generated_output_gate_returns_openability_failure_before_structural_validation(self) -> None:
         calls = []
+        # Generation is stubbed, so create its real manifest in test-owned storage.
+        # Diagnostics must not read (or the report write to) an existing out/ run.
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = Path(tmp) / "generated.json"
+            report = Path(tmp) / "gate-report.json"
+            manifest.write_text('{"cases": []}', encoding="utf-8")
+            with (
+                patch("scripts.workflow.run_modern_docx_omml_generated_output_gate.GENERATED_MANIFEST", manifest),
+                patch("scripts.workflow.run_modern_docx_omml_generated_output_gate.GENERATED_GATE_REPORT", report),
+            ):
+                self._assert_openability_failure_stops_structural_validation(calls)
+            result = json.loads(report.read_text(encoding="utf-8"))
+            self.assertEqual(result["overall_gate_result"], "failed")
+            self.assertEqual(result["structural_summary"]["status"], "not_run")
+
+    def _assert_openability_failure_stops_structural_validation(self, calls) -> None:
 
         def fake_generate(argv):
             calls.append("generate")
