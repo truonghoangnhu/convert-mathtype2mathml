@@ -1,8 +1,9 @@
 # Checklist hoàn tất DSMT4 — 2026-11-22
 
 **Trạng thái (cập nhật 23/11):** Ledger 265: **accepted 237** (Hóa 94, Toán 112, TN 22, Lý 9), needs_review 28 (18 OLE giữ + 9 giới hạn trình bày + hoa068 thiếu mẫu Writer), failed 0, unsupported 0.
-- PR #4 đang mở. Converter A1–A4 đã vào production ở commit `b01025c`; CI (generated-output gate) xanh trên `b01025c`.
-- 23/11: B7, B9 xong trên Word; D2 Word mới xong 6 mẫu Hóa (màn hình khoá lại khi sang đề Lý). Đã dựng tài liệu Writer nhúng LibreOffice Math từ MathML cho 4 đề: 241 pass, 6 giới hạn trình bày, 18 OLE giữ. Không merge: D4 vẫn chưa có occurrence nào đủ điều kiện (xem D4).
+- PR #4 đã merge vào `main` ngày 23/11 (merge commit `6dcccb1`; CI generated-output gate xanh trên `0fc3eec`).
+- 23/11: B7, B9 xong trên Word; D2 Word mới xong 6 mẫu Hóa (màn hình khoá lại khi sang đề Lý). Đã dựng tài liệu Writer nhúng LibreOffice Math từ MathML cho 4 đề: 241 pass, 6 giới hạn trình bày, 18 OLE giữ. Sau đó D4 có 237 accepted (xem D4) và PR #4 được merge.
+- 23/11, sau merge: commit `12ed317` sửa hai lỗi review (P1: giữ `w:vanish` của run nguồn trên mọi run của phương trình; P2: từ chối base của chỉ số trên/dưới chỉ chứa run rỗng hoặc ký tự vô hình, kể cả qua `m:box`). Chạy lại 32 đề bằng jar build tại `12ed317` (`work/dsmt4-claude-p12-impact-20261123`): output giống hệt A7 ở mọi phần ZIP, nên ledger 237/28 không đổi. Bản sửa vào `main` qua PR riêng.
 
 Ký hiệu: `[ ]` chưa làm · `[~]` đã làm một phần · `[x]` xong.
 Cột **Xong khi** là tiêu chí nghiệm thu, không phải mô tả công việc.
@@ -101,9 +102,10 @@ Hiện có từ ngày 05/11:
 
 - `[ ]` Dọn `docs/working` (102 file). Chọn những file cần commit; phần còn lại giữ local hoặc gom lại.
 - `[ ]` Cập nhật `docs/dsmt4_migration_acceptance.md`, `docs/support_scope_policy.md`, README theo snapshot cuối.
-- `[~]` Commit, push, chờ CI xanh trên đúng commit cuối (`b01025c` xanh; commit tài liệu 22/11 cần CI lại).
-- `[ ]` Cập nhật mô tả PR #4. Tách rõ phần đã kiểm với phần giới hạn.
-- `[ ]` Merge chỉ sau khi D4 và E có kết quả rõ ràng.
+- `[x]` Commit, push, chờ CI xanh trên đúng commit cuối (`0fc3eec` xanh trước khi merge PR #4).
+- `[x]` Cập nhật mô tả PR #4. Tách rõ phần đã kiểm với phần giới hạn.
+- `[x]` Merge chỉ sau khi D4 và E có kết quả rõ ràng (PR #4 merge 23/11, merge commit `6dcccb1`).
+- `[~]` Đưa bản sửa P1/P2 (`12ed317`) vào `main` qua PR riêng, chờ CI xanh.
 
 ---
 
@@ -114,6 +116,6 @@ Hiện có từ ngày 05/11:
 3. ~~A7 (tích hợp)~~ — xong 22/11 (chưa commit).
 4. ~~C1–C3, B8, E, D1, D3~~ — xong 22/11.
 5. ~~B9, B7~~ — xong 23/11. ~~Tài liệu Writer cho D4~~ — dựng và kiểm headless 23/11. ~~D2 Word 17 mẫu, Writer trong tài liệu 16 mẫu~~ — xong 23/11. ~~Soát hiển thị Word Toán/TN/Lý, D4 lần 1 (143 accepted)~~ — xong 23/11. ~~Soát Word đề Hóa~~ — xong (accepted 237). **Còn mở:** mẫu Writer cho hoa068 (cần thao tác chuột trực tiếp trên Navigator).
-6. F: merge chỉ sau D4.
+6. ~~F: merge chỉ sau D4~~ — PR #4 merge 23/11. Còn: PR cho bản sửa P1/P2, dọn `docs/working`.
 
 Các mục A và B chặn D, vì ledger phải chạy trên output cuối cùng.
