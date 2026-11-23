@@ -1,6 +1,6 @@
 # Claude closeout review and Codex resolution — 2026-11-07
 
-Claude review ran after01:35 in the existing session and completed without a credit block. The original result is preserved in `work/dsmt4-acceptance-closeout-2026-11-07/claude-review-result.json` and `docs/working/claude_dsmt4_closeout_review_2026-11-07.md`. Claude used read-only tools and did not run tests, rendering or UI.
+Claude review ran after01:35 in the existing session and completed without a credit block. The original result is preserved in `work/dsmt4-acceptance-closeout-2026-11-07/claude-review-result.json` and `docs/working/dsmt4-history/claude_dsmt4_closeout_review_2026-11-07.md`. Claude used read-only tools and did not run tests, rendering or UI.
 
 ## Findings and resolution
 

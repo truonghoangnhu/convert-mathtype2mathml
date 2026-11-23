@@ -12,3 +12,8 @@ For the current grouped summaries, see:
 - `workflow_milestones_summary_v1.md`
 
 Everything else in the old working-doc set has been merged or removed.
+
+DSMT4 (MathType OLE → MathML → OMML):
+
+- `dsmt4_completion_checklist_2026-11-22.md` — current checklist and 265-occurrence ledger status.
+- `dsmt4-history/` — per-round implementation and review notes from 4–22 Nov 2026, with an index in `dsmt4-history/README.md`.

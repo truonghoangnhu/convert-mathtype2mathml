@@ -53,7 +53,7 @@
 
 ## Inspected
 
-- **Report:** `docs/working/codex_dsmt4_growth_boundaries_2026-11-11.md`, lines 1-47 (current version, including the addendum at lines 45-47).
+- **Report:** `docs/working/dsmt4-history/codex_dsmt4_growth_boundaries_2026-11-11.md`, lines 1-47 (current version, including the addendum at lines 45-47).
 - **Batch files:** `build_probes.py`, `verify_and_render.py` (current version, line 51 uses the "x" token lookup), `plan.json`, `verification.json`, `cross-view.json`.
 - **Images, as requested:**
   - `long-comparison.png`;

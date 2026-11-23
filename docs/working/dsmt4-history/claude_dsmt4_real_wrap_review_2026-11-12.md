@@ -103,7 +103,7 @@ The Word evidence supports the report's claims. The Writer evidence is incomplet
 
 ## Inspected
 
-- **Report:** `docs/working/codex_dsmt4_real_wrap_2026-11-12.md`, lines 1-29.
+- **Report:** `docs/working/dsmt4-history/codex_dsmt4_real_wrap_2026-11-12.md`, lines 1-29.
 - **Requested batch files:** `build_real_probes.py`, `plan.json`, `verify_saved.py`, `saved-structure-check.json`, `probe_leading_relation.py`, `leading-relation-results.json`, `ui-failed-attempt.json`.
 - **Requested images:** `word-ui-contact.png`, `word-ui-page-4.png`, `word-ui-page-6.png`, `control-render/contact.png`.
 - **Extra, read for consistency:** `grouped-rt-render/page-4.png`, `checkpoint.json`, `trailing-equals-result.json`, `claude-review/render-delta.md` (via grep), `handoff.md` line 9 (via grep), and directory listings.

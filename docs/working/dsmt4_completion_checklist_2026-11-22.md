@@ -39,7 +39,7 @@ Các run 18–21/11 chỉ là chẩn đoán, chưa có thay đổi converter.
 | B6 `—` | ~~Triển khai phantom~~ | Không áp dụng theo B4 | — |
 | B9 `[x]` | Đo số trang trên **Word** cho 29 đề có công thức chuyển đổi (nguồn và output), theo tiêu chí của B4 | Mới có 6 đề trên Word: giữ số trang, điểm ngắt trang khác. Bản sao 29 cặp đã chuẩn bị ở `work/dsmt4-claude-b9-word-pages-20261122/` (`exams.json`); 23/11: **Word 149 → 140 trang; 9/29 đề mất 1 trang** (Hóa Bắc Ninh 12→11, Lý TN L2, TN Hóa, TN Hóa lần 2, Toán Tuyên Quang 7→6, Toán 02, Toán Phú Thọ, Toán TQB 4→3, VL Ninh Bình); không đề nào tăng (`word-pages.json`). (Trước đây ghi 28; thực tế 29 đề) | Có bảng số trang Word cho 28 đề; đề nào mất trang được ghi cụ thể |
 | B10 `[ ]` | (Tuỳ chọn, không chặn) Chỉnh khoảng cách hàng của 25 hệ phương trình cho gần MathType (A+) | Codex 18/11: xử lý phần lớn chênh lệch của hệ, còn thiếu ~8 pt; chưa có quy tắc tổng quát | Có quy tắc từ dữ liệu nguồn, test đỏ → xanh, đo trên Word |
-| B7 `[x]` | Công thức quá rộng và phân trang toàn đề sau box `noBreak` (toan086 đã đạt trên probe) | `codex_dsmt4_nobreak_2026-11-06.md`; `work/dsmt4-claude-b7-word-overwide-20261123` (23/11): khung AX của mọi công thức trên Word, 4 đề: **0 tràn lề, 0 công thức inline bị ngắt dòng** | Toàn bộ 4 đề có DSMT4 không còn công thức bị ngắt hoặc tràn lề |
+| B7 `[x]` | Công thức quá rộng và phân trang toàn đề sau box `noBreak` (toan086 đã đạt trên probe) | `dsmt4-history/codex_dsmt4_nobreak_2026-11-06.md`; `work/dsmt4-claude-b7-word-overwide-20261123` (23/11): khung AX của mọi công thức trên Word, 4 đề: **0 tràn lề, 0 công thức inline bị ngắt dòng** | Toàn bộ 4 đề có DSMT4 không còn công thức bị ngắt hoặc tràn lề |
 | B8 `[x]` | Các lỗi Word đã thấy ngày 05/11 | `claude_dsmt4_acceptance_final_…T1448.md` | **Đã quyết (22/11, theo uỷ quyền của chủ dự án): cả năm mục ghi là giới hạn đã biết, không sửa converter trong PR này** (chi tiết dưới) |
 
 Chi tiết B8 (quyết định 22/11):
@@ -100,12 +100,12 @@ Hiện có từ ngày 05/11:
 
 ## F. Đóng project
 
-- `[ ]` Dọn `docs/working` (102 file). Chọn những file cần commit; phần còn lại giữ local hoặc gom lại.
+- `[x]` Dọn `docs/working`: 24/11 gom 105 ghi chú từng vòng (claude_*/codex_*/dsmt4_*) vào `docs/working/dsmt4-history/` có mục lục; sửa đường dẫn tham chiếu trong README và docs; không xoá file nào.
 - `[ ]` Cập nhật `docs/dsmt4_migration_acceptance.md`, `docs/support_scope_policy.md`, README theo snapshot cuối.
 - `[x]` Commit, push, chờ CI xanh trên đúng commit cuối (`0fc3eec` xanh trước khi merge PR #4).
 - `[x]` Cập nhật mô tả PR #4. Tách rõ phần đã kiểm với phần giới hạn.
 - `[x]` Merge chỉ sau khi D4 và E có kết quả rõ ràng (PR #4 merge 23/11, merge commit `6dcccb1`).
-- `[~]` Đưa bản sửa P1/P2 (`12ed317`) vào `main` qua PR riêng, chờ CI xanh.
+- `[x]` Đưa bản sửa P1/P2 (`12ed317`) vào `main`: PR #5 merge 23/11 (merge commit `c28235d`, CI xanh trên `f933cca`).
 
 ---
 
@@ -115,7 +115,7 @@ Hiện có từ ngày 05/11:
 2. ~~A6 và B4~~ — đã quyết 22/11 (A6: chấp nhận; B4: không phantom).
 3. ~~A7 (tích hợp)~~ — xong 22/11 (chưa commit).
 4. ~~C1–C3, B8, E, D1, D3~~ — xong 22/11.
-5. ~~B9, B7~~ — xong 23/11. ~~Tài liệu Writer cho D4~~ — dựng và kiểm headless 23/11. ~~D2 Word 17 mẫu, Writer trong tài liệu 16 mẫu~~ — xong 23/11. ~~Soát hiển thị Word Toán/TN/Lý, D4 lần 1 (143 accepted)~~ — xong 23/11. ~~Soát Word đề Hóa~~ — xong (accepted 237). **Còn mở:** mẫu Writer cho hoa068 (cần thao tác chuột trực tiếp trên Navigator).
-6. ~~F: merge chỉ sau D4~~ — PR #4 merge 23/11. Còn: PR cho bản sửa P1/P2, dọn `docs/working`.
+5. ~~B9, B7~~ — xong 23/11. ~~Tài liệu Writer cho D4~~ — dựng và kiểm headless 23/11. ~~D2 Word 17 mẫu, Writer trong tài liệu 16 mẫu~~ — xong 23/11. ~~Soát hiển thị Word Toán/TN/Lý, D4 lần 1 (143 accepted)~~ — xong 23/11. ~~Soát Word đề Hóa~~ — xong (accepted 237). **Còn mở:** mẫu Writer cho hoa068. 24/11 thử lại trên bản sao mới: Navigator Next/Previous, Tab/Shift+Tab đều nhảy qua đối tượng này (067 ↔ 069/070), cây Navigator không nhận nhấp khi điều khiển nền; cần quyền toàn màn hình để nhấp đúp trực tiếp (chưa được cấp).
+6. ~~F: merge chỉ sau D4~~ — PR #4 merge 23/11. PR #5 (P1/P2) merge 23/11; `docs/working` đã gom 24/11.
 
 Các mục A và B chặn D, vì ledger phải chạy trên output cuối cùng.

@@ -42,7 +42,7 @@ Hai dấu `|` là `mo` trần, không cân trong cùng một container, và cắ
 
 - **H1:** `mline` trần ngoài `left … right` không hợp lệ với parser StarMath, mỗi cái sinh một ký hiệu lỗi. Bằng chứng mới là tương quan vị trí và số lượng trên ảnh độ phân giải thấp.
 - **H2:** việc dấu `|` bị bắt làm toán hạng của `int` gây lỗi riêng, hoặc che một lỗi "tích phân thiếu toán hạng". Hiện không tách được với H1.
-- **H3:** ở hai biến thể bảng, `mline` lỗi làm `matrix{…}` hỏng cú pháp, nên các hàng bị dàn thành một dòng và có thêm ký hiệu lỗi quanh `=` và `+`. Hiện mới chỉ là đồng xuất hiện; báo cáo wrap cũng ghi "chưa cô lập" (`docs/working/codex_dsmt4_mathml_odf_wrap_2026-11-12.md:19`).
+- **H3:** ở hai biến thể bảng, `mline` lỗi làm `matrix{…}` hỏng cú pháp, nên các hàng bị dàn thành một dòng và có thêm ký hiệu lỗi quanh `=` và `+`. Hiện mới chỉ là đồng xuất hiện; báo cáo wrap cũng ghi "chưa cô lập" (`docs/working/dsmt4-history/codex_dsmt4_mathml_odf_wrap_2026-11-12.md:19`).
 
 ## 2. Ba probe scratch, theo thứ tự
 

@@ -87,6 +87,6 @@ The three disposable UI input files were intentionally edited in place. No pre-e
 
 ## Review scope
 
-Claude resumed the existing read-only session successfully after the announced credit reset. The completed snapshot review is `docs/working/claude_dsmt4_writer_boundaries_review_2026-11-08.md`; it found no P1 and three P2 evidence gaps. Its “UI not_run” statements describe the earlier snapshot and are superseded only for these three trials by the evidence above. The original review remains unchanged.
+Claude resumed the existing read-only session successfully after the announced credit reset. The completed snapshot review is `docs/working/dsmt4-history/claude_dsmt4_writer_boundaries_review_2026-11-08.md`; it found no P1 and three P2 evidence gaps. Its “UI not_run” statements describe the earlier snapshot and are superseded only for these three trials by the evidence above. The original review remains unchanged.
 
-Codex's response is `docs/working/codex_dsmt4_writer_boundaries_review_resolution_2026-11-08.md`. No production change is justified yet. Corpus remains `needs_review`, accepted promotions0, FULL_END_ONLY unsupported and original safety skips unchanged.
+Codex's response is `docs/working/dsmt4-history/codex_dsmt4_writer_boundaries_review_resolution_2026-11-08.md`. No production change is justified yet. Corpus remains `needs_review`, accepted promotions0, FULL_END_ONLY unsupported and original safety skips unchanged.

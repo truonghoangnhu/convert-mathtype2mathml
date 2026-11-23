@@ -1,6 +1,6 @@
 # Remaining Claude review: resolution and one blocked confirmation — 2026-11-07
 
-The previously outstanding review was dispatched to the same Claude Code session, read-only. It completed and reported **no new P1/P2**. Original review is preserved at `docs/working/claude_dsmt4_review_debt_2026-11-07.md` and `work/dsmt4-review-debt-2026-11-07/result.json`.
+The previously outstanding review was dispatched to the same Claude Code session, read-only. It completed and reported **no new P1/P2**. Original review is preserved at `docs/working/dsmt4-history/claude_dsmt4_review_debt_2026-11-07.md` and `work/dsmt4-review-debt-2026-11-07/result.json`.
 
 ## Independently reviewed and closed
 
