@@ -98,6 +98,38 @@ final class MathmlContentVectorTest {
     }
 
     @Test
+    void rejectsScriptBasesWithEmptyOrInvisibleRunsThroughWrappers() {
+        for (String script : new String[]{"sSup", "sSub", "sSubSup", "sPre"}) {
+            for (String token : new String[]{"", " ", "&#x2062;", "&#xFE0F;", "&#xEF0A;"}) {
+                String base = "<m:e><m:box><m:e><m:r><m:t>" + token + "</m:t></m:r></m:e></m:box></m:e>";
+                String sub = "<m:sub><m:r><m:t>6</m:t></m:r></m:sub>";
+                String sup = "<m:sup><m:r><m:t>14</m:t></m:r></m:sup>";
+                String arguments = switch (script) {
+                    case "sSup" -> base + sup;
+                    case "sSub" -> base + sub;
+                    case "sPre" -> sub + sup + base;
+                    default -> base + sub + sup;
+                };
+                String xml = "<m:oMath xmlns:m=\"" + OMML_NS + "\"><m:" + script + ">" + arguments + "</m:" + script
+                        + "><m:r><m:t>C</m:t></m:r></m:oMath>";
+                assertEquals("missing_script_base", MathmlContent.ommlRejectionReason(xml), script + ": " + token);
+            }
+        }
+    }
+
+    @Test
+    void acceptsVisibleScriptBasesInsideBoxesAndStructuralBasesWithoutText() {
+        for (String base : new String[]{
+                "<m:box><m:boxPr><m:noBreak/></m:boxPr><m:e><m:r><m:t>x&#xFE0F;</m:t></m:r></m:e></m:box>",
+                "<m:d><m:dPr><m:begChr m:val=\"(\"/><m:endChr m:val=\")\"/></m:dPr><m:e/></m:d>",
+                "<m:f><m:num><m:r><m:t>1</m:t></m:r></m:num><m:den><m:r><m:t>2</m:t></m:r></m:den></m:f>"}) {
+            String xml = "<m:oMath xmlns:m=\"" + OMML_NS + "\"><m:sSup><m:e>" + base
+                    + "</m:e><m:sup><m:r><m:t>2</m:t></m:r></m:sup></m:sSup></m:oMath>";
+            assertTrue(MathmlContent.hasOmmlRunContent(xml), base);
+        }
+    }
+
+    @Test
     void acceptsCompletePrescriptsAndOptionalEmptyNaryLimits() {
         assertTrue(MathmlContent.hasOmmlRunContent("<m:oMath xmlns:m=\"" + OMML_NS
                 + "\"><m:sPre><m:sub><m:r><m:t>6</m:t></m:r></m:sub>"

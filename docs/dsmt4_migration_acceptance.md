@@ -148,6 +148,13 @@ Still needs_review: the 18 retained objects; hoa037, hoa042, hoa066, hoa067 and 
 Math); toan022/027/090 (gap after the period in S.ABCD in Word); and hoa068, whose
 leading-relation group has no Writer UI sample yet.
 
+Review fixes after merge (2026-11-23, commit `12ed317`). Equation runs now carry the
+source run's `w:vanish` (hidden text stays hidden), and a script base that holds only
+empty or invisible runs, also inside `m:box`, is rejected as `missing_script_base` so the
+OLE is kept. The 32-exam corpus regenerated with the JAR built at that commit is identical
+to the A7 production output in every ZIP part
+(`work/dsmt4-claude-p12-impact-20261123`), so the D4 ledger above is unchanged.
+
 ## Run order
 
 1. Identify the exact chemistry arrow occurrence in its original exam and
