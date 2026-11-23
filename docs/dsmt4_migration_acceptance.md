@@ -135,18 +135,20 @@ LibreOffice Math (three labelled arrows not stretched, two empty-label template 
 drawn short, one bevelled fraction drawn stacked). Editing inside these Writer documents
 (formula selected, edited in the Commands window, saved, closed, reopened) passed for
 sixteen samples covering every structure group except the leading relation; the other
-231 formulas were unchanged.
+231 formulas were unchanged. The leading-relation sample (hoa068) passed on 2026-11-24
+on a fresh copy of the Hóa document; the other 99 Hóa formulas were unchanged.
 
 D4 result (2026-11-23). After a page-by-page review of the Word-saved and reopened copies
 of all four exams, an occurrence is accepted when its output is native OMML, its Word
 display after save and reopen was reviewed without a recorded limitation, its XML is
 unchanged by the Word save, it passed the Writer document check after reopening, and its
 structure group has a UI-verified sample on both Word and the Writer document. Ledger:
-accepted 237 (Hóa 94, Toán 112, TN 22, Lý 9), needs_review 28, failed 0, unsupported 0.
+accepted 237 (Hóa 94, Toán 112, TN 22, Lý 9), needs_review 28, failed 0, unsupported 0;
+after the hoa068 Writer sample (2026-11-24): accepted 238 (Hóa 95), needs_review 27.
 Still needs_review: the 18 retained objects; hoa037, hoa042, hoa066, hoa067 and hoa086
 (arrow presentation limitations); li009 (bevelled fraction drawn stacked in LibreOffice
-Math); toan022/027/090 (gap after the period in S.ABCD in Word); and hoa068, whose
-leading-relation group has no Writer UI sample yet.
+Math); and toan022/027/090 (gap after the period in S.ABCD in Word). hoa068 was
+needs_review until its leading-relation group got a Writer UI sample on 2026-11-24.
 
 Review fixes after merge (2026-11-23, commit `12ed317`). Equation runs now carry the
 source run's `w:vanish` (hidden text stays hidden), and a script base that holds only
