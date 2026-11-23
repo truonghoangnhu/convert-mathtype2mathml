@@ -116,9 +116,22 @@ Word follow-up (2026-11-23). Word pages: 149 → 140 over 29 exams, nine exams o
 page shorter, none longer. No equation in the four DSMT4 exams leaves the text
 column or splits across lines. Word edit/save/reopen on the final output passed
 for six chemistry samples (inline, table cell, left block, charges, labelled arrow,
-leading relation); eleven Lý/TN/Toán samples are not yet run. Accepted stays zero:
-the policy requires Writer verification in the actual document, and no Writer
-document embedding the LibreOffice Math objects exists yet.
+leading relation); eleven Lý/TN/Toán samples are not yet run.
+
+Writer documents (2026-11-23). The four exams were opened in Writer with LibreOffice's
+own MathType conversion off, so every DSMT4 object stayed an OLE frame in place; each
+frame was matched byte-for-byte and by relationship ID to the source (265/265). The 247
+occurrences converted to OMML for Word were replaced by LibreOffice Math objects holding
+their prepared MathML; the 18 retained objects stayed OLE. In the documents, all 247
+formulas equal a standalone import of the same MathML, are unchanged after a Writer save
+and reopen (stable over a second cycle), remain as-character in the same paragraph, and
+the text and frame order match the source conversion; Writer page count is unchanged
+(18). A page-by-page review of the reopened render against the source found no content
+error, overlap or margin overrun. Six occurrences show presentation limitations in
+LibreOffice Math (three labelled arrows not stretched, two empty-label template arrows
+drawn short, one bevelled fraction drawn stacked). Accepted stays zero: per-occurrence
+Word display after save and reopen, Writer in-document UI editing, and the remaining
+Word UI samples are not yet run.
 
 ## Run order
 

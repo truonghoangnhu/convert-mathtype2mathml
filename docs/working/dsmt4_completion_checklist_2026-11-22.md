@@ -2,7 +2,7 @@
 
 **Trạng thái (cập nhật cuối ngày 22/11):** chưa hoàn tất. Corpus vẫn `needs_review`, accepted = 0 (ledger mới: needs_review 265, failed 0).
 - PR #4 đang mở. Converter A1–A4 đã vào production ở commit `b01025c`; CI (generated-output gate) xanh trên `b01025c`.
-- 23/11: B7, B9 xong trên Word; D2 Word mới xong 6 mẫu Hóa (màn hình khoá lại khi sang đề Lý). Không merge: D4 chưa có occurrence nào đủ điều kiện (xem D4).
+- 23/11: B7, B9 xong trên Word; D2 Word mới xong 6 mẫu Hóa (màn hình khoá lại khi sang đề Lý). Đã dựng tài liệu Writer nhúng LibreOffice Math từ MathML cho 4 đề: 241 pass, 6 giới hạn trình bày, 18 OLE giữ. Không merge: D4 vẫn chưa có occurrence nào đủ điều kiện (xem D4).
 
 Ký hiệu: `[ ]` chưa làm · `[~]` đã làm một phần · `[x]` xong.
 Cột **Xong khi** là tiêu chí nghiệm thu, không phải mô tả công việc.
@@ -67,7 +67,9 @@ Chi tiết B8 (quyết định 22/11):
 
 D1 (22/11): `work/dsmt4-claude-d-ledger-20261122/` dựng lại 265 dòng trên output A7 từ ledger 05/11 cộng bằng chứng C1/C2 và quyết định B8/C3. Output: 247 OMML + 18 OLE giữ (5 mới do `INLINE_SPACING_REQUIRES_REVIEW`). Kết quả: accepted 0, needs_review 265, failed 0 (05/11: 219/46). Hết `failed` vì lỗi đã sửa hoặc được ghi giới hạn, **không** vì đã nghiệm thu. D4: chưa occurrence nào đủ bằng chứng accepted.
 
-D2 (23/11, `work/dsmt4-claude-d2-ui-20261123`): Word sửa–lưu–mở lại trên output cuối đạt 6 mẫu Hóa (inline hóa, ô bảng, block trái, điện tích, mũi tên có nhãn, quan hệ đầu). Còn 11 mẫu Lý/TN/Toán chờ màn hình mở khoá. LibreOffice Math UI chỉ có bằng chứng ODT tách riêng (12 ca, input trùng). **Chặn D4:** chính sách yêu cầu kiểm công thức Writer *trong tài liệu thực* và sau mở lại; hiện không có tài liệu Writer nào nhúng đối tượng LO Math (tuyến DOCX của Writer chỉ là giới hạn đã biết), nên `writer_in_document = not_run` cho 265 và accepted giữ 0. Cần quyết định: dựng tài liệu Writer nhúng LO Math, hay sửa tiêu chí Writer trong chính sách.
+D2 (23/11, `work/dsmt4-claude-d2-ui-20261123`): Word sửa–lưu–mở lại trên output cuối đạt 6 mẫu Hóa (inline hóa, ô bảng, block trái, điện tích, mũi tên có nhãn, quan hệ đầu). Còn 11 mẫu Lý/TN/Toán chờ màn hình mở khoá. LibreOffice Math UI chỉ có bằng chứng ODT tách riêng (12 ca, input trùng).
+
+D4 — tài liệu Writer (23/11, `work/dsmt4-claude-d4-writer-doc-20261123`, người dùng chọn dựng tài liệu thay vì nới tiêu chí): 4 đề gốc mở trong Writer với `MathTypeToMath=false`; mỗi OLE (khớp byte và rId với đề gốc, 265/265) có output Word là OMML được thay bằng đối tượng LibreOffice Math chứa MathML đã chuẩn bị (247, trùng byte C2); 18 OLE giữ nguyên. Headless trong tài liệu: 247/247 công thức bằng bản nạp riêng, không đổi sau lưu–mở lại (vòng 2 cũng ổn định), còn as-char ở đúng đoạn, văn bản và thứ tự khung trùng bản gốc; 18 trang vẫn 18. Đã xem cả 18 trang trước/sau: không lỗi nội dung, chồng lấn hay tràn lề. `writer_in_document`: pass 241, known_limitation 6 (hoa037/042/086 mũi tên có nhãn không giãn; hoa066/067 mũi tên template thành `→` ngắn; li009 phân số nghiêng vẽ thành phân số đứng), retained_ole 18. **accepted vẫn 0** vì còn thiếu: hiển thị từng occurrence trên Word sau lưu–mở lại, UI sửa trong tài liệu Writer theo nhóm cấu trúc, và 11 mẫu Word D2 — đều cần màn hình mở khoá.
 
 Các nhóm cấu trúc ở D2:
 - công thức hóa học inline;
@@ -111,7 +113,7 @@ Hiện có từ ngày 05/11:
 2. ~~A6 và B4~~ — đã quyết 22/11 (A6: chấp nhận; B4: không phantom).
 3. ~~A7 (tích hợp)~~ — xong 22/11 (chưa commit).
 4. ~~C1–C3, B8, E, D1, D3~~ — xong 22/11.
-5. ~~B9, B7~~ — xong 23/11. **Còn:** D2 Word 11 mẫu (cần màn hình mở khoá); quyết định tiêu chí Writer cho D4.
+5. ~~B9, B7~~ — xong 23/11. ~~Tài liệu Writer cho D4~~ — dựng và kiểm headless 23/11. **Còn (cần màn hình mở khoá):** D2 Word 11 mẫu; hiển thị từng occurrence trên Word sau lưu–mở lại; UI sửa trong tài liệu Writer theo nhóm.
 6. F: merge chỉ sau D4.
 
 Các mục A và B chặn D, vì ledger phải chạy trên output cuối cùng.

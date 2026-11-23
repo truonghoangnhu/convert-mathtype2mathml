@@ -158,6 +158,11 @@ presentation defects are recorded as limitations rather than acceptance blockers
 labelled arrows drawn at script size, lost left alignment in equation systems, and
 `¿` for a literal backslash such as the set difference `ℝ\{0}`. The last one is
 still an open defect outside the 265-occurrence subset.
+The 2026-11-23 Writer documents for the four DSMT4 exams embed the prepared MathML
+as LibreOffice Math objects at the source OLE positions and verify every converted
+occurrence in the document and after reopening; in that route labelled and
+empty-label template arrows do not stretch and a bevelled fraction is drawn stacked
+(known limitations). UI editing inside those documents is not yet recorded.
 
 Start with the chemistry arrow formula, then reconcile every one of the
 265 MathType occurrences across the five original exams. See
