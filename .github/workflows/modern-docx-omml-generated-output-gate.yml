@@ -16,6 +16,7 @@ on:
       - "src/test/**"
       - "scripts/transpect/mathml_content.py"
       - "scripts/transpect/prepare_libreoffice_mathml.py"
+      - "scripts/transpect/convert_docx_to_omml.sh"
       - "tests/**"
       - "fixtures/mathml_content/**"
   pull_request:
@@ -32,6 +33,7 @@ on:
       - "src/test/**"
       - "scripts/transpect/mathml_content.py"
       - "scripts/transpect/prepare_libreoffice_mathml.py"
+      - "scripts/transpect/convert_docx_to_omml.sh"
       - "tests/**"
       - "fixtures/mathml_content/**"
 

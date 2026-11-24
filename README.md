@@ -240,6 +240,31 @@ java -jar target/docx-html-math-1.0.0-jar-with-dependencies.jar input.docx outpu
 
 This is the migration workflow for legacy OLE/MTEF. Usable sidecars are candidates for review; support depends on verified payload structure and the acceptance checks above.
 
+### Quick macOS command (one DOCX argument)
+
+With Java 17+, Python 3.9+, the built JAR and transpect installed as described
+below, run from any working directory:
+
+```bash
+/absolute/path/to/convert-mathtype2mathml/scripts/transpect/convert_docx_to_omml.sh \
+  "/absolute/path/to/Đề thi.docx"
+```
+
+The wrapper creates `Đề thi-omml.docx` beside the source, or `Đề thi-omml-2.docx`
+and so on if a result already exists. It operates on a private input copy, keeps
+the source unchanged, and stores sidecars plus `conversion.log` in a separate
+`Đề thi-omml-work-…` directory. Read that log for retained OLE and skip reasons.
+If a conversion stage fails, no final DOCX is published. Missing runtime/JAR
+dependencies are reported before any work directory is created.
+
+The wrapper supports both the repository's `target/` JAR layout and the release's
+`lib/docx-html-math.jar` layout. The published `dsmt4-migration-2026.11.24` ZIP
+predates this wrapper: to use it there, copy `convert_docx_to_omml.sh` into the
+ZIP's extracted `scripts/transpect/` directory next to `generate_sidecars.sh`,
+then run it with `bash` or make it executable with `chmod +x`. The existing
+release and its assets are unchanged. Optional environment overrides are
+`DOCX_MATH_JAR`, `MT_DIR`, `XMLCALABASH_JAR` and `SAXON_HE_JAR`.
+
 ### 1) Prepare transpect prerequisites
 
 Recommended layout for this repository:
