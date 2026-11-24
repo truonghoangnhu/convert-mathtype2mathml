@@ -132,6 +132,9 @@ does not mean the source pagination. Native OMML is shorter than the MathType
 OLE preview it replaces (smaller inline fractions, tighter system rows), so
 following content can move up and page breaks can differ from the source. No
 hidden height structures (e.g. empty `m:phant` struts) are added to compensate.
+Explicit system row spacing (`m:rSpRule`/`m:rSp`) is not added either (decision,
+2026-11-24). A Word probe matched the source row step, but the paragraphs stayed
+7–8 pt shorter and no rule could be derived from the source data.
 A conversion is still unacceptable if any text, figure or equation is lost,
 overlaps other content or runs past the margins. Word page counts against the
 source must be measured and any exam that changes page count is listed; the

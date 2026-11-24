@@ -18,7 +18,8 @@ exams. Each occurrence is listed in `work/dsmt4-claude-d-ledger-20261122/ledger.
   (2026-11-24).
 - **Layout (Word, 29 exams):** 149 → 140 pages, 9 exams lose one page, none gains a
   page (B9). There are no overwide or inline-split equations in the four DSMT4
-  exams (B7). Phantom height preservation is not used (B4).
+  exams (B7). Phantom height preservation is not used (B4). Matching MathType system
+  row spacing (B10, optional) was closed without change on 2026-11-24.
 - **Code:** merged to `main` through PRs #4 and #5 (review fixes P1/P2). The
   32-exam output regenerated at `12ed317` is identical to the A7 output.
 
