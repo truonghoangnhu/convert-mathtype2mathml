@@ -21,6 +21,9 @@ recovery path; preserve these objects until faithful decoding is demonstrated.
 
 ## Support and acceptance
 
+Delivery instructions: [DSMT4 release guide](./docs/dsmt4_delivery_guide.md).
+Portable evidence: [versioned 265-occurrence acceptance snapshot](./docs/acceptance/dsmt4-2026-11-24/README.md).
+
 **DSMT4 status (2026-11-24):** of the 265 MathType occurrences in the five original
 exams, 238 are accepted and 27 are `needs_review` (18 retained OLE objects and 9
 recorded presentation limitations). None are failed or unsupported. See the

@@ -1,0 +1,73 @@
+{
+  "snapshot_date": "2026-11-24",
+  "scope": "265 identified MathType occurrences in five original exams; 238 accepted, 18 retained OLE, 9 presentation limitations",
+  "converter_commit": "12ed317",
+  "production_baseline": "out/dsmt4-a7-integration-20261122/corpus/",
+  "post_fix_corpus_comparison": "out/dsmt4-claude-p12-impact-20261123/corpus/report.json",
+  "files": [
+    {
+      "exam": "Li_Nghe_An_L5",
+      "source": "in/Li_Nghe_An_L5.docx",
+      "source_sha256": "8c10388aab89850396946c1a5db9f1ff5094a0954aca617be433deab44f3f40e",
+      "word_output": "out/dsmt4-a7-integration-20261122/corpus/patched/Li_Nghe_An_L5-omml.docx",
+      "word_output_sha256": "4cdea8ca6510e22c97b62cb9269e955c0f362ad1f97609cde02369e7fdbfd698",
+      "ledger_rows": 18
+    },
+    {
+      "exam": "Thi_Thu_TN_CN",
+      "source": "in/Thi_Thu_TN_CN.docx",
+      "source_sha256": "e97ba7550a8aaf56cd68e6242b9a2d4dce5d67c2c1547c18565f22c88aa37471",
+      "word_output": "out/dsmt4-a7-integration-20261122/corpus/patched/Thi_Thu_TN_CN-omml.docx",
+      "word_output_sha256": "e97ba7550a8aaf56cd68e6242b9a2d4dce5d67c2c1547c18565f22c88aa37471",
+      "ledger_rows": 0
+    },
+    {
+      "exam": "Toan_TQB_HN_Lx",
+      "source": "in/Toan_TQB_HN_Lx.docx",
+      "source_sha256": "bc477d2dd60f1bb9d58d3b438adf2be26145bdf122ae8666027b38d4ca5a1361",
+      "word_output": "out/dsmt4-a7-integration-20261122/corpus/patched/Toan_TQB_HN_Lx-omml.docx",
+      "word_output_sha256": "b14c2a8135ff63b60e8111195b40e23b2b551e8ffb6ddf8bb58fc2638266cbaa",
+      "ledger_rows": 115
+    },
+    {
+      "exam": "TN-THPT-2026",
+      "source": "in/TN-THPT-2026.docx",
+      "source_sha256": "195bc2ee27740c1cb22ecb9721f9ac468dc425de57b61f2c5cf9cf0d2ab7eff5",
+      "word_output": "out/dsmt4-a7-integration-20261122/corpus/patched/TN-THPT-2026-omml.docx",
+      "word_output_sha256": "54396dc2658a49fc736da7488b5b8b5c4fe5d7f8620090026eb4ceb6a5c6917b",
+      "ledger_rows": 32
+    },
+    {
+      "exam": "Hoa_Ha_Noi_L1",
+      "source": "in/Hoa_Ha_Noi_L1.docx",
+      "source_sha256": "cc54193ced785512df2f9e2e416a2a8ccaaf9eaf3ddb8148910d60e6ec472a4e",
+      "word_output": "out/dsmt4-a7-integration-20261122/corpus/patched/Hoa_Ha_Noi_L1-omml.docx",
+      "word_output_sha256": "8ea0507e9568834e98b7e05f30d5f792374840064354663fe3e133b34b2b2170",
+      "ledger_rows": 100
+    }
+  ],
+  "external_runtime": {
+    "repository": "https://github.com/transpect/calabash-frontend.git",
+    "commit": "a4cf3ae17cf117100447744e285b92fce9e3699d",
+    "submodules": [
+      "7b243403201dd5fdcc740361760f727c080263bc distro (heads/master)",
+      " 14d28d6a0f1093e7e548fcbd8a30b977994c4145 extensions/transpect/image-props-extension (heads/master)",
+      " 2a8a110f2f76fc2ff45082843b0f7941b1e43d18 extensions/transpect/image-transform-extension (heads/master)",
+      " f57c9429f882bcc510fd5dad7465aada4938f7d6 extensions/transpect/mathtype-extension (f57c942)",
+      " 6bd746055356c822fc00c646511e4dff9af1a454 extensions/transpect/rng-extension (heads/master)",
+      " c2e0fa8f0e6516cfdfad5a6eadb72814672c4daf extensions/transpect/svn-extension (heads/master)",
+      " d867e2eea5d79b77f35f084dfe56a2b9f08c3096 extensions/transpect/unzip-extension (heads/master)"
+    ],
+    "jar_files": [
+      {
+        "path": "distro/xmlcalabash-1.4.1-100.jar",
+        "sha256": "8229e5d000996f3828f6854a5a7b2fb7d64755780f02cbc4cdc2b74fecedb808"
+      },
+      {
+        "path": "distro/lib/Saxon-HE-10.8.jar",
+        "sha256": "2b91447ca85707f779e3ae4a7986158c308cf4f313cf05a98b320ced8a56fc54"
+      }
+    ]
+  },
+  "local_application_evidence": "Word and Writer UI observations are recorded in acceptance documentation; original exam documents, full render sets and external runtime are local artifacts, not part of this repository snapshot."
+}
