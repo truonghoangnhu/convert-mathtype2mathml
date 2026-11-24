@@ -12,8 +12,10 @@
 - [x] Close D2 and D4 as completed assessment with explicit exceptions; replace the ignored ledger reference with the versioned snapshot.
 - [x] Add concise delivery instructions and a reproducible bundle command containing the built JAR, scripts, documentation, sample fixtures, provenance and checksums.
 - [x] Run Maven, both Python suites, generated-output gate and modern smoke; extract the bundle into a fresh directory with spaces and run Word patch and LibreOffice Math preparation examples there.
-- [ ] Review, commit, push, merge the delivery PR after required checks pass, then tag and publish `dsmt4-migration-2026.11.24` with the verified bundle, standalone JAR and checksums.
+- [x] Review, commit, push, merge the delivery PR after required checks pass, then tag and publish `dsmt4-migration-2026.11.24` with the verified bundle, standalone JAR and checksums.
 
 Completion means the release assets are downloadable and their hashes match the locally tested artifacts. Acceptance applies only to the identified five-exam subset; this release does not claim complete conversion or Writer DOCX parity.
 
 Review: an independent reviewer reconciled all 265 rows and the 27 exceptions. The root START_HERE link was corrected to point to the guide under docs/.
+
+**Closed — 2026-11-24:** The DSMT4 project is closed within the current acceptance scope: 265 assessed occurrences in the five original exams, with 238 accepted and 27 needs_review (18 retained OLE objects and 9 documented presentation limitations). [Delivery PR #11](https://github.com/truonghoangnhu/convert-mathtype2mathml/pull/11) was merged at `328ddf0`, and [release dsmt4-migration-2026.11.24](https://github.com/truonghoangnhu/convert-mathtype2mathml/releases/tag/dsmt4-migration-2026.11.24) was published. Final review verified the downloaded assets, checksums, acceptance snapshot and clean-directory examples. Broader corpus acceptance, complete conversion and Writer DOCX parity remain outside this closure. This documentation-only closeout does not rebuild or change the release or its tag.
