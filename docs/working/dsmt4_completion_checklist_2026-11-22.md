@@ -64,9 +64,9 @@ Chi tiết B8 (quyết định 22/11):
 | # | Việc | Xong khi |
 |---|---|---|
 | D1 `[x]` | Dựng lại ledger trên output production cuối cùng (sau A và B): render đề đầy đủ bằng Word và Writer, tách đoạn, ghi tiêu chí từng occurrence | Ledger mới; 0 occurrence chưa có trạng thái |
-| D2 `[~]` | Sửa–lưu–đóng–mở lại qua UI, theo **từng nhóm cấu trúc**, trên Word, Writer DOCX và LibreOffice Math/ODT | Mỗi nhóm có ít nhất một mẫu đạt trên mỗi tuyến bắt buộc |
-| D3 `[x]` | Với những gì chưa chạy, ghi `not_run`; không suy rộng từ mẫu | `ui_edit_reopen_final_output = not_run` cho 265 |
-| D4 `[~]` | Chuyển sang `accepted` chỉ những occurrence đạt đủ nội dung, khả năng sửa, vị trí và hiển thị sau khi mở lại | Đối chiếu tổng accepted + needs_review + failed + unsupported = 265 |
+| D2 `[x]` | Sửa–lưu–đóng–mở lại qua UI theo **từng nhóm cấu trúc** trên các tuyến bắt buộc | Đủ 13 nhóm: 17 mẫu Word và 17 mẫu trong tài liệu Writer/LibreOffice Math; hoa068 đã được Codex kiểm chứng độc lập. Writer DOCX không bắt buộc theo C3 |
+| D3 `[x]` | Với những gì chưa chạy, giữ `not_run`; không suy rộng thành đã sửa từng occurrence | Ledger giữ riêng các cột UI từng occurrence và bằng chứng theo nhóm; không tuyên bố 265/265 đã được sửa qua UI |
+| D4 `[x]` | Hoàn tất đánh giá đủ 265 occurrence; chỉ chuyển `accepted` khi đạt đủ tiêu chí | 238 accepted + 27 needs_review = 265; 18 OLE giữ và 9 giới hạn trình bày được ghi riêng, không ép accepted |
 
 D1 (22/11): `work/dsmt4-claude-d-ledger-20261122/` dựng lại 265 dòng trên output A7 từ ledger 05/11 cộng bằng chứng C1/C2 và quyết định B8/C3. Output: 247 OMML + 18 OLE giữ (5 mới do `INLINE_SPACING_REQUIRES_REVIEW`). Kết quả: accepted 0, needs_review 265, failed 0 (05/11: 219/46). Hết `failed` vì lỗi đã sửa hoặc được ghi giới hạn, **không** vì đã nghiệm thu. D4: chưa occurrence nào đủ bằng chứng accepted.
 

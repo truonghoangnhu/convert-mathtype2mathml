@@ -6,7 +6,11 @@ This procedure implements [the support policy](./support_scope_policy.md).
 ## Final status (2026-11-24)
 
 This is the closing snapshot for the 265 MathType occurrences in the five original
-exams. Each occurrence is listed in `work/dsmt4-claude-d-ledger-20261122/ledger.csv`.
+exams. Each occurrence is listed in the versioned
+[265-row ledger](./acceptance/dsmt4-2026-11-24/ledger.csv); the
+[snapshot index](./acceptance/dsmt4-2026-11-24/README.md) includes all 27 exceptions,
+summary counts and source/output/runtime provenance. The original working ledger
+remains at `work/dsmt4-claude-d-ledger-20261122/ledger.csv` locally.
 
 - **accepted 238** (Hóa 95, Toán 112, TN 22, Lý 9), **needs_review 27**, failed 0,
   unsupported 0. Of the 27, 18 are retained OLE objects and 9 have a recorded
