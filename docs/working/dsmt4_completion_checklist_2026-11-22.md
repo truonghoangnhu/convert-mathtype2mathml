@@ -1,6 +1,7 @@
 # Checklist hoàn tất DSMT4 — 2026-11-22
 
 **Trạng thái (cập nhật 24/11):** Ledger 265: **accepted 238** (Hóa 95, Toán 112, TN 22, Lý 9), needs_review 27 (18 OLE giữ + 9 giới hạn trình bày), failed 0, unsupported 0.
+- 24/11: PR #6 (gom ghi chú vào `dsmt4-history/`), #7 (hoa068 Writer, 238 accepted), #8 (xác minh độc lập hoa068 của Codex) đã merge.
 - PR #4 đã merge vào `main` ngày 23/11 (merge commit `6dcccb1`; CI generated-output gate xanh trên `0fc3eec`).
 - 23/11: B7, B9 xong trên Word; D2 Word mới xong 6 mẫu Hóa (màn hình khoá lại khi sang đề Lý). Đã dựng tài liệu Writer nhúng LibreOffice Math từ MathML cho 4 đề: 241 pass, 6 giới hạn trình bày, 18 OLE giữ. Sau đó D4 có 237 accepted (xem D4) và PR #4 được merge.
 - 23/11, sau merge: commit `12ed317` sửa hai lỗi review (P1: giữ `w:vanish` của run nguồn trên mọi run của phương trình; P2: từ chối base của chỉ số trên/dưới chỉ chứa run rỗng hoặc ký tự vô hình, kể cả qua `m:box`). Chạy lại 32 đề bằng jar build tại `12ed317` (`work/dsmt4-claude-p12-impact-20261123`): output giống hệt A7 ở mọi phần ZIP, nên ledger 237/28 không đổi. Bản sửa vào `main` qua PR riêng.
@@ -96,12 +97,12 @@ Hiện có từ ngày 05/11:
 
 - `[x]` 18 OLE giữ nguyên trong bộ 5 đề (331 trên toàn corpus), gồm hai OLE Lý ¶91. **Chốt (22/11):** giữ nguyên OLE là kết quả bảo toàn hợp lệ theo hợp đồng thất bại (`needs_review`/`unsupported`), không phải conversion; không mở rộng chuyển đổi trong PR này.
 - `[x]` `FULL_END_ONLY` vẫn `unsupported`. Chỉ thay đổi khi có đường giải mã trung thực.
-- `[x]` Ngưỡng chấp nhận cho trình bày: theo "Layout tolerance" (B4) và giới hạn B8 trong `support_scope_policy.md`. Số trang Word toàn corpus vẫn chờ B9.
+- `[x]` Ngưỡng chấp nhận cho trình bày: theo "Layout tolerance" (B4) và giới hạn B8 trong `support_scope_policy.md`. Số trang Word: B9 xong 23/11 (29 đề, 149 → 140 trang).
 
 ## F. Đóng project
 
 - `[x]` Dọn `docs/working`: 24/11 gom 105 ghi chú từng vòng (claude_*/codex_*/dsmt4_*) vào `docs/working/dsmt4-history/` có mục lục; sửa đường dẫn tham chiếu trong README và docs; không xoá file nào.
-- `[ ]` Cập nhật `docs/dsmt4_migration_acceptance.md`, `docs/support_scope_policy.md`, README theo snapshot cuối.
+- `[x]` Cập nhật `docs/dsmt4_migration_acceptance.md`, `docs/support_scope_policy.md`, README theo snapshot cuối (24/11: mục "Final status (2026-11-24)" trong acceptance; README và policy dẫn tới mục đó; các đoạn cũ giữ làm lịch sử).
 - `[x]` Commit, push, chờ CI xanh trên đúng commit cuối (`0fc3eec` xanh trước khi merge PR #4).
 - `[x]` Cập nhật mô tả PR #4. Tách rõ phần đã kiểm với phần giới hạn.
 - `[x]` Merge chỉ sau khi D4 và E có kết quả rõ ràng (PR #4 merge 23/11, merge commit `6dcccb1`).

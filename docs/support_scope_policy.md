@@ -172,6 +172,9 @@ a3.1 review archive identifies the five exams; all 265 BIN occurrences match
 the original sources byte-for-byte and in order in the archive's unshuffled
 variants. See [the subset reconciliation](./working/dsmt4-history/dsmt4_five_exam_reconciliation_2026-11-05.md).
 This closes identification and count reconciliation, not semantic or application acceptance.
+Application acceptance of that subset came later, from the D4 review (2026-11-23/24):
+238 accepted and 27 needs_review. See the final status in
+[the acceptance procedure](./dsmt4_migration_acceptance.md#final-status-2026-11-24).
 
 Counting embedded objects is not patching them. Objects the patcher does not
 walk (content controls, text boxes, other containers, headers, footers, notes)
@@ -185,7 +188,9 @@ groups the leading operator only for newly converted inline `>number°C` math
 with the tested numeric-degree/unit structure. Its nonempty invisible delimiter
 adds no operand or character. Word and Writer probes preserve the operator after
 saving/reopening; this does not establish support for arbitrary leading relations,
-full-exam layout or native/display-math changes. Corpus status remains `needs_review`.
+full-exam layout or native/display-math changes. Outside the 265-occurrence subset,
+corpus status remains `needs_review`. The subset occurrence hoa068 was accepted on
+2026-11-24, after UI samples on both Word and the Writer document.
 
 ## FULL_END_ONLY investigation
 

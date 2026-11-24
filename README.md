@@ -21,6 +21,14 @@ recovery path; preserve these objects until faithful decoding is demonstrated.
 
 ## Support and acceptance
 
+**DSMT4 status (2026-11-24):** of the 265 MathType occurrences in the five original
+exams, 238 are accepted and 27 are `needs_review` (18 retained OLE objects and 9
+recorded presentation limitations). None are failed or unsupported. See the
+[final status](./docs/dsmt4_migration_acceptance.md#final-status-2026-11-24).
+Elsewhere in the 32-exam corpus, converted equations remain `needs_review`. The
+dated notes below are historical, and the "pending" or "open" items in them were
+closed by that review.
+
 See [support policy](./docs/support_scope_policy.md) for the canonical boundary
 and [real-source acceptance](./docs/dsmt4_migration_acceptance.md) for the
 chemistry arrow first, then all **265 MathType occurrences in five exams**.
