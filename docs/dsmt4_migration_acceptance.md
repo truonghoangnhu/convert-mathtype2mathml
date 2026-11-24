@@ -3,7 +3,31 @@
 DSMT4 migration is active; verified decoding scope remains evidence-based.
 This procedure implements [the support policy](./support_scope_policy.md).
 
-## Current evidence (2026-11-06)
+## Final status (2026-11-24)
+
+This is the closing snapshot for the 265 MathType occurrences in the five original
+exams. Each occurrence is listed in `work/dsmt4-claude-d-ledger-20261122/ledger.csv`.
+
+- **accepted 238** (Hóa 95, Toán 112, TN 22, Lý 9), **needs_review 27**, failed 0,
+  unsupported 0. Of the 27, 18 are retained OLE objects and 9 have a recorded
+  presentation limitation; the list is in the D4 result below.
+- **Output:** 247 occurrences are native OMML and 18 keep the source OLE. Writer
+  document check after reopening: 241 pass, 6 known limitations, 18 retained OLE.
+- **UI edit/save/reopen:** 17 samples on Word and 17 inside the Writer documents.
+  Together they cover every structure group. hoa068 was also verified independently
+  (2026-11-24).
+- **Layout (Word, 29 exams):** 149 → 140 pages, 9 exams lose one page, none gains a
+  page (B9). There are no overwide or inline-split equations in the four DSMT4
+  exams (B7). Phantom height preservation is not used (B4).
+- **Code:** merged to `main` through PRs #4 and #5 (review fixes P1/P2). The
+  32-exam output regenerated at `12ed317` is identical to the A7 output.
+
+Scope: acceptance covers these 265 occurrences only. Elsewhere in the 32-exam corpus,
+converted equations remain `needs_review` and `FULL_END_ONLY` remains `unsupported`.
+Sections dated before 2026-11-22 are kept as historical evidence. Statements there
+that something is "open" or "pending" are superseded by this section.
+
+## Evidence snapshot (2026-11-06, historical)
 
 The expanded `in/` corpus now contains 32 DOCX files, 2,617 DSMT4 occurrences
 and 27 native OMML equations. The external runtime has been installed locally.
