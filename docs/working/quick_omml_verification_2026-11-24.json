@@ -1,0 +1,23 @@
+{
+  "date": "2026-11-24",
+  "script": "scripts/transpect/convert_docx_to_omml.sh",
+  "interface": "one DOCX path; automatic sidecars and adjacent Word OMML output",
+  "source": "in/Toan_TQB_HN_Lx.docx",
+  "output": "in/Toan_TQB_HN_Lx-omml.docx",
+  "source_sha256": "bc477d2dd60f1bb9d58d3b438adf2be26145bdf122ae8666027b38d4ca5a1361",
+  "output_sha256": "db46444e1155cf4cd25d999e75c622779850f72de4beb3742af216d1db137a82",
+  "source_unchanged": true,
+  "prose_text_unchanged": true,
+  "output_zip_valid": true,
+  "converted": {
+    "total": 115,
+    "inline": 110,
+    "block": 5,
+    "unresolved": 0,
+    "retained_ole": 0
+  },
+  "production_baseline": "out/dsmt4-a7-integration-20261122/corpus/patched/Toan_TQB_HN_Lx-omml.docx",
+  "differing_zip_parts": [],
+  "wrapper_regression_cases": 6,
+  "scope": "Technical wrapper verification, not new Word UI or per-occurrence acceptance. The existing 238/27 acceptance ledger and published release assets are unchanged. Original documents and conversion work files remain local ignored artifacts."
+}
