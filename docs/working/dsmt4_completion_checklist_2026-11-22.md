@@ -1,6 +1,7 @@
 # Checklist hoàn tất DSMT4 — 2026-11-22
 
 **Trạng thái (cập nhật 24/11):** Ledger 265: **accepted 238** (Hóa 95, Toán 112, TN 22, Lý 9), needs_review 27 (18 OLE giữ + 9 giới hạn trình bày), failed 0, unsupported 0.
+- 24/11: B10 đóng, không làm (chủ dự án quyết định). Checklist không còn mục mở.
 - 24/11: PR #6 (gom ghi chú vào `dsmt4-history/`), #7 (hoa068 Writer, 238 accepted), #8 (xác minh độc lập hoa068 của Codex) đã merge.
 - PR #4 đã merge vào `main` ngày 23/11 (merge commit `6dcccb1`; CI generated-output gate xanh trên `0fc3eec`).
 - 23/11: B7, B9 xong trên Word; D2 Word mới xong 6 mẫu Hóa (màn hình khoá lại khi sang đề Lý). Đã dựng tài liệu Writer nhúng LibreOffice Math từ MathML cho 4 đề: 241 pass, 6 giới hạn trình bày, 18 OLE giữ. Sau đó D4 có 237 accepted (xem D4) và PR #4 được merge.
@@ -39,7 +40,7 @@ Các run 18–21/11 chỉ là chẩn đoán, chưa có thay đổi converter.
 | B5 `—` | ~~Thiết kế phantom cho mọi công thức~~ | Không áp dụng theo B4 | — |
 | B6 `—` | ~~Triển khai phantom~~ | Không áp dụng theo B4 | — |
 | B9 `[x]` | Đo số trang trên **Word** cho 29 đề có công thức chuyển đổi (nguồn và output), theo tiêu chí của B4 | Mới có 6 đề trên Word: giữ số trang, điểm ngắt trang khác. Bản sao 29 cặp đã chuẩn bị ở `work/dsmt4-claude-b9-word-pages-20261122/` (`exams.json`); 23/11: **Word 149 → 140 trang; 9/29 đề mất 1 trang** (Hóa Bắc Ninh 12→11, Lý TN L2, TN Hóa, TN Hóa lần 2, Toán Tuyên Quang 7→6, Toán 02, Toán Phú Thọ, Toán TQB 4→3, VL Ninh Bình); không đề nào tăng (`word-pages.json`). (Trước đây ghi 28; thực tế 29 đề) | Có bảng số trang Word cho 28 đề; đề nào mất trang được ghi cụ thể |
-| B10 `[ ]` | (Tuỳ chọn, không chặn) Chỉnh khoảng cách hàng của 25 hệ phương trình cho gần MathType (A+) | Codex 18/11: xử lý phần lớn chênh lệch của hệ, còn thiếu ~8 pt; chưa có quy tắc tổng quát | Có quy tắc từ dữ liệu nguồn, test đỏ → xanh, đo trên Word |
+| B10 `—` | ~~(Tuỳ chọn, không chặn) Chỉnh khoảng cách hàng của 25 hệ phương trình cho gần MathType (A+)~~ | Codex 18/11 (`work/dsmt4-codex-word-system-split-20261118`): khi thêm `m:rSpRule=3`, `m:rSp` 371/368 (chỉnh tay cho từng đề), bước giữa hai hàng đạt 18,48 pt, nguồn là 18,5 pt, output hiện tại 12,7–14,2 pt. Nhưng đoạn chứa hệ vẫn thấp hơn nguồn 7,4–8,2 pt và chưa có quy tắc tổng quát. 4/25 hệ thuộc bộ 265 (toan013–016, đều accepted); sửa thì phải đo lại các hệ này trên Word | **Đóng, không làm (chủ dự án, 24/11):** theo B4, phân trang lệch đã được chấp nhận. Lợi ích chỉ là thu hẹp một phần độ lệch, trong khi phải mở lại bằng chứng của 4 occurrence đã accepted |
 | B7 `[x]` | Công thức quá rộng và phân trang toàn đề sau box `noBreak` (toan086 đã đạt trên probe) | `dsmt4-history/codex_dsmt4_nobreak_2026-11-06.md`; `work/dsmt4-claude-b7-word-overwide-20261123` (23/11): khung AX của mọi công thức trên Word, 4 đề: **0 tràn lề, 0 công thức inline bị ngắt dòng** | Toàn bộ 4 đề có DSMT4 không còn công thức bị ngắt hoặc tràn lề |
 | B8 `[x]` | Các lỗi Word đã thấy ngày 05/11 | `claude_dsmt4_acceptance_final_…T1448.md` | **Đã quyết (22/11, theo uỷ quyền của chủ dự án): cả năm mục ghi là giới hạn đã biết, không sửa converter trong PR này** (chi tiết dưới) |
 
