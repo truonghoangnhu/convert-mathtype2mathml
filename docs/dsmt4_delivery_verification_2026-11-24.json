@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-24",
+  "tested_source_commit": "a433df18c4d9385632d21be58f88e29cf893d8f2",
+  "converter_changes_since_12ed317": false,
+  "java_tests": {
+    "tests": 155,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "python_tests": {
+    "tests": 144,
+    "failures": 0
+  },
+  "workflow_tests": {
+    "tests": 4,
+    "failures": 0
+  },
+  "generated_output_gate": {
+    "cases": 4,
+    "passed": 4,
+    "failed": 0,
+    "structural_failed_checks": 0
+  },
+  "modern_smoke": "passed; malformed negative fixture failed as expected, no unexpected failure",
+  "jar_sha256": "368a64e85da70ea2aab200f7a709d76428a07171b3c71650329ebcb0dc753729",
+  "candidate_zip_sha256": "0da565b6ac560803764fe9d67f2383f8020d3d20fa8a4039dbedf4c399031aed",
+  "clean_directory_verification": {
+    "directory_contains_spaces": true,
+    "all_internal_checksums": "pass",
+    "native_omml_sample": "unchanged DOCX bytes",
+    "libreoffice_math_preparation": "exit 0; prepared arrow MathML created",
+    "real_hoa_source": {
+      "sidecars": "generated from original input using recorded external runtime, not copied from the working cache",
+      "patch": "100 occurrences converted: 8 block, 92 inline, unresolved 0",
+      "source_bytes": "unchanged",
+      "baseline_comparison": "all ZIP member names, binary contents and canonical XML parts match the A7 production Hóa DOCX"
+    }
+  },
+  "builder_negative_checks": {
+    "tracked_working_tree_edits": "rejected with exit 2",
+    "existing_output_files": "rejected with exit 2"
+  },
+  "release_asset_verification": "The published archive may contain subsequent documentation-only commits. Its source revision and JAR hash are in BUILD_INFO.json; downloaded assets are verified with the release SHA256SUMS file.",
+  "scope": "Technical delivery checks, not new semantic or application acceptance."
+}

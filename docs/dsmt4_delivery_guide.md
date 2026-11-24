@@ -4,6 +4,8 @@ Release tag: `dsmt4-migration-2026.11.24`.
 
 The delivery ZIP contains a runnable JAR, the sidecar/preparation scripts, sample fixtures, all repository documentation, the versioned acceptance snapshot, `BUILD_INFO.json` and `SHA256SUMS`. The external transpect decoder and original exam documents are not included.
 
+The [delivery verification record](dsmt4_delivery_verification_2026-11-24.json) records the clean-directory checks, including real Hóa sidecar regeneration and a complete DOCX ZIP-part comparison against the production baseline.
+
 ## Requirements
 
 - Java 17 or newer to run the JAR; Maven 3.9+ only when building from source.
